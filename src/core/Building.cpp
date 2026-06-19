@@ -119,6 +119,10 @@ std::string_view blocking_reason_text(BlockingReason reason)
         return "output storage full";
     case BlockingReason::MissingBread:
         return "missing bread";
+    case BlockingReason::WaitingForHauler:
+        return "waiting for hauler";
+    case BlockingReason::NoReachableSource:
+        return "no reachable source";
     }
     return "unknown";
 }

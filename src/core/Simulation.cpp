@@ -2,15 +2,32 @@
 
 #include <algorithm>
 #include <stdexcept>
+#include <tuple>
 
 namespace vibecity {
 namespace {
+
+constexpr int house_food_priority = 100;
+constexpr int recipe_input_priority = 80;
+constexpr int storehouse_pull_priority = 10;
+constexpr Quantity house_bread_target = 10;
 
 bool has_any(const ResourceArray& amounts)
 {
     return std::any_of(amounts.begin(), amounts.end(), [](Quantity quantity) {
         return quantity != 0;
     });
+}
+
+bool recipe_outputs_resource(const BuildingDefinition& definition, ResourceId resource)
+{
+    return definition.recipe.has_value() && definition.recipe->outputs[resource_index(resource)] > 0;
+}
+
+bool request_order(const ResourceRequest& left, const ResourceRequest& right)
+{
+    return std::tuple{-left.priority, left.destination, resource_index(left.resource)}
+        < std::tuple{-right.priority, right.destination, resource_index(right.resource)};
 }
 
 }
@@ -44,6 +61,11 @@ const BuildingInstance& Simulation::building(BuildingId id) const
 const std::vector<BuildingInstance>& Simulation::buildings() const
 {
     return buildings_;
+}
+
+const std::vector<TransportJob>& Simulation::transport_jobs() const
+{
+    return transport_jobs_;
 }
 
 void Simulation::set_residents(BuildingId id, int residents)
@@ -85,6 +107,7 @@ void Simulation::assign_workers()
         available_workers -= assigned;
     }
 
+    idle_workers_ = available_workers;
     worker_assignment_dirty_ = false;
 }
 
@@ -94,6 +117,11 @@ void Simulation::tick()
         assign_workers();
     }
 
+    if (current_tick_ % logistics_dispatch_interval == 0) {
+        dispatch_logistics();
+    }
+
+    advance_transport_jobs();
     run_production();
 
     ++current_tick_;
@@ -123,6 +151,16 @@ int Simulation::current_day() const
 Tick Simulation::minute_of_day() const
 {
     return current_tick_ % ticks_per_day;
+}
+
+int Simulation::idle_workers() const
+{
+    return idle_workers_;
+}
+
+int Simulation::available_haulers() const
+{
+    return std::max(0, idle_workers_ - static_cast<int>(transport_jobs_.size()));
 }
 
 ResourceArray Simulation::total_inventory() const
@@ -186,6 +224,104 @@ void Simulation::run_production()
     }
 }
 
+void Simulation::dispatch_logistics()
+{
+    auto requests = collect_resource_requests();
+    std::sort(requests.begin(), requests.end(), request_order);
+
+    for (const auto& request : requests) {
+        if (available_haulers() <= 0) {
+            if (auto* destination = find_building(request.destination)) {
+                destination->blocking_reason = BlockingReason::WaitingForHauler;
+            }
+            return;
+        }
+
+        auto* destination = find_building(request.destination);
+        auto* source = find_source_for_request(request);
+        if (destination == nullptr) {
+            continue;
+        }
+
+        if (source == nullptr) {
+            if (request.priority == storehouse_pull_priority) {
+                continue;
+            }
+            if (destination->blocking_reason == BlockingReason::MissingInput
+                || destination->blocking_reason == BlockingReason::MissingBread
+                || destination->blocking_reason == BlockingReason::None) {
+                destination->blocking_reason = BlockingReason::NoReachableSource;
+            }
+            continue;
+        }
+
+        const auto quantity = std::min({
+            request.quantity,
+            source->inventory.available(request.resource),
+            destination->inventory.free_capacity(request.resource),
+            prototype_hauler_capacity
+        });
+
+        if (quantity <= 0) {
+            continue;
+        }
+
+        if (!create_transport_job(*source, *destination, request.resource, quantity)) {
+            destination->blocking_reason = BlockingReason::WaitingForHauler;
+        }
+    }
+}
+
+void Simulation::advance_transport_jobs()
+{
+    for (auto& job : transport_jobs_) {
+        if (job.state == TransportJobState::Complete || job.state == TransportJobState::Failed) {
+            continue;
+        }
+
+        if (job.ticks_remaining > 0) {
+            --job.ticks_remaining;
+        }
+
+        if (job.ticks_remaining > 0) {
+            continue;
+        }
+
+        if (job.state == TransportJobState::GoingToPickup) {
+            auto* source = find_building(job.source);
+            auto* destination = find_building(job.destination);
+            if (source == nullptr || destination == nullptr
+                || !source->inventory.consume_reserved_outgoing(job.resource, job.quantity)) {
+                if (destination != nullptr) {
+                    destination->inventory.release_incoming(job.resource, job.quantity);
+                }
+                job.state = TransportJobState::Failed;
+                continue;
+            }
+
+            job.state = TransportJobState::CarryingGoods;
+            job.ticks_remaining = prototype_transport_leg_minutes;
+            continue;
+        }
+
+        if (job.state == TransportJobState::CarryingGoods) {
+            auto* destination = find_building(job.destination);
+            if (destination == nullptr || !destination->inventory.commit_reserved_incoming(job.resource, job.quantity)) {
+                job.state = TransportJobState::Failed;
+                continue;
+            }
+
+            destination->blocking_reason = BlockingReason::None;
+            stats_.transported[resource_index(job.resource)] += job.quantity;
+            job.state = TransportJobState::Complete;
+        }
+    }
+
+    std::erase_if(transport_jobs_, [](const TransportJob& job) {
+        return job.state == TransportJobState::Complete || job.state == TransportJobState::Failed;
+    });
+}
+
 void Simulation::consume_daily_bread()
 {
     for (auto& instance : buildings_) {
@@ -208,6 +344,149 @@ void Simulation::consume_daily_bread()
             instance.blocking_reason = BlockingReason::None;
         }
     }
+}
+
+std::vector<ResourceRequest> Simulation::collect_resource_requests() const
+{
+    auto requests = std::vector<ResourceRequest>{};
+
+    for (const auto& instance : buildings_) {
+        const auto& definition = building_definition(instance.kind);
+
+        if (definition.consumes_bread && instance.residents > 0) {
+            const auto projected_bread = projected_quantity(instance, ResourceId::Bread);
+            if (projected_bread < house_bread_target) {
+                requests.push_back(ResourceRequest{
+                    .destination = instance.id,
+                    .resource = ResourceId::Bread,
+                    .quantity = house_bread_target - projected_bread,
+                    .priority = house_food_priority
+                });
+            }
+        }
+
+        if (definition.recipe.has_value()) {
+            const auto& recipe = *definition.recipe;
+            for (std::size_t index = 0; index < resource_count; ++index) {
+                const auto resource = static_cast<ResourceId>(index);
+                if (recipe.inputs[index] <= 0) {
+                    continue;
+                }
+
+                const auto target = instance.inventory.capacity(resource);
+                const auto projected = projected_quantity(instance, resource);
+                if (target > 0 && projected < target) {
+                    requests.push_back(ResourceRequest{
+                        .destination = instance.id,
+                        .resource = resource,
+                        .quantity = target - projected,
+                        .priority = recipe_input_priority
+                    });
+                }
+            }
+        }
+
+        if (instance.kind == BuildingKind::Storehouse) {
+            for (std::size_t index = 0; index < resource_count; ++index) {
+                const auto resource = static_cast<ResourceId>(index);
+                const auto target = instance.inventory.capacity(resource);
+                const auto projected = projected_quantity(instance, resource);
+                if (target > 0 && projected < target) {
+                    requests.push_back(ResourceRequest{
+                        .destination = instance.id,
+                        .resource = resource,
+                        .quantity = target - projected,
+                        .priority = storehouse_pull_priority
+                    });
+                }
+            }
+        }
+    }
+
+    return requests;
+}
+
+BuildingInstance* Simulation::find_source_for_request(const ResourceRequest& request)
+{
+    auto* best = static_cast<BuildingInstance*>(nullptr);
+
+    for (auto& candidate : buildings_) {
+        if (candidate.id == request.destination || !can_source_resource(candidate, request.resource)) {
+            continue;
+        }
+
+        if (candidate.inventory.available(request.resource) <= 0) {
+            continue;
+        }
+
+        if (best == nullptr || candidate.id < best->id) {
+            best = &candidate;
+        }
+    }
+
+    return best;
+}
+
+const BuildingInstance* Simulation::find_source_for_request(const ResourceRequest& request) const
+{
+    auto* best = static_cast<const BuildingInstance*>(nullptr);
+
+    for (const auto& candidate : buildings_) {
+        if (candidate.id == request.destination || !can_source_resource(candidate, request.resource)) {
+            continue;
+        }
+
+        if (candidate.inventory.available(request.resource) <= 0) {
+            continue;
+        }
+
+        if (best == nullptr || candidate.id < best->id) {
+            best = &candidate;
+        }
+    }
+
+    return best;
+}
+
+bool Simulation::can_source_resource(const BuildingInstance& source, ResourceId resource) const
+{
+    if (source.kind == BuildingKind::House) {
+        return false;
+    }
+
+    if (source.kind == BuildingKind::Storehouse) {
+        return true;
+    }
+
+    return recipe_outputs_resource(building_definition(source.kind), resource);
+}
+
+Quantity Simulation::projected_quantity(const BuildingInstance& building, ResourceId resource) const
+{
+    return building.inventory.quantity(resource) + building.inventory.reserved_incoming(resource);
+}
+
+bool Simulation::create_transport_job(BuildingInstance& source, BuildingInstance& destination, ResourceId resource, Quantity quantity)
+{
+    if (!source.inventory.reserve_outgoing(resource, quantity)) {
+        return false;
+    }
+
+    if (!destination.inventory.reserve_incoming(resource, quantity)) {
+        source.inventory.release_outgoing(resource, quantity);
+        return false;
+    }
+
+    transport_jobs_.push_back(TransportJob{
+        .id = next_transport_job_id_++,
+        .resource = resource,
+        .quantity = quantity,
+        .source = source.id,
+        .destination = destination.id,
+        .state = TransportJobState::GoingToPickup,
+        .ticks_remaining = prototype_transport_leg_minutes
+    });
+    return true;
 }
 
 bool Simulation::start_recipe(BuildingInstance& building, const Recipe& recipe)
@@ -275,6 +554,21 @@ bool Simulation::has_recipe_output_capacity(const BuildingInstance& building, co
         }
     }
     return true;
+}
+
+std::string_view transport_job_state_name(TransportJobState state)
+{
+    switch (state) {
+    case TransportJobState::GoingToPickup:
+        return "going to pickup";
+    case TransportJobState::CarryingGoods:
+        return "carrying goods";
+    case TransportJobState::Complete:
+        return "complete";
+    case TransportJobState::Failed:
+        return "failed";
+    }
+    return "unknown";
 }
 
 }

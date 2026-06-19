@@ -23,7 +23,9 @@ enum class BlockingReason : std::uint8_t {
     NotEnoughWorkers,
     MissingInput,
     OutputStorageFull,
-    MissingBread
+    MissingBread,
+    WaitingForHauler,
+    NoReachableSource
 };
 
 struct Recipe {

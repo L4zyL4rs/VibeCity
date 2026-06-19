@@ -74,6 +74,48 @@ void house_records_hunger_when_bread_is_missing()
     assert(simulation.stats().consumed[vibecity::resource_index(vibecity::ResourceId::Bread)] == 2);
 }
 
+void logistics_delivers_bread_from_storehouse_to_house()
+{
+    vibecity::Simulation simulation;
+
+    const auto house = simulation.add_building(vibecity::BuildingKind::House);
+    const auto storehouse = simulation.add_building(vibecity::BuildingKind::Storehouse);
+
+    simulation.set_residents(house, 5);
+    simulation.building(storehouse).inventory.add(vibecity::ResourceId::Bread, 10);
+
+    simulation.run_for(25);
+
+    const auto& house_instance = simulation.building(house);
+    const auto& storehouse_instance = simulation.building(storehouse);
+    assert(house_instance.inventory.quantity(vibecity::ResourceId::Bread) == 10);
+    assert(storehouse_instance.inventory.quantity(vibecity::ResourceId::Bread) == 0);
+    assert(simulation.transport_jobs().empty());
+    assert(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Bread)] == 10);
+}
+
+void bakery_fetches_inputs_before_producing()
+{
+    vibecity::Simulation simulation;
+
+    const auto house = simulation.add_building(vibecity::BuildingKind::House);
+    const auto storehouse = simulation.add_building(vibecity::BuildingKind::Storehouse);
+    const auto bakery = simulation.add_building(vibecity::BuildingKind::Bakery);
+
+    simulation.set_residents(house, 5);
+    simulation.building(storehouse).inventory.add(vibecity::ResourceId::Grain, 6);
+    simulation.building(storehouse).inventory.add(vibecity::ResourceId::Firewood, 1);
+
+    simulation.run_for(240);
+
+    const auto& bakery_instance = simulation.building(bakery);
+    assert(bakery_instance.inventory.quantity(vibecity::ResourceId::Grain) == 0);
+    assert(bakery_instance.inventory.quantity(vibecity::ResourceId::Firewood) == 0);
+    assert(simulation.stats().produced[vibecity::resource_index(vibecity::ResourceId::Bread)] == 12);
+    assert(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Grain)] == 6);
+    assert(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Firewood)] == 1);
+}
+
 void output_storage_full_blocks_production()
 {
     vibecity::Simulation simulation;
@@ -98,6 +140,8 @@ int main()
     bakery_consumes_inputs_and_produces_bread();
     house_consumes_bread_daily();
     house_records_hunger_when_bread_is_missing();
+    logistics_delivers_bread_from_storehouse_to_house();
+    bakery_fetches_inputs_before_producing();
     output_storage_full_blocks_production();
 
     std::cout << "simulation tests passed\n";
