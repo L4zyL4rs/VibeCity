@@ -5,6 +5,8 @@
 namespace vibecity {
 namespace {
 
+constexpr Tick labor_day = 12 * 60;
+
 ResourceArray amounts(std::initializer_list<ResourceAmount> entries)
 {
     auto result = empty_resources();
@@ -25,6 +27,8 @@ std::array<BuildingDefinition, static_cast<std::size_t>(BuildingKind::Count)> ma
         .resident_capacity = 5,
         .worker_supply = 3,
         .consumes_bread = true,
+        .construction_materials = amounts({{ResourceId::Timber, 8}}),
+        .construction_labor_minutes = 2 * labor_day,
         .storage = amounts({{ResourceId::Bread, 10}}),
         .recipe = std::nullopt
     };
@@ -33,6 +37,8 @@ std::array<BuildingDefinition, static_cast<std::size_t>(BuildingKind::Count)> ma
         .kind = BuildingKind::Farm,
         .name = "Farm",
         .worker_slots = 2,
+        .construction_materials = amounts({{ResourceId::Timber, 6}}),
+        .construction_labor_minutes = 3 * labor_day,
         .storage = amounts({{ResourceId::Grain, 40}}),
         .recipe = Recipe{
             .outputs = amounts({{ResourceId::Grain, 20}}),
@@ -44,6 +50,11 @@ std::array<BuildingDefinition, static_cast<std::size_t>(BuildingKind::Count)> ma
         .kind = BuildingKind::Bakery,
         .name = "Bakery",
         .worker_slots = 2,
+        .construction_materials = amounts({
+            {ResourceId::Timber, 12},
+            {ResourceId::Tools, 1}
+        }),
+        .construction_labor_minutes = 6 * labor_day,
         .storage = amounts({
             {ResourceId::Grain, 18},
             {ResourceId::Firewood, 6},
@@ -63,6 +74,8 @@ std::array<BuildingDefinition, static_cast<std::size_t>(BuildingKind::Count)> ma
         .kind = BuildingKind::Woodcutter,
         .name = "Woodcutter",
         .worker_slots = 2,
+        .construction_materials = amounts({{ResourceId::Timber, 8}}),
+        .construction_labor_minutes = 4 * labor_day,
         .storage = amounts({
             {ResourceId::Timber, 20},
             {ResourceId::Firewood, 20}
@@ -79,6 +92,11 @@ std::array<BuildingDefinition, static_cast<std::size_t>(BuildingKind::Count)> ma
     definitions[static_cast<std::size_t>(BuildingKind::Storehouse)] = BuildingDefinition{
         .kind = BuildingKind::Storehouse,
         .name = "Storehouse",
+        .construction_materials = amounts({
+            {ResourceId::Timber, 20},
+            {ResourceId::Tools, 2}
+        }),
+        .construction_labor_minutes = 8 * labor_day,
         .storage = amounts({
             {ResourceId::Grain, 100},
             {ResourceId::Bread, 100},
@@ -86,6 +104,13 @@ std::array<BuildingDefinition, static_cast<std::size_t>(BuildingKind::Count)> ma
             {ResourceId::Firewood, 100},
             {ResourceId::Tools, 20}
         }),
+        .recipe = std::nullopt
+    };
+
+    definitions[static_cast<std::size_t>(BuildingKind::ConstructionSite)] = BuildingDefinition{
+        .kind = BuildingKind::ConstructionSite,
+        .name = "Construction Site",
+        .storage = empty_resources(),
         .recipe = std::nullopt
     };
 
@@ -123,6 +148,10 @@ std::string_view blocking_reason_text(BlockingReason reason)
         return "waiting for hauler";
     case BlockingReason::NoReachableSource:
         return "no reachable source";
+    case BlockingReason::MissingConstructionMaterial:
+        return "missing construction material";
+    case BlockingReason::WaitingForBuilderLabor:
+        return "waiting for builder labor";
     }
     return "unknown";
 }
@@ -133,7 +162,20 @@ BuildingInstance make_building(BuildingId id, BuildingKind kind)
     return BuildingInstance{
         .id = id,
         .kind = kind,
-        .inventory = Inventory(definition.storage)
+        .inventory = Inventory(definition.storage),
+        .construction_target = std::nullopt
+    };
+}
+
+BuildingInstance make_construction_site(BuildingId id, BuildingKind target_kind)
+{
+    const auto& target = building_definition(target_kind);
+    return BuildingInstance{
+        .id = id,
+        .kind = BuildingKind::ConstructionSite,
+        .inventory = Inventory(target.construction_materials),
+        .construction_target = target_kind,
+        .construction_labor_required = target.construction_labor_minutes
     };
 }
 

@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <iostream>
+#include <optional>
 
 namespace {
 
@@ -116,6 +117,44 @@ void bakery_fetches_inputs_before_producing()
     assert(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Firewood)] == 1);
 }
 
+void construction_site_fetches_materials_and_completes()
+{
+    vibecity::Simulation simulation;
+
+    const auto house = simulation.add_building(vibecity::BuildingKind::House);
+    const auto storehouse = simulation.add_building(vibecity::BuildingKind::Storehouse);
+    const auto site = simulation.place_construction(vibecity::BuildingKind::Woodcutter);
+
+    simulation.set_residents(house, 5);
+    simulation.building(storehouse).inventory.add(vibecity::ResourceId::Timber, 8);
+
+    simulation.run_for(1'100);
+
+    const auto& completed = simulation.building(site);
+    const auto& storehouse_instance = simulation.building(storehouse);
+    assert(completed.kind == vibecity::BuildingKind::Woodcutter);
+    assert(completed.construction_target == std::nullopt);
+    assert(storehouse_instance.inventory.quantity(vibecity::ResourceId::Timber) == 0);
+    assert(simulation.stats().constructed_buildings == 1);
+    assert(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Timber)] == 8);
+}
+
+void construction_site_reports_missing_materials()
+{
+    vibecity::Simulation simulation;
+
+    const auto house = simulation.add_building(vibecity::BuildingKind::House);
+    const auto site = simulation.place_construction(vibecity::BuildingKind::Woodcutter);
+
+    simulation.set_residents(house, 5);
+    simulation.run_for(20);
+
+    const auto& construction_site = simulation.building(site);
+    assert(construction_site.kind == vibecity::BuildingKind::ConstructionSite);
+    assert(construction_site.blocking_reason == vibecity::BlockingReason::NoReachableSource);
+    assert(simulation.stats().constructed_buildings == 0);
+}
+
 void output_storage_full_blocks_production()
 {
     vibecity::Simulation simulation;
@@ -142,6 +181,8 @@ int main()
     house_records_hunger_when_bread_is_missing();
     logistics_delivers_bread_from_storehouse_to_house();
     bakery_fetches_inputs_before_producing();
+    construction_site_fetches_materials_and_completes();
+    construction_site_reports_missing_materials();
     output_storage_full_blocks_production();
 
     std::cout << "simulation tests passed\n";

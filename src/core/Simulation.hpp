@@ -14,11 +14,13 @@ inline constexpr Tick dawn_tick = 6 * ticks_per_hour;
 inline constexpr Tick logistics_dispatch_interval = 10;
 inline constexpr Tick prototype_transport_leg_minutes = 5;
 inline constexpr Quantity prototype_hauler_capacity = 5;
+inline constexpr int prototype_builders_per_site = 3;
 
 struct ResourceStats {
     ResourceArray produced{};
     ResourceArray consumed{};
     ResourceArray transported{};
+    int constructed_buildings = 0;
 };
 
 using TransportJobId = std::uint32_t;
@@ -50,6 +52,7 @@ struct ResourceRequest {
 class Simulation {
 public:
     BuildingId add_building(BuildingKind kind);
+    BuildingId place_construction(BuildingKind target_kind);
 
     [[nodiscard]] BuildingInstance& building(BuildingId id);
     [[nodiscard]] const BuildingInstance& building(BuildingId id) const;
@@ -78,13 +81,16 @@ private:
     void run_production();
     void dispatch_logistics();
     void advance_transport_jobs();
+    void run_construction();
     void consume_daily_bread();
     [[nodiscard]] std::vector<ResourceRequest> collect_resource_requests() const;
     [[nodiscard]] BuildingInstance* find_source_for_request(const ResourceRequest& request);
     [[nodiscard]] const BuildingInstance* find_source_for_request(const ResourceRequest& request) const;
     [[nodiscard]] bool can_source_resource(const BuildingInstance& source, ResourceId resource) const;
     [[nodiscard]] Quantity projected_quantity(const BuildingInstance& building, ResourceId resource) const;
+    [[nodiscard]] bool construction_materials_delivered(const BuildingInstance& site) const;
     [[nodiscard]] bool create_transport_job(BuildingInstance& source, BuildingInstance& destination, ResourceId resource, Quantity quantity);
+    void complete_construction(BuildingInstance& site);
     bool start_recipe(BuildingInstance& building, const Recipe& recipe);
     void finish_recipe(BuildingInstance& building, const Recipe& recipe);
     bool has_recipe_inputs(const BuildingInstance& building, const Recipe& recipe) const;

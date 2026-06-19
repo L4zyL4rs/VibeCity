@@ -65,6 +65,18 @@ void print_transport_jobs(const vibecity::Simulation& simulation)
     }
 }
 
+void print_construction_details(const vibecity::BuildingInstance& building)
+{
+    if (building.kind != vibecity::BuildingKind::ConstructionSite || !building.construction_target.has_value()) {
+        return;
+    }
+
+    std::cout << " target=" << vibecity::building_kind_name(*building.construction_target)
+              << " builders=" << building.assigned_builders
+              << " labor=" << building.construction_labor_completed
+              << "/" << building.construction_labor_required;
+}
+
 }
 
 int main()
@@ -80,6 +92,7 @@ int main()
     const auto woodcutter = simulation.add_building(BuildingKind::Woodcutter);
     const auto bakery = simulation.add_building(BuildingKind::Bakery);
     const auto storehouse = simulation.add_building(BuildingKind::Storehouse);
+    simulation.place_construction(BuildingKind::Farm);
 
     simulation.set_residents(house_a, 5);
     simulation.set_residents(house_b, 5);
@@ -90,7 +103,7 @@ int main()
     simulation.building(house_c).inventory.add(ResourceId::Bread, 10);
     simulation.building(storehouse).inventory.add(ResourceId::Grain, 18);
     simulation.building(storehouse).inventory.add(ResourceId::Firewood, 3);
-    simulation.building(storehouse).inventory.add(ResourceId::Timber, 40);
+    simulation.building(storehouse).inventory.add(ResourceId::Timber, 46);
     simulation.building(storehouse).inventory.add(ResourceId::Tools, 5);
 
     simulation.run_for(2 * ticks_per_day);
@@ -102,8 +115,9 @@ int main()
         std::cout << "#" << building.id << " " << building_kind_name(building.kind)
                   << " workers=" << building.assigned_workers
                   << " residents=" << building.residents
-                  << " block=" << blocking_reason_text(building.blocking_reason)
-                  << " inventory=[";
+                  << " block=" << blocking_reason_text(building.blocking_reason);
+        print_construction_details(building);
+        std::cout << " inventory=[";
         print_inventory(building);
         std::cout << "]\n";
     }
@@ -118,6 +132,7 @@ int main()
     print_resource_array(simulation.stats().consumed);
     std::cout << "\nTransported: ";
     print_resource_array(simulation.stats().transported);
+    std::cout << "\nConstructed buildings: " << simulation.stats().constructed_buildings;
     std::cout << "\nStored: ";
     print_resource_array(simulation.total_inventory());
     std::cout << "\n";

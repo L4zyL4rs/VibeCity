@@ -15,6 +15,7 @@ enum class BuildingKind : std::uint8_t {
     Bakery,
     Woodcutter,
     Storehouse,
+    ConstructionSite,
     Count
 };
 
@@ -25,7 +26,9 @@ enum class BlockingReason : std::uint8_t {
     OutputStorageFull,
     MissingBread,
     WaitingForHauler,
-    NoReachableSource
+    NoReachableSource,
+    MissingConstructionMaterial,
+    WaitingForBuilderLabor
 };
 
 struct Recipe {
@@ -41,6 +44,8 @@ struct BuildingDefinition {
     int resident_capacity = 0;
     int worker_supply = 0;
     bool consumes_bread = false;
+    ResourceArray construction_materials{};
+    Tick construction_labor_minutes = 0;
     ResourceArray storage{};
     std::optional<Recipe> recipe;
 };
@@ -53,8 +58,12 @@ struct BuildingInstance {
     Inventory inventory;
     int residents = 0;
     int assigned_workers = 0;
+    int assigned_builders = 0;
     Tick recipe_progress = 0;
     int hunger_days = 0;
+    std::optional<BuildingKind> construction_target;
+    Tick construction_labor_required = 0;
+    Tick construction_labor_completed = 0;
     BlockingReason blocking_reason = BlockingReason::None;
 };
 
@@ -62,5 +71,6 @@ struct BuildingInstance {
 [[nodiscard]] std::string_view building_kind_name(BuildingKind kind);
 [[nodiscard]] std::string_view blocking_reason_text(BlockingReason reason);
 [[nodiscard]] BuildingInstance make_building(BuildingId id, BuildingKind kind);
+[[nodiscard]] BuildingInstance make_construction_site(BuildingId id, BuildingKind target_kind);
 
 }
