@@ -618,6 +618,8 @@ Avoid:
 
 The first playable prototype should prove the central loop with the smallest possible feature set.
 
+Detailed prototype simulation decisions live in [prototype-simulation.md](prototype-simulation.md).
+
 ### Required Systems
 
 - Tile map.
