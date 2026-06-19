@@ -308,6 +308,25 @@ Color resource_color(vibecity::ResourceId resource)
     return Color{210, 214, 204, 255};
 }
 
+std::string_view resource_short_name(vibecity::ResourceId resource)
+{
+    switch (resource) {
+    case vibecity::ResourceId::Grain:
+        return "GRN";
+    case vibecity::ResourceId::Bread:
+        return "BRD";
+    case vibecity::ResourceId::Timber:
+        return "TIM";
+    case vibecity::ResourceId::Firewood:
+        return "FIR";
+    case vibecity::ResourceId::Tools:
+        return "TLS";
+    case vibecity::ResourceId::Count:
+        return "UNK";
+    }
+    return "UNK";
+}
+
 Color mode_color(ClientMode mode)
 {
     switch (mode) {
@@ -329,11 +348,48 @@ Color mode_color(ClientMode mode)
     return Color{160, 160, 160, 255};
 }
 
+std::string clock_text(const vibecity::Simulation& simulation)
+{
+    const auto minute_of_day = simulation.minute_of_day();
+    const auto hour = minute_of_day / vibecity::ticks_per_hour;
+    const auto minute = minute_of_day % vibecity::ticks_per_hour;
+
+    auto output = std::ostringstream{};
+    output << "DAY: " << simulation.current_day() << " ";
+    if (hour < 10) {
+        output << "0";
+    }
+    output << hour << ":";
+    if (minute < 10) {
+        output << "0";
+    }
+    output << minute;
+    return output.str();
+}
+
+int total_residents(const vibecity::Simulation& simulation)
+{
+    auto residents = 0;
+    for (const auto& building : simulation.buildings()) {
+        residents += building.residents;
+    }
+    return residents;
+}
+
+int total_assigned_workers(const vibecity::Simulation& simulation)
+{
+    auto workers = 0;
+    for (const auto& building : simulation.buildings()) {
+        workers += building.assigned_workers;
+    }
+    return workers;
+}
+
 void draw_hud(SDL_Renderer* renderer,
+    const vibecity::Simulation& simulation,
     ClientMode mode,
     bool running,
-    int ticks_per_frame,
-    std::size_t transport_jobs)
+    int ticks_per_frame)
 {
     int width = 0;
     SDL_GetRendererOutputSize(renderer, &width, nullptr);
@@ -390,7 +446,12 @@ void draw_hud(SDL_Renderer* renderer,
 
     draw_text(renderer, 390, 10, std::string{"MODE: "} + mode_name(mode), Color{210, 214, 204, 255}, 2);
     draw_text(renderer, 390, 30, running ? "SPACE PAUSE   +/- SPEED   WASD PAN" : "SPACE RUN     +/- SPEED   WASD PAN", Color{128, 138, 136, 255}, 2);
-    draw_text(renderer, 760, 30, std::string{"JOBS: "} + std::to_string(transport_jobs), Color{128, 138, 136, 255}, 2);
+    draw_text(renderer,
+        760,
+        30,
+        clock_text(simulation) + " JOBS: " + std::to_string(simulation.transport_jobs().size()),
+        Color{128, 138, 136, 255},
+        2);
 }
 
 void draw_status(SDL_Renderer* renderer, std::string_view status)
@@ -437,6 +498,112 @@ std::string resource_line(const vibecity::BuildingInstance& building, vibecity::
     return output.str();
 }
 
+std::string stored_pair_line(const vibecity::ResourceArray& totals,
+    vibecity::ResourceId first,
+    vibecity::ResourceId second)
+{
+    auto output = std::ostringstream{};
+    output << resource_short_name(first) << ": " << totals[vibecity::resource_index(first)]
+           << "  " << resource_short_name(second) << ": " << totals[vibecity::resource_index(second)];
+    return output.str();
+}
+
+std::string stored_single_line(const vibecity::ResourceArray& totals, vibecity::ResourceId resource)
+{
+    auto output = std::ostringstream{};
+    output << resource_short_name(resource) << ": " << totals[vibecity::resource_index(resource)];
+    return output.str();
+}
+
+bool has_flow(const vibecity::ResourceStats& stats, vibecity::ResourceId resource)
+{
+    const auto index = vibecity::resource_index(resource);
+    return stats.produced[index] != 0 || stats.consumed[index] != 0 || stats.transported[index] != 0;
+}
+
+std::string flow_line(const vibecity::ResourceStats& stats, vibecity::ResourceId resource)
+{
+    const auto index = vibecity::resource_index(resource);
+    auto output = std::ostringstream{};
+    output << resource_short_name(resource)
+           << " P:" << stats.produced[index]
+           << " C:" << stats.consumed[index]
+           << " T:" << stats.transported[index];
+    return output.str();
+}
+
+int draw_economy_summary(SDL_Renderer* renderer,
+    const vibecity::Simulation& simulation,
+    int x,
+    int y,
+    Color text,
+    Color muted)
+{
+    draw_text(renderer, x, y, "SETTLEMENT", text, 2);
+    y += 24;
+
+    draw_text(renderer, x, y, clock_text(simulation), muted, 2);
+    y += 20;
+
+    draw_text(renderer,
+        x,
+        y,
+        std::string{"POP: "} + std::to_string(total_residents(simulation))
+            + "  WORK: " + std::to_string(total_assigned_workers(simulation)),
+        muted,
+        2);
+    y += 20;
+
+    draw_text(renderer,
+        x,
+        y,
+        std::string{"IDLE: "} + std::to_string(simulation.idle_workers())
+            + "  HAUL: " + std::to_string(simulation.available_haulers()),
+        muted,
+        2);
+    y += 20;
+
+    draw_text(renderer,
+        x,
+        y,
+        std::string{"BLD: "} + std::to_string(simulation.buildings().size())
+            + "  JOBS: " + std::to_string(simulation.transport_jobs().size()),
+        muted,
+        2);
+    y += 28;
+
+    const auto totals = simulation.total_inventory();
+    draw_text(renderer, x, y, "STORED", text, 2);
+    y += 24;
+    draw_text(renderer, x, y, stored_pair_line(totals, vibecity::ResourceId::Bread, vibecity::ResourceId::Grain), muted, 2);
+    y += 20;
+    draw_text(renderer, x, y, stored_pair_line(totals, vibecity::ResourceId::Timber, vibecity::ResourceId::Firewood), muted, 2);
+    y += 20;
+    draw_text(renderer, x, y, stored_single_line(totals, vibecity::ResourceId::Tools), muted, 2);
+    y += 28;
+
+    draw_text(renderer, x, y, "FLOW TOTAL", text, 2);
+    y += 24;
+
+    auto drew_flow = false;
+    for (std::size_t index = 0; index < vibecity::resource_count; ++index) {
+        const auto resource = static_cast<vibecity::ResourceId>(index);
+        if (!has_flow(simulation.stats(), resource)) {
+            continue;
+        }
+        draw_text(renderer, x, y, flow_line(simulation.stats(), resource), muted, 2);
+        y += 20;
+        drew_flow = true;
+    }
+
+    if (!drew_flow) {
+        draw_text(renderer, x, y, "NO FLOW YET", muted, 2);
+        y += 20;
+    }
+
+    return y + 10;
+}
+
 void draw_inspector(SDL_Renderer* renderer, const vibecity::Simulation& simulation, std::optional<vibecity::BuildingId> selected)
 {
     int width = 0;
@@ -462,13 +629,15 @@ void draw_inspector(SDL_Renderer* renderer, const vibecity::Simulation& simulati
     draw_text(renderer, panel_x + 18, y, "INSPECTOR", text, 2);
     y += 28;
 
-    draw_text(renderer, panel_x + 18, y, std::string{"TRANSPORT JOBS: "} + std::to_string(simulation.transport_jobs().size()), muted, 2);
-    y += 28;
+    y = draw_economy_summary(renderer, simulation, panel_x + 18, y, text, muted);
 
     if (!selected.has_value()) {
         draw_text(renderer, panel_x + 18, y, "NO SELECTION", muted, 2);
         return;
     }
+
+    draw_text(renderer, panel_x + 18, y, "SELECTION", text, 2);
+    y += 24;
 
     const auto& building = simulation.building(*selected);
     auto title = std::ostringstream{};
@@ -725,7 +894,7 @@ void draw_map(SDL_Renderer* renderer,
     draw_transport_jobs(renderer, simulation, camera);
     draw_placement_preview(renderer, simulation, camera, mode, hover_tile);
     draw_inspector(renderer, simulation, selected);
-    draw_hud(renderer, mode, running, ticks_per_frame, simulation.transport_jobs().size());
+    draw_hud(renderer, simulation, mode, running, ticks_per_frame);
     draw_status(renderer, status);
     SDL_RenderPresent(renderer);
 }
