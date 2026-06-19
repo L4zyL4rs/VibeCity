@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/Inventory.hpp"
+#include "core/Map.hpp"
 
 #include <array>
 #include <cstdint>
@@ -40,6 +41,7 @@ struct Recipe {
 struct BuildingDefinition {
     BuildingKind kind;
     std::string_view name;
+    Footprint footprint{1, 1};
     int worker_slots = 0;
     int resident_capacity = 0;
     int worker_supply = 0;
@@ -55,6 +57,7 @@ using BuildingId = std::uint32_t;
 struct BuildingInstance {
     BuildingId id = 0;
     BuildingKind kind = BuildingKind::House;
+    std::optional<GridPosition> position;
     Inventory inventory;
     int residents = 0;
     int assigned_workers = 0;

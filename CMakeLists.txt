@@ -12,6 +12,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_library(vibecity_core
     src/core/Building.cpp
     src/core/Inventory.cpp
+    src/core/Map.cpp
     src/core/Simulation.cpp
 )
 

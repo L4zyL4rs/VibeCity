@@ -52,13 +52,17 @@ struct ResourceRequest {
 class Simulation {
 public:
     BuildingId add_building(BuildingKind kind);
+    BuildingId add_building_at(BuildingKind kind, GridPosition position);
     BuildingId place_construction(BuildingKind target_kind);
+    BuildingId place_construction_at(BuildingKind target_kind, GridPosition position);
 
     [[nodiscard]] BuildingInstance& building(BuildingId id);
     [[nodiscard]] const BuildingInstance& building(BuildingId id) const;
     [[nodiscard]] const std::vector<BuildingInstance>& buildings() const;
     [[nodiscard]] const std::vector<TransportJob>& transport_jobs() const;
+    [[nodiscard]] const TileMap& map() const;
 
+    bool add_path(GridPosition position);
     void set_residents(BuildingId id, int residents);
     void mark_worker_assignment_dirty();
     void assign_workers();
@@ -78,6 +82,10 @@ private:
     [[nodiscard]] BuildingInstance* find_building(BuildingId id);
     [[nodiscard]] const BuildingInstance* find_building(BuildingId id) const;
 
+    [[nodiscard]] GridPosition auto_place_building(BuildingId id, Footprint footprint);
+    [[nodiscard]] Footprint footprint_for(const BuildingInstance& building) const;
+    [[nodiscard]] bool buildings_connected(const BuildingInstance& source, const BuildingInstance& destination) const;
+    [[nodiscard]] Tick transport_minutes_between(const BuildingInstance& source, const BuildingInstance& destination) const;
     void run_production();
     void dispatch_logistics();
     void advance_transport_jobs();
@@ -98,8 +106,10 @@ private:
 
     std::vector<BuildingInstance> buildings_;
     std::vector<TransportJob> transport_jobs_;
+    TileMap map_{128, 128};
     BuildingId next_building_id_ = 1;
     TransportJobId next_transport_job_id_ = 1;
+    int next_auto_building_x_ = 1;
     Tick current_tick_ = 0;
     bool worker_assignment_dirty_ = true;
     int idle_workers_ = 0;

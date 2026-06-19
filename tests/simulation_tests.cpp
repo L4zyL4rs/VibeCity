@@ -95,6 +95,65 @@ void logistics_delivers_bread_from_storehouse_to_house()
     assert(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Bread)] == 10);
 }
 
+void disconnected_buildings_cannot_exchange_goods()
+{
+    vibecity::Simulation simulation;
+
+    const auto house = simulation.add_building_at(vibecity::BuildingKind::House, vibecity::GridPosition{1, 1});
+    const auto storehouse = simulation.add_building_at(vibecity::BuildingKind::Storehouse, vibecity::GridPosition{8, 1});
+
+    simulation.set_residents(house, 5);
+    simulation.building(storehouse).inventory.add(vibecity::ResourceId::Bread, 10);
+
+    simulation.run_for(40);
+
+    const auto& house_instance = simulation.building(house);
+    const auto& storehouse_instance = simulation.building(storehouse);
+    assert(house_instance.inventory.quantity(vibecity::ResourceId::Bread) == 0);
+    assert(storehouse_instance.inventory.quantity(vibecity::ResourceId::Bread) == 10);
+    assert(house_instance.blocking_reason == vibecity::BlockingReason::NoReachableSource);
+    assert(simulation.transport_jobs().empty());
+}
+
+void connected_paths_allow_goods_exchange()
+{
+    vibecity::Simulation simulation;
+
+    const auto house = simulation.add_building_at(vibecity::BuildingKind::House, vibecity::GridPosition{1, 1});
+    const auto storehouse = simulation.add_building_at(vibecity::BuildingKind::Storehouse, vibecity::GridPosition{8, 1});
+
+    for (int x = 1; x <= 9; ++x) {
+        assert(simulation.add_path(vibecity::GridPosition{x, 0}));
+    }
+
+    simulation.set_residents(house, 5);
+    simulation.building(storehouse).inventory.add(vibecity::ResourceId::Bread, 10);
+
+    simulation.run_for(40);
+
+    const auto& house_instance = simulation.building(house);
+    const auto& storehouse_instance = simulation.building(storehouse);
+    assert(house_instance.inventory.quantity(vibecity::ResourceId::Bread) == 10);
+    assert(storehouse_instance.inventory.quantity(vibecity::ResourceId::Bread) == 0);
+    assert(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Bread)] == 10);
+}
+
+void disconnected_workers_do_not_staff_workplaces()
+{
+    vibecity::Simulation simulation;
+
+    const auto house = simulation.add_building_at(vibecity::BuildingKind::House, vibecity::GridPosition{1, 1});
+    const auto farm = simulation.add_building_at(vibecity::BuildingKind::Farm, vibecity::GridPosition{8, 1});
+
+    simulation.set_residents(house, 5);
+    simulation.run_for(720);
+
+    const auto& farm_instance = simulation.building(farm);
+    assert(farm_instance.assigned_workers == 0);
+    assert(farm_instance.inventory.quantity(vibecity::ResourceId::Grain) == 0);
+    assert(farm_instance.blocking_reason == vibecity::BlockingReason::NotEnoughWorkers);
+}
+
 void bakery_fetches_inputs_before_producing()
 {
     vibecity::Simulation simulation;
@@ -133,6 +192,7 @@ void construction_site_fetches_materials_and_completes()
     const auto& completed = simulation.building(site);
     const auto& storehouse_instance = simulation.building(storehouse);
     assert(completed.kind == vibecity::BuildingKind::Woodcutter);
+    assert(completed.position.has_value());
     assert(completed.construction_target == std::nullopt);
     assert(storehouse_instance.inventory.quantity(vibecity::ResourceId::Timber) == 0);
     assert(simulation.stats().constructed_buildings == 1);
@@ -180,6 +240,9 @@ int main()
     house_consumes_bread_daily();
     house_records_hunger_when_bread_is_missing();
     logistics_delivers_bread_from_storehouse_to_house();
+    disconnected_buildings_cannot_exchange_goods();
+    connected_paths_allow_goods_exchange();
+    disconnected_workers_do_not_staff_workplaces();
     bakery_fetches_inputs_before_producing();
     construction_site_fetches_materials_and_completes();
     construction_site_reports_missing_materials();

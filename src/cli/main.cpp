@@ -77,6 +77,16 @@ void print_construction_details(const vibecity::BuildingInstance& building)
               << "/" << building.construction_labor_required;
 }
 
+void print_position(const vibecity::BuildingInstance& building)
+{
+    if (!building.position.has_value()) {
+        std::cout << " pos=unplaced";
+        return;
+    }
+
+    std::cout << " pos=(" << building.position->x << "," << building.position->y << ")";
+}
+
 }
 
 int main()
@@ -116,6 +126,7 @@ int main()
                   << " workers=" << building.assigned_workers
                   << " residents=" << building.residents
                   << " block=" << blocking_reason_text(building.blocking_reason);
+        print_position(building);
         print_construction_details(building);
         std::cout << " inventory=[";
         print_inventory(building);

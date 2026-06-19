@@ -23,6 +23,7 @@ std::array<BuildingDefinition, static_cast<std::size_t>(BuildingKind::Count)> ma
     definitions[static_cast<std::size_t>(BuildingKind::House)] = BuildingDefinition{
         .kind = BuildingKind::House,
         .name = "House",
+        .footprint = Footprint{1, 1},
         .worker_slots = 0,
         .resident_capacity = 5,
         .worker_supply = 3,
@@ -36,6 +37,7 @@ std::array<BuildingDefinition, static_cast<std::size_t>(BuildingKind::Count)> ma
     definitions[static_cast<std::size_t>(BuildingKind::Farm)] = BuildingDefinition{
         .kind = BuildingKind::Farm,
         .name = "Farm",
+        .footprint = Footprint{2, 2},
         .worker_slots = 2,
         .construction_materials = amounts({{ResourceId::Timber, 6}}),
         .construction_labor_minutes = 3 * labor_day,
@@ -49,6 +51,7 @@ std::array<BuildingDefinition, static_cast<std::size_t>(BuildingKind::Count)> ma
     definitions[static_cast<std::size_t>(BuildingKind::Bakery)] = BuildingDefinition{
         .kind = BuildingKind::Bakery,
         .name = "Bakery",
+        .footprint = Footprint{2, 2},
         .worker_slots = 2,
         .construction_materials = amounts({
             {ResourceId::Timber, 12},
@@ -73,6 +76,7 @@ std::array<BuildingDefinition, static_cast<std::size_t>(BuildingKind::Count)> ma
     definitions[static_cast<std::size_t>(BuildingKind::Woodcutter)] = BuildingDefinition{
         .kind = BuildingKind::Woodcutter,
         .name = "Woodcutter",
+        .footprint = Footprint{2, 2},
         .worker_slots = 2,
         .construction_materials = amounts({{ResourceId::Timber, 8}}),
         .construction_labor_minutes = 4 * labor_day,
@@ -92,6 +96,7 @@ std::array<BuildingDefinition, static_cast<std::size_t>(BuildingKind::Count)> ma
     definitions[static_cast<std::size_t>(BuildingKind::Storehouse)] = BuildingDefinition{
         .kind = BuildingKind::Storehouse,
         .name = "Storehouse",
+        .footprint = Footprint{2, 2},
         .construction_materials = amounts({
             {ResourceId::Timber, 20},
             {ResourceId::Tools, 2}
@@ -110,6 +115,7 @@ std::array<BuildingDefinition, static_cast<std::size_t>(BuildingKind::Count)> ma
     definitions[static_cast<std::size_t>(BuildingKind::ConstructionSite)] = BuildingDefinition{
         .kind = BuildingKind::ConstructionSite,
         .name = "Construction Site",
+        .footprint = Footprint{1, 1},
         .storage = empty_resources(),
         .recipe = std::nullopt
     };
@@ -162,6 +168,7 @@ BuildingInstance make_building(BuildingId id, BuildingKind kind)
     return BuildingInstance{
         .id = id,
         .kind = kind,
+        .position = std::nullopt,
         .inventory = Inventory(definition.storage),
         .construction_target = std::nullopt
     };
@@ -173,6 +180,7 @@ BuildingInstance make_construction_site(BuildingId id, BuildingKind target_kind)
     return BuildingInstance{
         .id = id,
         .kind = BuildingKind::ConstructionSite,
+        .position = std::nullopt,
         .inventory = Inventory(target.construction_materials),
         .construction_target = target_kind,
         .construction_labor_required = target.construction_labor_minutes
