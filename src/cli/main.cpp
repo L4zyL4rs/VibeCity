@@ -1,4 +1,4 @@
-#include "core/Simulation.hpp"
+#include "game/Scenario.hpp"
 
 #include <iostream>
 
@@ -93,32 +93,20 @@ int main()
 {
     using namespace vibecity;
 
-    Simulation simulation;
+    GameSession game;
+    const auto scenario = create_starting_village(game);
+    const auto advance = game.execute(AdvanceTimeCommand{.ticks = 2 * ticks_per_day});
+    if (!advance.success) {
+        std::cerr << "failed to advance scenario: " << advance.message << "\n";
+        return 1;
+    }
 
-    const auto house_a = simulation.add_building(BuildingKind::House);
-    const auto house_b = simulation.add_building(BuildingKind::House);
-    const auto house_c = simulation.add_building(BuildingKind::House);
-    const auto farm = simulation.add_building(BuildingKind::Farm);
-    const auto woodcutter = simulation.add_building(BuildingKind::Woodcutter);
-    const auto bakery = simulation.add_building(BuildingKind::Bakery);
-    const auto storehouse = simulation.add_building(BuildingKind::Storehouse);
-    simulation.place_construction(BuildingKind::Farm);
-
-    simulation.set_residents(house_a, 5);
-    simulation.set_residents(house_b, 5);
-    simulation.set_residents(house_c, 5);
-
-    simulation.building(house_a).inventory.add(ResourceId::Bread, 10);
-    simulation.building(house_b).inventory.add(ResourceId::Bread, 10);
-    simulation.building(house_c).inventory.add(ResourceId::Bread, 10);
-    simulation.building(storehouse).inventory.add(ResourceId::Grain, 18);
-    simulation.building(storehouse).inventory.add(ResourceId::Firewood, 3);
-    simulation.building(storehouse).inventory.add(ResourceId::Timber, 46);
-    simulation.building(storehouse).inventory.add(ResourceId::Tools, 5);
-
-    simulation.run_for(2 * ticks_per_day);
+    const auto& simulation = game.simulation();
 
     std::cout << "VibeCity headless simulation\n";
+    std::cout << "scenario houses=" << scenario.houses.size()
+              << ", storehouse=#" << scenario.storehouse
+              << ", farm_site=#" << scenario.farm_site << "\n";
     std::cout << "day=" << simulation.current_day() << ", tick=" << simulation.current_tick() << "\n\n";
 
     for (const auto& building : simulation.buildings()) {

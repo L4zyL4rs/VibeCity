@@ -30,13 +30,32 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     )
 endif()
 
+add_library(vibecity_game
+    src/game/GameSession.cpp
+    src/game/Scenario.cpp
+)
+
+target_link_libraries(vibecity_game
+    PUBLIC
+        vibecity_core
+)
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(vibecity_game
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+endif()
+
 add_executable(vibecity_headless
     src/cli/main.cpp
 )
 
 target_link_libraries(vibecity_headless
     PRIVATE
-        vibecity_core
+        vibecity_game
 )
 
 enable_testing()
@@ -51,3 +70,14 @@ target_link_libraries(vibecity_core_tests
 )
 
 add_test(NAME vibecity_core_tests COMMAND vibecity_core_tests)
+
+add_executable(vibecity_game_tests
+    tests/game_tests.cpp
+)
+
+target_link_libraries(vibecity_game_tests
+    PRIVATE
+        vibecity_game
+)
+
+add_test(NAME vibecity_game_tests COMMAND vibecity_game_tests)
