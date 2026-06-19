@@ -3,6 +3,7 @@
 #include <SDL.h>
 
 #include <algorithm>
+#include <array>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -12,6 +13,7 @@ namespace {
 constexpr int initial_window_width = 1280;
 constexpr int initial_window_height = 800;
 constexpr int tile_size = 10;
+constexpr int hud_height = 52;
 
 enum class ClientMode {
     Select,
@@ -24,8 +26,8 @@ enum class ClientMode {
 };
 
 struct Camera {
-    int offset_x = 24;
-    int offset_y = 24;
+    int offset_x = 80;
+    int offset_y = hud_height + 24;
 };
 
 struct Color {
@@ -152,6 +154,83 @@ Color building_color(const vibecity::BuildingInstance& building)
     return Color{160, 160, 160, 255};
 }
 
+Color mode_color(ClientMode mode)
+{
+    switch (mode) {
+    case ClientMode::Select:
+        return Color{170, 176, 176, 255};
+    case ClientMode::PlacePath:
+        return Color{82, 86, 86, 255};
+    case ClientMode::BuildHouse:
+        return Color{92, 142, 210, 255};
+    case ClientMode::BuildFarm:
+        return Color{78, 156, 86, 255};
+    case ClientMode::BuildWoodcutter:
+        return Color{93, 128, 62, 255};
+    case ClientMode::BuildBakery:
+        return Color{196, 126, 54, 255};
+    case ClientMode::BuildStorehouse:
+        return Color{132, 118, 151, 255};
+    }
+    return Color{160, 160, 160, 255};
+}
+
+void draw_hud(SDL_Renderer* renderer, ClientMode mode, bool running, int ticks_per_frame)
+{
+    int width = 0;
+    SDL_GetRendererOutputSize(renderer, &width, nullptr);
+
+    auto hud_rect = SDL_Rect{0, 0, width, hud_height};
+    set_color(renderer, Color{18, 20, 20, 255});
+    SDL_RenderFillRect(renderer, &hud_rect);
+
+    auto separator = SDL_Rect{0, hud_height - 2, width, 2};
+    set_color(renderer, Color{60, 64, 64, 255});
+    SDL_RenderFillRect(renderer, &separator);
+
+    constexpr std::array<ClientMode, 7> modes{{
+        ClientMode::Select,
+        ClientMode::PlacePath,
+        ClientMode::BuildFarm,
+        ClientMode::BuildWoodcutter,
+        ClientMode::BuildBakery,
+        ClientMode::BuildHouse,
+        ClientMode::BuildStorehouse
+    }};
+
+    for (std::size_t index = 0; index < modes.size(); ++index) {
+        auto box = SDL_Rect{
+            .x = 12 + static_cast<int>(index) * 38,
+            .y = 12,
+            .w = 28,
+            .h = 28
+        };
+        set_color(renderer, mode_color(modes[index]));
+        SDL_RenderFillRect(renderer, &box);
+
+        set_color(renderer, modes[index] == mode ? Color{230, 230, 218, 255} : Color{44, 48, 48, 255});
+        SDL_RenderDrawRect(renderer, &box);
+    }
+
+    auto speed_x = 304;
+    auto speed_value = ticks_per_frame;
+    for (int index = 0; index < 8; ++index) {
+        auto bar = SDL_Rect{
+            .x = speed_x + index * 8,
+            .y = 30 - index * 2,
+            .w = 5,
+            .h = 8 + index * 2
+        };
+        set_color(renderer, speed_value > 0 ? Color{164, 174, 116, 255} : Color{58, 62, 62, 255});
+        SDL_RenderFillRect(renderer, &bar);
+        speed_value /= 2;
+    }
+
+    auto run_indicator = SDL_Rect{width - 40, 14, 24, 24};
+    set_color(renderer, running ? Color{82, 170, 92, 255} : Color{190, 74, 70, 255});
+    SDL_RenderFillRect(renderer, &run_indicator);
+}
+
 std::string selected_summary(const vibecity::Simulation& simulation, std::optional<vibecity::BuildingId> selected)
 {
     if (!selected.has_value()) {
@@ -199,7 +278,10 @@ void update_title(SDL_Window* window,
 void draw_map(SDL_Renderer* renderer,
     const vibecity::Simulation& simulation,
     Camera camera,
-    std::optional<vibecity::BuildingId> selected)
+    std::optional<vibecity::BuildingId> selected,
+    ClientMode mode,
+    bool running,
+    int ticks_per_frame)
 {
     set_color(renderer, Color{24, 28, 28, 255});
     SDL_RenderClear(renderer);
@@ -246,6 +328,7 @@ void draw_map(SDL_Renderer* renderer,
         }
     }
 
+    draw_hud(renderer, mode, running, ticks_per_frame);
     SDL_RenderPresent(renderer);
 }
 
@@ -393,7 +476,7 @@ int main(int argc, char** argv)
             }
         }
 
-        draw_map(renderer, game.simulation(), camera, selected);
+        draw_map(renderer, game.simulation(), camera, selected, mode, running, ticks_per_frame);
         update_title(window, game.simulation(), mode, running, ticks_per_frame, selected);
 
         ++frame_count;
