@@ -486,15 +486,24 @@ std::string selected_summary(const vibecity::Simulation& simulation, std::option
     return output.str();
 }
 
-std::string resource_line(const vibecity::BuildingInstance& building, vibecity::ResourceId resource, std::string_view label)
+std::string resource_line(const vibecity::BuildingInstance& building, vibecity::ResourceId resource)
 {
     const auto quantity = building.inventory.quantity(resource);
-    if (quantity <= 0) {
+    const auto capacity = building.inventory.capacity(resource);
+    const auto incoming = building.inventory.reserved_incoming(resource);
+    const auto outgoing = building.inventory.reserved_outgoing(resource);
+    if (quantity <= 0 && capacity <= 0 && incoming <= 0 && outgoing <= 0) {
         return {};
     }
 
     auto output = std::ostringstream{};
-    output << label << ": " << quantity;
+    output << resource_short_name(resource) << ": " << quantity << "/" << capacity;
+    if (incoming > 0) {
+        output << " IN:" << incoming;
+    }
+    if (outgoing > 0) {
+        output << " OUT:" << outgoing;
+    }
     return output.str();
 }
 
@@ -675,18 +684,20 @@ void draw_inspector(SDL_Renderer* renderer, const vibecity::Simulation& simulati
     draw_text(renderer, panel_x + 18, y, "INVENTORY", text, 2);
     y += 24;
 
-    for (const auto& line : {
-             resource_line(building, vibecity::ResourceId::Bread, "BREAD"),
-             resource_line(building, vibecity::ResourceId::Grain, "GRAIN"),
-             resource_line(building, vibecity::ResourceId::Timber, "TIMBER"),
-             resource_line(building, vibecity::ResourceId::Firewood, "FIREWOOD"),
-             resource_line(building, vibecity::ResourceId::Tools, "TOOLS"),
-         }) {
+    auto drew_inventory = false;
+    for (std::size_t index = 0; index < vibecity::resource_count; ++index) {
+        const auto resource = static_cast<vibecity::ResourceId>(index);
+        const auto line = resource_line(building, resource);
         if (line.empty()) {
             continue;
         }
         draw_text(renderer, panel_x + 18, y, line, muted, 2);
         y += 20;
+        drew_inventory = true;
+    }
+
+    if (!drew_inventory) {
+        draw_text(renderer, panel_x + 18, y, "EMPTY", muted, 2);
     }
 }
 
