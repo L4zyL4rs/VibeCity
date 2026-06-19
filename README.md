@@ -11,6 +11,9 @@ See [docs/design.md](docs/design.md) for the current design document.
 See [docs/prototype-simulation.md](docs/prototype-simulation.md) for the first
 playable simulation target.
 
+See [docs/engineering-quality.md](docs/engineering-quality.md) for the current
+engineering quality bar and review metrics.
+
 ## Build
 
 ```bash

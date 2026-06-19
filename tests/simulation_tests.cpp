@@ -1,6 +1,7 @@
+#include "TestSupport.hpp"
+
 #include "core/Simulation.hpp"
 
-#include <cassert>
 #include <iostream>
 #include <optional>
 
@@ -17,9 +18,9 @@ void farm_produces_grain_when_staffed()
     simulation.run_for(720);
 
     const auto& farm_instance = simulation.building(farm);
-    assert(farm_instance.inventory.quantity(vibecity::ResourceId::Grain) == 20);
-    assert(farm_instance.blocking_reason == vibecity::BlockingReason::None);
-    assert(simulation.stats().produced[vibecity::resource_index(vibecity::ResourceId::Grain)] == 20);
+    VIBECITY_CHECK(farm_instance.inventory.quantity(vibecity::ResourceId::Grain) == 20);
+    VIBECITY_CHECK(farm_instance.blocking_reason == vibecity::BlockingReason::None);
+    VIBECITY_CHECK(simulation.stats().produced[vibecity::resource_index(vibecity::ResourceId::Grain)] == 20);
 }
 
 void bakery_consumes_inputs_and_produces_bread()
@@ -36,10 +37,10 @@ void bakery_consumes_inputs_and_produces_bread()
     simulation.run_for(180);
 
     const auto& bakery_instance = simulation.building(bakery);
-    assert(bakery_instance.inventory.quantity(vibecity::ResourceId::Grain) == 0);
-    assert(bakery_instance.inventory.quantity(vibecity::ResourceId::Firewood) == 0);
-    assert(bakery_instance.inventory.quantity(vibecity::ResourceId::Bread) == 12);
-    assert(bakery_instance.blocking_reason == vibecity::BlockingReason::None);
+    VIBECITY_CHECK(bakery_instance.inventory.quantity(vibecity::ResourceId::Grain) == 0);
+    VIBECITY_CHECK(bakery_instance.inventory.quantity(vibecity::ResourceId::Firewood) == 0);
+    VIBECITY_CHECK(bakery_instance.inventory.quantity(vibecity::ResourceId::Bread) == 12);
+    VIBECITY_CHECK(bakery_instance.blocking_reason == vibecity::BlockingReason::None);
 }
 
 void house_consumes_bread_daily()
@@ -53,9 +54,9 @@ void house_consumes_bread_daily()
     simulation.run_for(vibecity::ticks_per_day);
 
     const auto& house_instance = simulation.building(house);
-    assert(house_instance.inventory.quantity(vibecity::ResourceId::Bread) == 0);
-    assert(house_instance.hunger_days == 0);
-    assert(simulation.stats().consumed[vibecity::resource_index(vibecity::ResourceId::Bread)] == 5);
+    VIBECITY_CHECK(house_instance.inventory.quantity(vibecity::ResourceId::Bread) == 0);
+    VIBECITY_CHECK(house_instance.hunger_days == 0);
+    VIBECITY_CHECK(simulation.stats().consumed[vibecity::resource_index(vibecity::ResourceId::Bread)] == 5);
 }
 
 void house_records_hunger_when_bread_is_missing()
@@ -69,10 +70,10 @@ void house_records_hunger_when_bread_is_missing()
     simulation.run_for(vibecity::ticks_per_day);
 
     const auto& house_instance = simulation.building(house);
-    assert(house_instance.inventory.quantity(vibecity::ResourceId::Bread) == 0);
-    assert(house_instance.hunger_days == 1);
-    assert(house_instance.blocking_reason == vibecity::BlockingReason::MissingBread);
-    assert(simulation.stats().consumed[vibecity::resource_index(vibecity::ResourceId::Bread)] == 2);
+    VIBECITY_CHECK(house_instance.inventory.quantity(vibecity::ResourceId::Bread) == 0);
+    VIBECITY_CHECK(house_instance.hunger_days == 1);
+    VIBECITY_CHECK(house_instance.blocking_reason == vibecity::BlockingReason::MissingBread);
+    VIBECITY_CHECK(simulation.stats().consumed[vibecity::resource_index(vibecity::ResourceId::Bread)] == 2);
 }
 
 void logistics_delivers_bread_from_storehouse_to_house()
@@ -89,10 +90,10 @@ void logistics_delivers_bread_from_storehouse_to_house()
 
     const auto& house_instance = simulation.building(house);
     const auto& storehouse_instance = simulation.building(storehouse);
-    assert(house_instance.inventory.quantity(vibecity::ResourceId::Bread) == 10);
-    assert(storehouse_instance.inventory.quantity(vibecity::ResourceId::Bread) == 0);
-    assert(simulation.transport_jobs().empty());
-    assert(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Bread)] == 10);
+    VIBECITY_CHECK(house_instance.inventory.quantity(vibecity::ResourceId::Bread) == 10);
+    VIBECITY_CHECK(storehouse_instance.inventory.quantity(vibecity::ResourceId::Bread) == 0);
+    VIBECITY_CHECK(simulation.transport_jobs().empty());
+    VIBECITY_CHECK(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Bread)] == 10);
 }
 
 void disconnected_buildings_cannot_exchange_goods()
@@ -109,10 +110,10 @@ void disconnected_buildings_cannot_exchange_goods()
 
     const auto& house_instance = simulation.building(house);
     const auto& storehouse_instance = simulation.building(storehouse);
-    assert(house_instance.inventory.quantity(vibecity::ResourceId::Bread) == 0);
-    assert(storehouse_instance.inventory.quantity(vibecity::ResourceId::Bread) == 10);
-    assert(house_instance.blocking_reason == vibecity::BlockingReason::NoReachableSource);
-    assert(simulation.transport_jobs().empty());
+    VIBECITY_CHECK(house_instance.inventory.quantity(vibecity::ResourceId::Bread) == 0);
+    VIBECITY_CHECK(storehouse_instance.inventory.quantity(vibecity::ResourceId::Bread) == 10);
+    VIBECITY_CHECK(house_instance.blocking_reason == vibecity::BlockingReason::NoReachableSource);
+    VIBECITY_CHECK(simulation.transport_jobs().empty());
 }
 
 void connected_paths_allow_goods_exchange()
@@ -123,7 +124,7 @@ void connected_paths_allow_goods_exchange()
     const auto storehouse = simulation.add_building_at(vibecity::BuildingKind::Storehouse, vibecity::GridPosition{8, 1});
 
     for (int x = 1; x <= 9; ++x) {
-        assert(simulation.add_path(vibecity::GridPosition{x, 0}));
+        VIBECITY_CHECK(simulation.add_path(vibecity::GridPosition{x, 0}));
     }
 
     simulation.set_residents(house, 5);
@@ -133,9 +134,9 @@ void connected_paths_allow_goods_exchange()
 
     const auto& house_instance = simulation.building(house);
     const auto& storehouse_instance = simulation.building(storehouse);
-    assert(house_instance.inventory.quantity(vibecity::ResourceId::Bread) == 10);
-    assert(storehouse_instance.inventory.quantity(vibecity::ResourceId::Bread) == 0);
-    assert(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Bread)] == 10);
+    VIBECITY_CHECK(house_instance.inventory.quantity(vibecity::ResourceId::Bread) == 10);
+    VIBECITY_CHECK(storehouse_instance.inventory.quantity(vibecity::ResourceId::Bread) == 0);
+    VIBECITY_CHECK(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Bread)] == 10);
 }
 
 void logistics_prefers_nearest_reachable_source()
@@ -148,7 +149,7 @@ void logistics_prefers_nearest_reachable_source()
     const auto near_bakery = simulation.add_building_at(vibecity::BuildingKind::Bakery, vibecity::GridPosition{12, 1});
 
     for (int x = 1; x <= 13; ++x) {
-        assert(simulation.add_path(vibecity::GridPosition{x, 0}));
+        VIBECITY_CHECK(simulation.add_path(vibecity::GridPosition{x, 0}));
     }
 
     simulation.set_residents(house, 5);
@@ -159,9 +160,9 @@ void logistics_prefers_nearest_reachable_source()
 
     simulation.run_for(40);
 
-    assert(simulation.building(house).inventory.quantity(vibecity::ResourceId::Bread) == 10);
-    assert(simulation.building(near_bakery).inventory.quantity(vibecity::ResourceId::Bread) == 0);
-    assert(simulation.building(far_bakery).inventory.quantity(vibecity::ResourceId::Bread) == 10);
+    VIBECITY_CHECK(simulation.building(house).inventory.quantity(vibecity::ResourceId::Bread) == 10);
+    VIBECITY_CHECK(simulation.building(near_bakery).inventory.quantity(vibecity::ResourceId::Bread) == 0);
+    VIBECITY_CHECK(simulation.building(far_bakery).inventory.quantity(vibecity::ResourceId::Bread) == 10);
 }
 
 void disconnected_workers_do_not_staff_workplaces()
@@ -175,9 +176,9 @@ void disconnected_workers_do_not_staff_workplaces()
     simulation.run_for(720);
 
     const auto& farm_instance = simulation.building(farm);
-    assert(farm_instance.assigned_workers == 0);
-    assert(farm_instance.inventory.quantity(vibecity::ResourceId::Grain) == 0);
-    assert(farm_instance.blocking_reason == vibecity::BlockingReason::NotEnoughWorkers);
+    VIBECITY_CHECK(farm_instance.assigned_workers == 0);
+    VIBECITY_CHECK(farm_instance.inventory.quantity(vibecity::ResourceId::Grain) == 0);
+    VIBECITY_CHECK(farm_instance.blocking_reason == vibecity::BlockingReason::NotEnoughWorkers);
 }
 
 void bakery_fetches_inputs_before_producing()
@@ -195,11 +196,11 @@ void bakery_fetches_inputs_before_producing()
     simulation.run_for(240);
 
     const auto& bakery_instance = simulation.building(bakery);
-    assert(bakery_instance.inventory.quantity(vibecity::ResourceId::Grain) == 0);
-    assert(bakery_instance.inventory.quantity(vibecity::ResourceId::Firewood) == 0);
-    assert(simulation.stats().produced[vibecity::resource_index(vibecity::ResourceId::Bread)] == 12);
-    assert(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Grain)] == 6);
-    assert(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Firewood)] == 1);
+    VIBECITY_CHECK(bakery_instance.inventory.quantity(vibecity::ResourceId::Grain) == 0);
+    VIBECITY_CHECK(bakery_instance.inventory.quantity(vibecity::ResourceId::Firewood) == 0);
+    VIBECITY_CHECK(simulation.stats().produced[vibecity::resource_index(vibecity::ResourceId::Bread)] == 12);
+    VIBECITY_CHECK(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Grain)] == 6);
+    VIBECITY_CHECK(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Firewood)] == 1);
 }
 
 void construction_site_fetches_materials_and_completes()
@@ -217,12 +218,12 @@ void construction_site_fetches_materials_and_completes()
 
     const auto& completed = simulation.building(site);
     const auto& storehouse_instance = simulation.building(storehouse);
-    assert(completed.kind == vibecity::BuildingKind::Woodcutter);
-    assert(completed.position.has_value());
-    assert(completed.construction_target == std::nullopt);
-    assert(storehouse_instance.inventory.quantity(vibecity::ResourceId::Timber) == 0);
-    assert(simulation.stats().constructed_buildings == 1);
-    assert(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Timber)] == 8);
+    VIBECITY_CHECK(completed.kind == vibecity::BuildingKind::Woodcutter);
+    VIBECITY_CHECK(completed.position.has_value());
+    VIBECITY_CHECK(completed.construction_target == std::nullopt);
+    VIBECITY_CHECK(storehouse_instance.inventory.quantity(vibecity::ResourceId::Timber) == 0);
+    VIBECITY_CHECK(simulation.stats().constructed_buildings == 1);
+    VIBECITY_CHECK(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Timber)] == 8);
 }
 
 void construction_site_reports_missing_materials()
@@ -236,9 +237,9 @@ void construction_site_reports_missing_materials()
     simulation.run_for(20);
 
     const auto& construction_site = simulation.building(site);
-    assert(construction_site.kind == vibecity::BuildingKind::ConstructionSite);
-    assert(construction_site.blocking_reason == vibecity::BlockingReason::NoReachableSource);
-    assert(simulation.stats().constructed_buildings == 0);
+    VIBECITY_CHECK(construction_site.kind == vibecity::BuildingKind::ConstructionSite);
+    VIBECITY_CHECK(construction_site.blocking_reason == vibecity::BlockingReason::NoReachableSource);
+    VIBECITY_CHECK(simulation.stats().constructed_buildings == 0);
 }
 
 void output_storage_full_blocks_production()
@@ -253,8 +254,8 @@ void output_storage_full_blocks_production()
     simulation.tick();
 
     const auto& farm_instance = simulation.building(farm);
-    assert(farm_instance.inventory.quantity(vibecity::ResourceId::Grain) == 40);
-    assert(farm_instance.blocking_reason == vibecity::BlockingReason::OutputStorageFull);
+    VIBECITY_CHECK(farm_instance.inventory.quantity(vibecity::ResourceId::Grain) == 40);
+    VIBECITY_CHECK(farm_instance.blocking_reason == vibecity::BlockingReason::OutputStorageFull);
 }
 
 }
