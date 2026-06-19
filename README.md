@@ -30,6 +30,7 @@ Client controls:
 
 - `1`: select
 - `2`: place path
+- Hold left mouse in path mode: drag-place paths
 - `3`: place farm construction site
 - `4`: place woodcutter construction site
 - `5`: place bakery construction site

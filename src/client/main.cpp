@@ -920,6 +920,24 @@ bool is_smoke_test(int argc, char** argv)
     return false;
 }
 
+void place_path_tile(vibecity::GameSession& game,
+    vibecity::GridPosition tile,
+    std::optional<vibecity::BuildingId>& selected,
+    std::string& status,
+    bool quiet_failure)
+{
+    const auto result = game.execute(vibecity::PlacePathCommand{.position = tile});
+    if (result.success) {
+        status = result.message;
+        return;
+    }
+
+    if (!quiet_failure) {
+        selected = std::nullopt;
+        status = result.message;
+    }
+}
+
 }
 
 int main(int argc, char** argv)
@@ -957,6 +975,8 @@ int main(int argc, char** argv)
     auto ticks_per_frame = 10;
     auto selected = std::optional<vibecity::BuildingId>{};
     auto hover_tile = std::optional<vibecity::GridPosition>{};
+    auto path_dragging = false;
+    auto last_path_drag_tile = std::optional<vibecity::GridPosition>{};
     auto status = std::string{"ready"};
     auto game = vibecity::GameSession{};
     const auto scenario = vibecity::create_starting_village(game);
@@ -1039,6 +1059,12 @@ int main(int argc, char** argv)
 
             if (event.type == SDL_MOUSEMOTION) {
                 hover_tile = screen_to_map(event.motion.x, event.motion.y, camera);
+                if (path_dragging && mode == ClientMode::PlacePath && (event.motion.state & SDL_BUTTON_LMASK) != 0) {
+                    if (!last_path_drag_tile.has_value() || !(*last_path_drag_tile == *hover_tile)) {
+                        place_path_tile(game, *hover_tile, selected, status, true);
+                        last_path_drag_tile = hover_tile;
+                    }
+                }
             }
 
             if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT) {
@@ -1048,11 +1074,9 @@ int main(int argc, char** argv)
                     selected = building_at(game.simulation(), tile);
                     status = selected.has_value() ? "building selected" : "no building selected";
                 } else if (mode == ClientMode::PlacePath) {
-                    const auto result = game.execute(vibecity::PlacePathCommand{.position = tile});
-                    if (!result.success) {
-                        selected = std::nullopt;
-                    }
-                    status = result.message;
+                    path_dragging = true;
+                    last_path_drag_tile = tile;
+                    place_path_tile(game, tile, selected, status, false);
                 } else if (auto target = target_kind_for_mode(mode)) {
                     const auto result = game.execute(vibecity::PlaceConstructionCommand{
                         .target_kind = *target,
@@ -1063,6 +1087,11 @@ int main(int argc, char** argv)
                     }
                     status = result.message;
                 }
+            }
+
+            if (event.type == SDL_MOUSEBUTTONUP && event.button.button == SDL_BUTTON_LEFT) {
+                path_dragging = false;
+                last_path_drag_tile = std::nullopt;
             }
         }
 
