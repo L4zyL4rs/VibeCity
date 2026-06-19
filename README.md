@@ -10,3 +10,12 @@ See [docs/design.md](docs/design.md) for the current design document.
 
 See [docs/prototype-simulation.md](docs/prototype-simulation.md) for the first
 playable simulation target.
+
+## Build
+
+```bash
+cmake -S . -B build
+cmake --build build
+ctest --test-dir build --output-on-failure
+./build/vibecity_headless
+```
