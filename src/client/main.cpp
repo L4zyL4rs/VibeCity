@@ -33,6 +33,11 @@ struct Camera {
     int offset_y = hud_height + 24;
 };
 
+struct ScreenPoint {
+    float x = 0.0F;
+    float y = 0.0F;
+};
+
 struct Color {
     Uint8 r = 0;
     Uint8 g = 0;
@@ -284,6 +289,25 @@ Color building_color(const vibecity::BuildingInstance& building)
     return Color{160, 160, 160, 255};
 }
 
+Color resource_color(vibecity::ResourceId resource)
+{
+    switch (resource) {
+    case vibecity::ResourceId::Grain:
+        return Color{198, 176, 78, 255};
+    case vibecity::ResourceId::Bread:
+        return Color{220, 178, 112, 255};
+    case vibecity::ResourceId::Timber:
+        return Color{136, 90, 48, 255};
+    case vibecity::ResourceId::Firewood:
+        return Color{206, 82, 48, 255};
+    case vibecity::ResourceId::Tools:
+        return Color{168, 176, 184, 255};
+    case vibecity::ResourceId::Count:
+        return Color{210, 214, 204, 255};
+    }
+    return Color{210, 214, 204, 255};
+}
+
 Color mode_color(ClientMode mode)
 {
     switch (mode) {
@@ -305,7 +329,11 @@ Color mode_color(ClientMode mode)
     return Color{160, 160, 160, 255};
 }
 
-void draw_hud(SDL_Renderer* renderer, ClientMode mode, bool running, int ticks_per_frame)
+void draw_hud(SDL_Renderer* renderer,
+    ClientMode mode,
+    bool running,
+    int ticks_per_frame,
+    std::size_t transport_jobs)
 {
     int width = 0;
     SDL_GetRendererOutputSize(renderer, &width, nullptr);
@@ -362,6 +390,7 @@ void draw_hud(SDL_Renderer* renderer, ClientMode mode, bool running, int ticks_p
 
     draw_text(renderer, 390, 10, std::string{"MODE: "} + mode_name(mode), Color{210, 214, 204, 255}, 2);
     draw_text(renderer, 390, 30, running ? "SPACE PAUSE   +/- SPEED   WASD PAN" : "SPACE RUN     +/- SPEED   WASD PAN", Color{128, 138, 136, 255}, 2);
+    draw_text(renderer, 760, 30, std::string{"JOBS: "} + std::to_string(transport_jobs), Color{128, 138, 136, 255}, 2);
 }
 
 void draw_status(SDL_Renderer* renderer, std::string_view status)
@@ -433,6 +462,9 @@ void draw_inspector(SDL_Renderer* renderer, const vibecity::Simulation& simulati
     draw_text(renderer, panel_x + 18, y, "INSPECTOR", text, 2);
     y += 28;
 
+    draw_text(renderer, panel_x + 18, y, std::string{"TRANSPORT JOBS: "} + std::to_string(simulation.transport_jobs().size()), muted, 2);
+    y += 28;
+
     if (!selected.has_value()) {
         draw_text(renderer, panel_x + 18, y, "NO SELECTION", muted, 2);
         return;
@@ -486,6 +518,70 @@ void draw_inspector(SDL_Renderer* renderer, const vibecity::Simulation& simulati
         }
         draw_text(renderer, panel_x + 18, y, line, muted, 2);
         y += 20;
+    }
+}
+
+std::optional<ScreenPoint> building_center_screen(const vibecity::Simulation& simulation,
+    vibecity::BuildingId building_id,
+    Camera camera)
+{
+    for (const auto& building : simulation.buildings()) {
+        if (building.id != building_id || !building.position.has_value()) {
+            continue;
+        }
+
+        const auto footprint = footprint_for(building);
+        return ScreenPoint{
+            .x = static_cast<float>(camera.offset_x)
+                + (static_cast<float>(building.position->x) + static_cast<float>(footprint.width) * 0.5F)
+                    * static_cast<float>(tile_size),
+            .y = static_cast<float>(camera.offset_y)
+                + (static_cast<float>(building.position->y) + static_cast<float>(footprint.height) * 0.5F)
+                    * static_cast<float>(tile_size)
+        };
+    }
+
+    return std::nullopt;
+}
+
+void draw_transport_jobs(SDL_Renderer* renderer, const vibecity::Simulation& simulation, Camera camera)
+{
+    for (const auto& job : simulation.transport_jobs()) {
+        const auto source = building_center_screen(simulation, job.source, camera);
+        const auto destination = building_center_screen(simulation, job.destination, camera);
+        if (!source.has_value() || !destination.has_value()) {
+            continue;
+        }
+
+        auto color = resource_color(job.resource);
+        set_color(renderer, Color{color.r, color.g, color.b, 72});
+        SDL_RenderDrawLine(renderer,
+            static_cast<int>(source->x),
+            static_cast<int>(source->y),
+            static_cast<int>(destination->x),
+            static_cast<int>(destination->y));
+
+        auto marker = *source;
+        if (job.state == vibecity::TransportJobState::CarryingGoods) {
+            const auto total_ticks = std::max<vibecity::Tick>(1, job.leg_ticks_total);
+            const auto remaining = std::clamp(job.ticks_remaining, vibecity::Tick{0}, total_ticks);
+            const auto progress = 1.0F - static_cast<float>(remaining) / static_cast<float>(total_ticks);
+            marker.x = source->x + (destination->x - source->x) * progress;
+            marker.y = source->y + (destination->y - source->y) * progress;
+        }
+
+        const auto marker_size = job.state == vibecity::TransportJobState::GoingToPickup ? 5 : 7;
+        auto marker_rect = SDL_Rect{
+            .x = static_cast<int>(marker.x) - marker_size / 2,
+            .y = static_cast<int>(marker.y) - marker_size / 2,
+            .w = marker_size,
+            .h = marker_size
+        };
+
+        set_color(renderer, color);
+        SDL_RenderFillRect(renderer, &marker_rect);
+        set_color(renderer, Color{18, 20, 20, 255});
+        SDL_RenderDrawRect(renderer, &marker_rect);
     }
 }
 
@@ -602,6 +698,19 @@ void draw_map(SDL_Renderer* renderer,
         }
         SDL_RenderDrawRect(renderer, &rect);
 
+        if (building.blocking_reason != vibecity::BlockingReason::None) {
+            auto blocker = SDL_Rect{
+                .x = rect.x + rect.w - 7,
+                .y = rect.y + 1,
+                .w = 6,
+                .h = 6
+            };
+            set_color(renderer, Color{230, 74, 68, 255});
+            SDL_RenderFillRect(renderer, &blocker);
+            set_color(renderer, Color{18, 20, 20, 255});
+            SDL_RenderDrawRect(renderer, &blocker);
+        }
+
         if (selected.has_value() && *selected == building.id) {
             auto selected_rect = rect;
             selected_rect.x -= 2;
@@ -613,9 +722,10 @@ void draw_map(SDL_Renderer* renderer,
         }
     }
 
+    draw_transport_jobs(renderer, simulation, camera);
     draw_placement_preview(renderer, simulation, camera, mode, hover_tile);
     draw_inspector(renderer, simulation, selected);
-    draw_hud(renderer, mode, running, ticks_per_frame);
+    draw_hud(renderer, mode, running, ticks_per_frame, simulation.transport_jobs().size());
     draw_status(renderer, status);
     SDL_RenderPresent(renderer);
 }

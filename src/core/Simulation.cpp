@@ -445,6 +445,7 @@ void Simulation::advance_transport_jobs()
 
             job.state = TransportJobState::CarryingGoods;
             job.ticks_remaining = transport_minutes_between(*source, *destination);
+            job.leg_ticks_total = job.ticks_remaining;
             continue;
         }
 
@@ -721,7 +722,8 @@ bool Simulation::create_transport_job(BuildingInstance& source, BuildingInstance
         .source = source.id,
         .destination = destination.id,
         .state = TransportJobState::GoingToPickup,
-        .ticks_remaining = prototype_transport_leg_minutes
+        .ticks_remaining = prototype_transport_leg_minutes,
+        .leg_ticks_total = prototype_transport_leg_minutes
     });
     return true;
 }

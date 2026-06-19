@@ -40,6 +40,7 @@ struct TransportJob {
     BuildingId destination = 0;
     TransportJobState state = TransportJobState::GoingToPickup;
     Tick ticks_remaining = 0;
+    Tick leg_ticks_total = 0;
 };
 
 struct ResourceRequest {
