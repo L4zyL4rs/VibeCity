@@ -19,3 +19,22 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ./build/vibecity_headless
 ```
+
+If SDL2 is available, CMake also builds the first windowed client:
+
+```bash
+./build/vibecity_client
+```
+
+Client controls:
+
+- `1`: select
+- `2`: place path
+- `3`: place farm construction site
+- `4`: place woodcutter construction site
+- `5`: place bakery construction site
+- `6`: place house construction site
+- `7`: place storehouse construction site
+- `Space`: pause or run
+- `+` / `-`: simulation speed
+- Arrow keys or `WASD`: pan

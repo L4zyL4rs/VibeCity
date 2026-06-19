@@ -5,6 +5,8 @@ project(VibeCity
     LANGUAGES CXX
 )
 
+find_package(PkgConfig)
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -81,3 +83,36 @@ target_link_libraries(vibecity_game_tests
 )
 
 add_test(NAME vibecity_game_tests COMMAND vibecity_game_tests)
+
+if(PkgConfig_FOUND)
+    pkg_check_modules(SDL2 QUIET IMPORTED_TARGET sdl2)
+endif()
+
+if(SDL2_FOUND)
+    add_executable(vibecity_client
+        src/client/main.cpp
+    )
+
+    target_link_libraries(vibecity_client
+        PRIVATE
+            vibecity_game
+            PkgConfig::SDL2
+    )
+
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        target_compile_options(vibecity_client
+            PRIVATE
+                -Wall
+                -Wextra
+                -Wpedantic
+        )
+    endif()
+
+    add_test(NAME vibecity_client_smoke COMMAND vibecity_client --smoke-test)
+    set_tests_properties(vibecity_client_smoke
+        PROPERTIES
+            ENVIRONMENT "SDL_VIDEODRIVER=dummy"
+    )
+else()
+    message(STATUS "SDL2 not found; skipping vibecity_client target")
+endif()
