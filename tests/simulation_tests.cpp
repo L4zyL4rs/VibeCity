@@ -138,6 +138,32 @@ void connected_paths_allow_goods_exchange()
     assert(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Bread)] == 10);
 }
 
+void logistics_prefers_nearest_reachable_source()
+{
+    vibecity::Simulation simulation;
+
+    const auto far_bakery = simulation.add_building_at(vibecity::BuildingKind::Bakery, vibecity::GridPosition{1, 1});
+    const auto worker_house = simulation.add_building_at(vibecity::BuildingKind::House, vibecity::GridPosition{5, 1});
+    const auto house = simulation.add_building_at(vibecity::BuildingKind::House, vibecity::GridPosition{8, 1});
+    const auto near_bakery = simulation.add_building_at(vibecity::BuildingKind::Bakery, vibecity::GridPosition{12, 1});
+
+    for (int x = 1; x <= 13; ++x) {
+        assert(simulation.add_path(vibecity::GridPosition{x, 0}));
+    }
+
+    simulation.set_residents(house, 5);
+    simulation.set_residents(worker_house, 5);
+    simulation.building(worker_house).inventory.add(vibecity::ResourceId::Bread, 10);
+    simulation.building(far_bakery).inventory.add(vibecity::ResourceId::Bread, 10);
+    simulation.building(near_bakery).inventory.add(vibecity::ResourceId::Bread, 10);
+
+    simulation.run_for(40);
+
+    assert(simulation.building(house).inventory.quantity(vibecity::ResourceId::Bread) == 10);
+    assert(simulation.building(near_bakery).inventory.quantity(vibecity::ResourceId::Bread) == 0);
+    assert(simulation.building(far_bakery).inventory.quantity(vibecity::ResourceId::Bread) == 10);
+}
+
 void disconnected_workers_do_not_staff_workplaces()
 {
     vibecity::Simulation simulation;
@@ -242,6 +268,7 @@ int main()
     logistics_delivers_bread_from_storehouse_to_house();
     disconnected_buildings_cannot_exchange_goods();
     connected_paths_allow_goods_exchange();
+    logistics_prefers_nearest_reachable_source();
     disconnected_workers_do_not_staff_workplaces();
     bakery_fetches_inputs_before_producing();
     construction_site_fetches_materials_and_completes();

@@ -3,6 +3,7 @@
 #include "core/Building.hpp"
 
 #include <cstdint>
+#include <optional>
 #include <string_view>
 #include <vector>
 
@@ -87,6 +88,8 @@ private:
     [[nodiscard]] Footprint footprint_for(const BuildingInstance& building) const;
     [[nodiscard]] bool buildings_connected(const BuildingInstance& source, const BuildingInstance& destination) const;
     [[nodiscard]] Tick transport_minutes_between(const BuildingInstance& source, const BuildingInstance& destination) const;
+    [[nodiscard]] std::optional<Tick> transport_minutes_if_connected(const BuildingInstance& source,
+        const BuildingInstance& destination) const;
     void run_production();
     void dispatch_logistics();
     void advance_transport_jobs();
