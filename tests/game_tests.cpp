@@ -66,7 +66,7 @@ void starting_village_runs_through_command_layer()
     const auto ids = vibecity::create_starting_village(game);
 
     VIBECITY_CHECK(ids.houses.size() == 3);
-    VIBECITY_CHECK(game.simulation().building(ids.storehouse).inventory.quantity(vibecity::ResourceId::Timber) == 46);
+    VIBECITY_CHECK(game.simulation().building(ids.storehouse).inventory.quantity(vibecity::ResourceId::Timber) == 24);
 
     auto result = game.execute(vibecity::AdvanceTimeCommand{.ticks = 2 * vibecity::ticks_per_day});
     VIBECITY_CHECK(result.success);

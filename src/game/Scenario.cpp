@@ -5,6 +5,12 @@
 namespace vibecity {
 namespace {
 
+constexpr Quantity starting_house_bread = 6;
+constexpr Quantity starting_grain = 6;
+constexpr Quantity starting_firewood = 1;
+constexpr Quantity starting_timber = 24;
+constexpr Quantity starting_tools = 2;
+
 CommandResult require(GameSession& game, const GameCommand& command)
 {
     auto result = game.execute(command);
@@ -83,13 +89,13 @@ StartingVillageIds create_starting_village(GameSession& game)
 
     for (const auto house : ids.houses) {
         require(game, SetResidentsCommand{.building = house, .residents = 5});
-        add_stock(game, house, ResourceId::Bread, 10);
+        add_stock(game, house, ResourceId::Bread, starting_house_bread);
     }
 
-    add_stock(game, ids.storehouse, ResourceId::Grain, 18);
-    add_stock(game, ids.storehouse, ResourceId::Firewood, 3);
-    add_stock(game, ids.storehouse, ResourceId::Timber, 46);
-    add_stock(game, ids.storehouse, ResourceId::Tools, 5);
+    add_stock(game, ids.storehouse, ResourceId::Grain, starting_grain);
+    add_stock(game, ids.storehouse, ResourceId::Firewood, starting_firewood);
+    add_stock(game, ids.storehouse, ResourceId::Timber, starting_timber);
+    add_stock(game, ids.storehouse, ResourceId::Tools, starting_tools);
 
     return ids;
 }
