@@ -216,6 +216,7 @@ void Simulation::tick()
 
     if (current_tick_ % ticks_per_day == 0) {
         consume_daily_bread();
+        grow_population();
     }
 }
 
@@ -565,6 +566,41 @@ void Simulation::consume_daily_bread()
         } else if (instance.blocking_reason == BlockingReason::MissingBread) {
             instance.blocking_reason = BlockingReason::None;
         }
+    }
+}
+
+void Simulation::grow_population()
+{
+    if (free_housing_capacity() <= 0) {
+        return;
+    }
+
+    for (const auto& instance : buildings_) {
+        if (instance.residents > 0 && instance.blocking_reason == BlockingReason::MissingBread) {
+            return;
+        }
+    }
+
+    const auto stored_bread = total_inventory()[resource_index(ResourceId::Bread)];
+    if (stored_bread < daily_bread_need() + prototype_immigrants_per_day) {
+        return;
+    }
+
+    auto immigrants_remaining = prototype_immigrants_per_day;
+    for (auto& instance : buildings_) {
+        if (immigrants_remaining <= 0) {
+            break;
+        }
+
+        const auto& definition = building_definition(instance.kind);
+        if (!definition.consumes_bread || instance.residents >= definition.resident_capacity) {
+            continue;
+        }
+
+        const auto added = std::min(immigrants_remaining, definition.resident_capacity - instance.residents);
+        instance.residents += added;
+        immigrants_remaining -= added;
+        worker_assignment_dirty_ = true;
     }
 }
 

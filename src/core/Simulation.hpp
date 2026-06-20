@@ -16,6 +16,7 @@ inline constexpr Tick logistics_dispatch_interval = 10;
 inline constexpr Tick prototype_transport_leg_minutes = 5;
 inline constexpr Quantity prototype_hauler_capacity = 5;
 inline constexpr int prototype_builders_per_site = 3;
+inline constexpr int prototype_immigrants_per_day = 1;
 
 struct ResourceStats {
     ResourceArray produced{};
@@ -99,6 +100,7 @@ private:
     void advance_transport_jobs();
     void run_construction();
     void consume_daily_bread();
+    void grow_population();
     [[nodiscard]] std::vector<ResourceRequest> collect_resource_requests() const;
     [[nodiscard]] BuildingInstance* find_source_for_request(const ResourceRequest& request);
     [[nodiscard]] const BuildingInstance* find_source_for_request(const ResourceRequest& request) const;

@@ -94,6 +94,68 @@ void settlement_population_facts_track_housing_and_food_need()
     VIBECITY_CHECK(simulation.daily_bread_need() == 8);
 }
 
+void population_grows_into_free_housing_when_bread_is_available()
+{
+    vibecity::Simulation simulation;
+
+    const auto house = simulation.add_building(vibecity::BuildingKind::House);
+    simulation.set_residents(house, 4);
+    VIBECITY_CHECK(simulation.building(house).inventory.add(vibecity::ResourceId::Bread, 10));
+
+    simulation.run_for(vibecity::ticks_per_day);
+
+    VIBECITY_CHECK(simulation.building(house).residents == 5);
+    VIBECITY_CHECK(simulation.total_residents() == 5);
+    VIBECITY_CHECK(simulation.daily_bread_need() == 5);
+    VIBECITY_CHECK(simulation.building(house).inventory.quantity(vibecity::ResourceId::Bread) == 6);
+}
+
+void population_does_not_grow_when_housing_is_full()
+{
+    vibecity::Simulation simulation;
+
+    const auto house = simulation.add_building(vibecity::BuildingKind::House);
+    simulation.set_residents(house, 5);
+    VIBECITY_CHECK(simulation.building(house).inventory.add(vibecity::ResourceId::Bread, 10));
+
+    simulation.run_for(vibecity::ticks_per_day);
+
+    VIBECITY_CHECK(simulation.building(house).residents == 5);
+    VIBECITY_CHECK(simulation.free_housing_capacity() == 0);
+}
+
+void population_does_not_grow_when_bread_is_missing()
+{
+    vibecity::Simulation simulation;
+
+    const auto house = simulation.add_building(vibecity::BuildingKind::House);
+    simulation.set_residents(house, 4);
+    simulation.building(house).inventory.add(vibecity::ResourceId::Bread, 3);
+
+    simulation.run_for(vibecity::ticks_per_day);
+
+    VIBECITY_CHECK(simulation.building(house).residents == 4);
+    VIBECITY_CHECK(simulation.building(house).hunger_days == 1);
+    VIBECITY_CHECK(simulation.free_housing_capacity() == 1);
+}
+
+void population_does_not_grow_when_houses_are_hungry()
+{
+    vibecity::Simulation simulation;
+
+    const auto house = simulation.add_building_at(vibecity::BuildingKind::House, vibecity::GridPosition{1, 1});
+    const auto storehouse = simulation.add_building_at(vibecity::BuildingKind::Storehouse, vibecity::GridPosition{8, 1});
+
+    simulation.set_residents(house, 4);
+    simulation.building(storehouse).inventory.add(vibecity::ResourceId::Bread, 100);
+
+    simulation.run_for(vibecity::ticks_per_day);
+
+    VIBECITY_CHECK(simulation.building(house).residents == 4);
+    VIBECITY_CHECK(simulation.building(house).hunger_days == 1);
+    VIBECITY_CHECK(simulation.total_inventory()[vibecity::resource_index(vibecity::ResourceId::Bread)] == 100);
+}
+
 void logistics_delivers_bread_from_storehouse_to_house()
 {
     vibecity::Simulation simulation;
@@ -285,6 +347,10 @@ int main()
     house_consumes_bread_daily();
     house_records_hunger_when_bread_is_missing();
     settlement_population_facts_track_housing_and_food_need();
+    population_grows_into_free_housing_when_bread_is_available();
+    population_does_not_grow_when_housing_is_full();
+    population_does_not_grow_when_bread_is_missing();
+    population_does_not_grow_when_houses_are_hungry();
     logistics_delivers_bread_from_storehouse_to_house();
     disconnected_buildings_cannot_exchange_goods();
     connected_paths_allow_goods_exchange();
