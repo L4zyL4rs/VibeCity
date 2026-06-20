@@ -292,6 +292,36 @@ void bakery_fetches_inputs_before_producing()
     VIBECITY_CHECK(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Firewood)] == 1);
 }
 
+void farm_and_woodcutter_supply_bakery_chain()
+{
+    vibecity::Simulation simulation;
+
+    const auto first_house = simulation.add_building(vibecity::BuildingKind::House);
+    const auto second_house = simulation.add_building(vibecity::BuildingKind::House);
+    const auto third_house = simulation.add_building(vibecity::BuildingKind::House);
+    const auto farm = simulation.add_building(vibecity::BuildingKind::Farm);
+    const auto woodcutter = simulation.add_building(vibecity::BuildingKind::Woodcutter);
+    const auto bakery = simulation.add_building(vibecity::BuildingKind::Bakery);
+
+    simulation.set_residents(first_house, 5);
+    simulation.set_residents(second_house, 5);
+    simulation.set_residents(third_house, 5);
+
+    simulation.run_for(1'100);
+
+    const auto& farm_instance = simulation.building(farm);
+    const auto& woodcutter_instance = simulation.building(woodcutter);
+    const auto& bakery_instance = simulation.building(bakery);
+    VIBECITY_CHECK(farm_instance.assigned_workers == 2);
+    VIBECITY_CHECK(woodcutter_instance.assigned_workers == 2);
+    VIBECITY_CHECK(bakery_instance.assigned_workers == 2);
+    VIBECITY_CHECK(simulation.stats().produced[vibecity::resource_index(vibecity::ResourceId::Grain)] >= 20);
+    VIBECITY_CHECK(simulation.stats().produced[vibecity::resource_index(vibecity::ResourceId::Firewood)] >= 6);
+    VIBECITY_CHECK(simulation.stats().produced[vibecity::resource_index(vibecity::ResourceId::Bread)] >= 12);
+    VIBECITY_CHECK(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Grain)] >= 6);
+    VIBECITY_CHECK(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Firewood)] >= 1);
+}
+
 void construction_site_fetches_materials_and_completes()
 {
     vibecity::Simulation simulation;
@@ -366,6 +396,7 @@ int main()
     logistics_prefers_nearest_reachable_source();
     disconnected_workers_do_not_staff_workplaces();
     bakery_fetches_inputs_before_producing();
+    farm_and_woodcutter_supply_bakery_chain();
     construction_site_fetches_materials_and_completes();
     construction_site_reports_missing_materials();
     output_storage_full_blocks_production();
