@@ -77,6 +77,10 @@ public:
     [[nodiscard]] Tick minute_of_day() const;
     [[nodiscard]] int idle_workers() const;
     [[nodiscard]] int available_haulers() const;
+    [[nodiscard]] int total_residents() const;
+    [[nodiscard]] int total_housing_capacity() const;
+    [[nodiscard]] int free_housing_capacity() const;
+    [[nodiscard]] Quantity daily_bread_need() const;
     [[nodiscard]] ResourceArray total_inventory() const;
     [[nodiscard]] const ResourceStats& stats() const;
 

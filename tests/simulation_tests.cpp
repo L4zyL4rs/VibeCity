@@ -76,6 +76,24 @@ void house_records_hunger_when_bread_is_missing()
     VIBECITY_CHECK(simulation.stats().consumed[vibecity::resource_index(vibecity::ResourceId::Bread)] == 2);
 }
 
+void settlement_population_facts_track_housing_and_food_need()
+{
+    vibecity::Simulation simulation;
+
+    const auto first_house = simulation.add_building(vibecity::BuildingKind::House);
+    const auto second_house = simulation.add_building(vibecity::BuildingKind::House);
+    simulation.place_construction(vibecity::BuildingKind::House);
+    simulation.add_building(vibecity::BuildingKind::Farm);
+
+    simulation.set_residents(first_house, 5);
+    simulation.set_residents(second_house, 3);
+
+    VIBECITY_CHECK(simulation.total_residents() == 8);
+    VIBECITY_CHECK(simulation.total_housing_capacity() == 10);
+    VIBECITY_CHECK(simulation.free_housing_capacity() == 2);
+    VIBECITY_CHECK(simulation.daily_bread_need() == 8);
+}
+
 void logistics_delivers_bread_from_storehouse_to_house()
 {
     vibecity::Simulation simulation;
@@ -266,6 +284,7 @@ int main()
     bakery_consumes_inputs_and_produces_bread();
     house_consumes_bread_daily();
     house_records_hunger_when_bread_is_missing();
+    settlement_population_facts_track_housing_and_food_need();
     logistics_delivers_bread_from_storehouse_to_house();
     disconnected_buildings_cannot_exchange_goods();
     connected_paths_allow_goods_exchange();

@@ -367,15 +367,6 @@ std::string clock_text(const vibecity::Simulation& simulation)
     return output.str();
 }
 
-int total_residents(const vibecity::Simulation& simulation)
-{
-    auto residents = 0;
-    for (const auto& building : simulation.buildings()) {
-        residents += building.residents;
-    }
-    return residents;
-}
-
 int total_assigned_workers(const vibecity::Simulation& simulation)
 {
     auto workers = 0;
@@ -557,8 +548,18 @@ int draw_economy_summary(SDL_Renderer* renderer,
     draw_text(renderer,
         x,
         y,
-        std::string{"POP: "} + std::to_string(total_residents(simulation))
+        std::string{"POP: "} + std::to_string(simulation.total_residents())
+            + "/" + std::to_string(simulation.total_housing_capacity())
             + "  WORK: " + std::to_string(total_assigned_workers(simulation)),
+        muted,
+        2);
+    y += 20;
+
+    draw_text(renderer,
+        x,
+        y,
+        std::string{"HOME: "} + std::to_string(simulation.free_housing_capacity())
+            + "  BREAD/DAY: " + std::to_string(simulation.daily_bread_need()),
         muted,
         2);
     y += 20;

@@ -251,6 +251,41 @@ int Simulation::available_haulers() const
     return std::max(0, idle_workers_ - static_cast<int>(transport_jobs_.size()));
 }
 
+int Simulation::total_residents() const
+{
+    auto residents = 0;
+    for (const auto& instance : buildings_) {
+        residents += instance.residents;
+    }
+    return residents;
+}
+
+int Simulation::total_housing_capacity() const
+{
+    auto capacity = 0;
+    for (const auto& instance : buildings_) {
+        capacity += building_definition(instance.kind).resident_capacity;
+    }
+    return capacity;
+}
+
+int Simulation::free_housing_capacity() const
+{
+    return std::max(0, total_housing_capacity() - total_residents());
+}
+
+Quantity Simulation::daily_bread_need() const
+{
+    auto need = Quantity{0};
+    for (const auto& instance : buildings_) {
+        const auto& definition = building_definition(instance.kind);
+        if (definition.consumes_bread) {
+            need += static_cast<Quantity>(instance.residents);
+        }
+    }
+    return need;
+}
+
 ResourceArray Simulation::total_inventory() const
 {
     auto totals = empty_resources();
