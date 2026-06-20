@@ -34,6 +34,7 @@ endif()
 
 add_library(vibecity_game
     src/game/GameSession.cpp
+    src/game/Objectives.cpp
     src/game/Scenario.cpp
 )
 

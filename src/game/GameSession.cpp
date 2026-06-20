@@ -34,6 +34,11 @@ CommandResult failed(std::string message)
 
 }
 
+GameSession::GameSession()
+{
+    objectives_.update(simulation_);
+}
+
 Simulation& GameSession::simulation()
 {
     return simulation_;
@@ -44,10 +49,15 @@ const Simulation& GameSession::simulation() const
     return simulation_;
 }
 
+const VillageObjectiveTracker& GameSession::objectives() const
+{
+    return objectives_;
+}
+
 CommandResult GameSession::execute(const GameCommand& command)
 {
     try {
-        return std::visit(Overloaded{
+        auto result = std::visit(Overloaded{
             [this](const PlacePathCommand& place_path) {
                 if (!simulation_.add_path(place_path.position)) {
                     return failed("path could not be placed");
@@ -77,11 +87,22 @@ CommandResult GameSession::execute(const GameCommand& command)
                 if (advance_time.ticks < 0) {
                     return failed("cannot advance negative ticks");
                 }
-                simulation_.run_for(advance_time.ticks);
+                for (Tick tick = 0; tick < advance_time.ticks; ++tick) {
+                    const auto previous_day = simulation_.current_day();
+                    simulation_.tick();
+                    if (simulation_.current_day() != previous_day) {
+                        objectives_.update(simulation_);
+                    }
+                }
                 return ok("time advanced");
             }
         },
             command);
+
+        if (result.success) {
+            objectives_.update(simulation_);
+        }
+        return result;
     } catch (const std::exception& exception) {
         return failed(exception.what());
     }

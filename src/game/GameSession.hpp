@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/Simulation.hpp"
+#include "game/Objectives.hpp"
 
 #include <optional>
 #include <string>
@@ -53,13 +54,17 @@ struct CommandResult {
 
 class GameSession {
 public:
+    GameSession();
+
     [[nodiscard]] Simulation& simulation();
     [[nodiscard]] const Simulation& simulation() const;
+    [[nodiscard]] const VillageObjectiveTracker& objectives() const;
 
     [[nodiscard]] CommandResult execute(const GameCommand& command);
 
 private:
     Simulation simulation_;
+    VillageObjectiveTracker objectives_;
 };
 
 }

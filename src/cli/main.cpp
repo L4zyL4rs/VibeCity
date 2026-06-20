@@ -65,6 +65,18 @@ void print_transport_jobs(const vibecity::Simulation& simulation)
     }
 }
 
+void print_objectives(const vibecity::VillageObjectiveTracker& objectives)
+{
+    for (const auto& status : objectives.statuses()) {
+        const auto current = status.current > status.target ? status.target : status.current;
+        std::cout << (status.complete ? "ok " : "-- ") << status.label;
+        if (status.target > 1) {
+            std::cout << " " << current << "/" << status.target;
+        }
+        std::cout << "\n";
+    }
+}
+
 void print_construction_details(const vibecity::BuildingInstance& building)
 {
     if (building.kind != vibecity::BuildingKind::ConstructionSite || !building.construction_target.has_value()) {
@@ -134,6 +146,8 @@ int main()
     std::cout << "\nConstructed buildings: " << simulation.stats().constructed_buildings;
     std::cout << "\nStored: ";
     print_resource_array(simulation.total_inventory());
+    std::cout << "\nObjectives:\n";
+    print_objectives(game.objectives());
     std::cout << "\n";
 
     return 0;

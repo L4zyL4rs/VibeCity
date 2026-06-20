@@ -44,14 +44,15 @@ Already implemented:
 - Transport jobs with reservations.
 - Construction sites with delivered materials and builder labor.
 - Construction summary facts for active sites and blockers.
+- Game-layer village objective tracker with stable-fed-days history.
 - Command-layer scenario test that reaches 25 residents and stays fed for several days.
-- SDL client with placement, inspector, economy summary, transport overlay, and drag path placement.
+- SDL client with placement, inspector, economy summary, objective summary, transport overlay, and drag path placement.
 - Tests for core production, consumption, logistics, reachability, construction, and command-layer flow.
 
 Main gaps:
 
-- No village objective or win condition.
 - Current balance is still provisional and starts with generous stock.
+- Objective completion exists, but there is no dedicated victory screen or richer endpoint feedback.
 - No proper benchmark target.
 - `src/client/main.cpp` needs splitting before much more UI work.
 
@@ -193,17 +194,19 @@ Done when:
 
 ### Slice 5: Player Objectives
 
+Status: first pass done.
+
 Programming work:
 
-- Add a lightweight objective tracker outside the simulation core or as a game-layer wrapper.
+- Added a lightweight objective tracker in the game layer, outside the simulation core.
 - First objectives:
-  - build a woodcutter
-  - build a farm
-  - build a bakery
+  - have a woodcutter
+  - have a farm
+  - have a bakery
   - reach 15 residents
   - reach 25 residents
-  - run 5 stable days
-- Expose objective status in the client HUD or inspector.
+  - run 5 stable days at 25 residents
+- Exposed active objective status in the client inspector and headless output.
 
 Files likely touched:
 
@@ -218,7 +221,8 @@ Tests:
 
 - Objective state advances when the required building exists.
 - Objective state advances when resident count reaches threshold.
-- Stable-days objective resets or blocks on hunger.
+- Stable-days objective resets on hunger.
+- The self-sufficient village scenario completes the 25-resident and stable-days objectives.
 
 Done when:
 
@@ -294,9 +298,8 @@ Done when:
 ## Suggested Order
 
 1. Finish balancing production and construction around 25 residents.
-2. Add objective tracking.
-3. Split the client UI before adding more panels.
-4. Add a benchmark before scaling the simulation further.
+2. Split the client UI before adding more panels.
+3. Add a benchmark before scaling the simulation further.
 
 ## First Concrete Next Task
 

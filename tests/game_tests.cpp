@@ -3,6 +3,7 @@
 #include "game/GameSession.hpp"
 #include "game/Scenario.hpp"
 
+#include <cstddef>
 #include <iostream>
 
 namespace {
@@ -28,6 +29,11 @@ int total_hunger_days(const vibecity::Simulation& simulation)
         hunger_days += building.hunger_days;
     }
     return hunger_days;
+}
+
+const vibecity::VillageObjectiveStatus& objective_status(const vibecity::GameSession& game, vibecity::VillageObjectiveId id)
+{
+    return game.objectives().statuses()[static_cast<std::size_t>(id)];
 }
 
 void command_layer_places_path_and_building()
@@ -68,6 +74,57 @@ void starting_village_runs_through_command_layer()
     VIBECITY_CHECK(game.simulation().building(ids.farm_site).kind == vibecity::BuildingKind::Farm);
 }
 
+void objectives_track_starting_village_status()
+{
+    vibecity::GameSession game;
+
+    VIBECITY_CHECK(!objective_status(game, vibecity::VillageObjectiveId::HaveWoodcutter).complete);
+
+    const auto ids = vibecity::create_starting_village(game);
+    VIBECITY_CHECK(ids.houses.size() == 3);
+
+    VIBECITY_CHECK(objective_status(game, vibecity::VillageObjectiveId::HaveWoodcutter).complete);
+    VIBECITY_CHECK(objective_status(game, vibecity::VillageObjectiveId::HaveFarm).complete);
+    VIBECITY_CHECK(objective_status(game, vibecity::VillageObjectiveId::HaveBakery).complete);
+    VIBECITY_CHECK(objective_status(game, vibecity::VillageObjectiveId::Reach15Residents).complete);
+    VIBECITY_CHECK(objective_status(game, vibecity::VillageObjectiveId::Reach25Residents).current == 15);
+    VIBECITY_CHECK(!objective_status(game, vibecity::VillageObjectiveId::Reach25Residents).complete);
+    VIBECITY_CHECK(objective_status(game, vibecity::VillageObjectiveId::Stable25Residents).current == 0);
+}
+
+void objectives_count_stable_days_and_reset_on_hunger()
+{
+    vibecity::GameSession game;
+
+    for (int house_index = 0; house_index < 5; ++house_index) {
+        const auto house = require_building(game, vibecity::PlaceBuildingCommand{
+            .kind = vibecity::BuildingKind::House,
+            .position = vibecity::GridPosition{house_index + 1, 1}
+        });
+        require(game, vibecity::SetResidentsCommand{.building = house, .residents = 5});
+        require(game, vibecity::AddInventoryCommand{
+            .building = house,
+            .resource = vibecity::ResourceId::Bread,
+            .quantity = 10
+        });
+    }
+
+    VIBECITY_CHECK(objective_status(game, vibecity::VillageObjectiveId::Reach25Residents).complete);
+    VIBECITY_CHECK(objective_status(game, vibecity::VillageObjectiveId::Stable25Residents).current == 0);
+
+    require(game, vibecity::AdvanceTimeCommand{.ticks = 2 * vibecity::ticks_per_day});
+
+    VIBECITY_CHECK(game.objectives().stable_days_at_25_residents() == 2);
+    VIBECITY_CHECK(objective_status(game, vibecity::VillageObjectiveId::Stable25Residents).current == 2);
+    VIBECITY_CHECK(!objective_status(game, vibecity::VillageObjectiveId::Stable25Residents).complete);
+
+    require(game, vibecity::AdvanceTimeCommand{.ticks = vibecity::ticks_per_day});
+
+    VIBECITY_CHECK(total_hunger_days(game.simulation()) == 5);
+    VIBECITY_CHECK(game.objectives().stable_days_at_25_residents() == 0);
+    VIBECITY_CHECK(objective_status(game, vibecity::VillageObjectiveId::Stable25Residents).current == 0);
+}
+
 void self_sufficient_village_reaches_25_residents()
 {
     vibecity::GameSession game;
@@ -103,6 +160,8 @@ void self_sufficient_village_reaches_25_residents()
     VIBECITY_CHECK(total_hunger_days(simulation) == 0);
     VIBECITY_CHECK(simulation.stored_bread() >= 25);
     VIBECITY_CHECK(simulation.bread_days_remaining() >= 5);
+    VIBECITY_CHECK(objective_status(game, vibecity::VillageObjectiveId::Reach25Residents).complete);
+    VIBECITY_CHECK(objective_status(game, vibecity::VillageObjectiveId::Stable25Residents).complete);
 }
 
 }
@@ -112,6 +171,8 @@ int main()
     command_layer_places_path_and_building();
     invalid_command_reports_failure();
     starting_village_runs_through_command_layer();
+    objectives_track_starting_village_status();
+    objectives_count_stable_days_and_reset_on_hunger();
     self_sufficient_village_reaches_25_residents();
 
     std::cout << "game tests passed\n";

@@ -532,8 +532,61 @@ std::string flow_line(const vibecity::ResourceStats& stats, vibecity::ResourceId
     return output.str();
 }
 
+std::string objective_progress_line(const vibecity::VillageObjectiveStatus& status)
+{
+    auto output = std::ostringstream{};
+    output << (status.complete ? "OK " : "-- ") << status.label;
+    if (status.target > 1) {
+        output << " " << std::min(status.current, status.target) << "/" << status.target;
+    }
+    return output.str();
+}
+
+int draw_objective_summary(SDL_Renderer* renderer,
+    const vibecity::VillageObjectiveTracker& objectives,
+    int x,
+    int y,
+    Color text,
+    Color muted)
+{
+    draw_text(renderer, x, y, "OBJECTIVE", text, 2);
+    y += 24;
+
+    auto completed = 0;
+    const auto* active = static_cast<const vibecity::VillageObjectiveStatus*>(nullptr);
+    for (const auto& status : objectives.statuses()) {
+        if (status.complete) {
+            ++completed;
+            continue;
+        }
+
+        if (active == nullptr) {
+            active = &status;
+        }
+    }
+
+    if (active == nullptr) {
+        draw_text(renderer, x, y, "OK VILLAGE STABLE", text, 2);
+    } else {
+        draw_text(renderer, x, y, objective_progress_line(*active), muted, 2);
+    }
+    y += 20;
+
+    draw_text(renderer,
+        x,
+        y,
+        std::string{"DONE: "} + std::to_string(completed)
+            + "/" + std::to_string(vibecity::village_objective_count),
+        muted,
+        2);
+    y += 28;
+
+    return y;
+}
+
 int draw_economy_summary(SDL_Renderer* renderer,
     const vibecity::Simulation& simulation,
+    const vibecity::VillageObjectiveTracker& objectives,
     int x,
     int y,
     Color text,
@@ -610,6 +663,8 @@ int draw_economy_summary(SDL_Renderer* renderer,
         2);
     y += 28;
 
+    y = draw_objective_summary(renderer, objectives, x, y, text, muted);
+
     const auto totals = simulation.total_inventory();
     draw_text(renderer, x, y, "STORED", text, 2);
     y += 24;
@@ -642,7 +697,10 @@ int draw_economy_summary(SDL_Renderer* renderer,
     return y + 10;
 }
 
-void draw_inspector(SDL_Renderer* renderer, const vibecity::Simulation& simulation, std::optional<vibecity::BuildingId> selected)
+void draw_inspector(SDL_Renderer* renderer,
+    const vibecity::Simulation& simulation,
+    const vibecity::VillageObjectiveTracker& objectives,
+    std::optional<vibecity::BuildingId> selected)
 {
     int width = 0;
     int height = 0;
@@ -667,7 +725,7 @@ void draw_inspector(SDL_Renderer* renderer, const vibecity::Simulation& simulati
     draw_text(renderer, panel_x + 18, y, "INSPECTOR", text, 2);
     y += 28;
 
-    y = draw_economy_summary(renderer, simulation, panel_x + 18, y, text, muted);
+    y = draw_economy_summary(renderer, simulation, objectives, panel_x + 18, y, text, muted);
 
     if (!selected.has_value()) {
         draw_text(renderer, panel_x + 18, y, "NO SELECTION", muted, 2);
@@ -865,6 +923,7 @@ void update_title(SDL_Window* window,
 
 void draw_map(SDL_Renderer* renderer,
     const vibecity::Simulation& simulation,
+    const vibecity::VillageObjectiveTracker& objectives,
     Camera camera,
     std::optional<vibecity::BuildingId> selected,
     std::optional<vibecity::GridPosition> hover_tile,
@@ -933,7 +992,7 @@ void draw_map(SDL_Renderer* renderer,
 
     draw_transport_jobs(renderer, simulation, camera);
     draw_placement_preview(renderer, simulation, camera, mode, hover_tile);
-    draw_inspector(renderer, simulation, selected);
+    draw_inspector(renderer, simulation, objectives, selected);
     draw_hud(renderer, simulation, mode, running, ticks_per_frame);
     draw_status(renderer, status);
     SDL_RenderPresent(renderer);
@@ -1132,7 +1191,7 @@ int main(int argc, char** argv)
             }
         }
 
-        draw_map(renderer, game.simulation(), camera, selected, hover_tile, mode, running, ticks_per_frame, status);
+        draw_map(renderer, game.simulation(), game.objectives(), camera, selected, hover_tile, mode, running, ticks_per_frame, status);
         update_title(window, game.simulation(), mode, running, ticks_per_frame, selected);
 
         ++frame_count;
