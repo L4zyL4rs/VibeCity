@@ -42,6 +42,7 @@ Already implemented:
 - Dirt paths and building reachability.
 - Transport jobs with reservations.
 - Construction sites with delivered materials and builder labor.
+- Command-layer scenario test that reaches 25 residents and stays fed for several days.
 - SDL client with placement, inspector, economy summary, transport overlay, and drag path placement.
 - Tests for core production, consumption, logistics, reachability, construction, and command-layer flow.
 
@@ -56,13 +57,13 @@ Main gaps:
 
 ### Slice 1: Stabilize Test Infrastructure
 
-Status: mostly done.
+Status: done for the current milestone.
 
 Programming work:
 
 - Keep tests on `VIBECITY_CHECK`, not `assert`.
 - Add helper functions in tests for common village setup once tests become repetitive.
-- Add a long-running deterministic scenario test for the whole milestone.
+- Added a long-running deterministic scenario test for the whole milestone.
 
 Files likely touched:
 
@@ -285,12 +286,11 @@ Done when:
 
 ## Suggested Order
 
-1. Add the milestone scenario test skeleton.
-2. Balance production and construction around 25 residents.
-3. Add objective tracking.
-4. Split the client UI and add the missing growth/food/construction summaries.
-5. Add a benchmark before scaling the simulation further.
+1. Balance production and construction around 25 residents.
+2. Add objective tracking.
+3. Split the client UI and add the missing growth/food/construction summaries.
+4. Add a benchmark before scaling the simulation further.
 
 ## First Concrete Next Task
 
-Add a self-sufficient village scenario test skeleton. The first version does not need perfect balance; it should script construction of the buildings needed for 25 residents and expose which balance or logistics constraint fails first.
+Balance the current 25-resident scenario. The scripted test now reaches the target, but the numbers are still placeholder values. The next pass should decide whether the current farm, woodcutter, bakery, construction labor, and starting stock values create an interesting 10-20 minute village loop.
