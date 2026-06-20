@@ -324,6 +324,37 @@ PopulationGrowthBlocker Simulation::population_growth_blocker() const
     return PopulationGrowthBlocker::None;
 }
 
+ConstructionSummary Simulation::construction_summary() const
+{
+    auto summary = ConstructionSummary{};
+    for (const auto& instance : buildings_) {
+        if (instance.kind != BuildingKind::ConstructionSite) {
+            continue;
+        }
+
+        ++summary.sites;
+        switch (instance.blocking_reason) {
+        case BlockingReason::MissingConstructionMaterial:
+        case BlockingReason::NoReachableSource:
+            ++summary.waiting_materials;
+            break;
+        case BlockingReason::WaitingForHauler:
+            ++summary.waiting_logistics;
+            break;
+        case BlockingReason::WaitingForBuilderLabor:
+            ++summary.waiting_builders;
+            break;
+        case BlockingReason::None:
+        case BlockingReason::NotEnoughWorkers:
+        case BlockingReason::MissingInput:
+        case BlockingReason::OutputStorageFull:
+        case BlockingReason::MissingBread:
+            break;
+        }
+    }
+    return summary;
+}
+
 ResourceArray Simulation::total_inventory() const
 {
     auto totals = empty_resources();

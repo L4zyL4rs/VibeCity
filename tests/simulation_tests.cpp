@@ -359,6 +359,12 @@ void construction_site_reports_missing_materials()
     VIBECITY_CHECK(construction_site.kind == vibecity::BuildingKind::ConstructionSite);
     VIBECITY_CHECK(construction_site.blocking_reason == vibecity::BlockingReason::NoReachableSource);
     VIBECITY_CHECK(simulation.stats().constructed_buildings == 0);
+
+    const auto summary = simulation.construction_summary();
+    VIBECITY_CHECK(summary.sites == 1);
+    VIBECITY_CHECK(summary.waiting_materials == 1);
+    VIBECITY_CHECK(summary.waiting_logistics == 0);
+    VIBECITY_CHECK(summary.waiting_builders == 0);
 }
 
 void output_storage_full_blocks_production()

@@ -581,6 +581,17 @@ int draw_economy_summary(SDL_Renderer* renderer,
         2);
     y += 20;
 
+    const auto construction = simulation.construction_summary();
+    draw_text(renderer,
+        x,
+        y,
+        std::string{"SITE: "} + std::to_string(construction.sites)
+            + " MAT:" + std::to_string(construction.waiting_materials)
+            + " LAB:" + std::to_string(construction.waiting_builders),
+        muted,
+        2);
+    y += 20;
+
     draw_text(renderer,
         x,
         y,
