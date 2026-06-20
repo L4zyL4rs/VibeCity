@@ -89,6 +89,8 @@ public:
     [[nodiscard]] int total_housing_capacity() const;
     [[nodiscard]] int free_housing_capacity() const;
     [[nodiscard]] Quantity daily_bread_need() const;
+    [[nodiscard]] Quantity stored_bread() const;
+    [[nodiscard]] Quantity bread_days_remaining() const;
     [[nodiscard]] PopulationGrowthBlocker population_growth_blocker() const;
     [[nodiscard]] ResourceArray total_inventory() const;
     [[nodiscard]] const ResourceStats& stats() const;

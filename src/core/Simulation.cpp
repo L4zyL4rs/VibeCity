@@ -287,6 +287,24 @@ Quantity Simulation::daily_bread_need() const
     return need;
 }
 
+Quantity Simulation::stored_bread() const
+{
+    auto bread = Quantity{0};
+    for (const auto& instance : buildings_) {
+        bread += instance.inventory.quantity(ResourceId::Bread);
+    }
+    return bread;
+}
+
+Quantity Simulation::bread_days_remaining() const
+{
+    const auto need = daily_bread_need();
+    if (need <= 0) {
+        return 0;
+    }
+    return stored_bread() / need;
+}
+
 PopulationGrowthBlocker Simulation::population_growth_blocker() const
 {
     if (free_housing_capacity() <= 0) {
@@ -299,8 +317,7 @@ PopulationGrowthBlocker Simulation::population_growth_blocker() const
         }
     }
 
-    const auto stored_bread = total_inventory()[resource_index(ResourceId::Bread)];
-    if (stored_bread < daily_bread_need() + prototype_immigrants_per_day) {
+    if (stored_bread() < daily_bread_need() + prototype_immigrants_per_day) {
         return PopulationGrowthBlocker::NotEnoughBread;
     }
 

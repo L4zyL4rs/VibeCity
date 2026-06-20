@@ -92,6 +92,8 @@ void settlement_population_facts_track_housing_and_food_need()
     VIBECITY_CHECK(simulation.total_housing_capacity() == 10);
     VIBECITY_CHECK(simulation.free_housing_capacity() == 2);
     VIBECITY_CHECK(simulation.daily_bread_need() == 8);
+    VIBECITY_CHECK(simulation.stored_bread() == 0);
+    VIBECITY_CHECK(simulation.bread_days_remaining() == 0);
     VIBECITY_CHECK(simulation.population_growth_blocker() == vibecity::PopulationGrowthBlocker::NotEnoughBread);
 }
 
@@ -109,6 +111,8 @@ void population_grows_into_free_housing_when_bread_is_available()
     VIBECITY_CHECK(simulation.building(house).residents == 5);
     VIBECITY_CHECK(simulation.total_residents() == 5);
     VIBECITY_CHECK(simulation.daily_bread_need() == 5);
+    VIBECITY_CHECK(simulation.stored_bread() == 6);
+    VIBECITY_CHECK(simulation.bread_days_remaining() == 1);
     VIBECITY_CHECK(simulation.building(house).inventory.quantity(vibecity::ResourceId::Bread) == 6);
 }
 

@@ -567,6 +567,15 @@ int draw_economy_summary(SDL_Renderer* renderer,
     draw_text(renderer,
         x,
         y,
+        std::string{"FOOD: "} + std::to_string(simulation.stored_bread())
+            + " BRD  " + std::to_string(simulation.bread_days_remaining()) + " DAYS",
+        muted,
+        2);
+    y += 20;
+
+    draw_text(renderer,
+        x,
+        y,
         std::string{"GROW: "} + std::string{vibecity::population_growth_blocker_text(simulation.population_growth_blocker())},
         muted,
         2);

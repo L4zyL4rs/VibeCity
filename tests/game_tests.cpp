@@ -101,7 +101,8 @@ void self_sufficient_village_reaches_25_residents()
     VIBECITY_CHECK(simulation.daily_bread_need() == 25);
     VIBECITY_CHECK(simulation.population_growth_blocker() == vibecity::PopulationGrowthBlocker::NoHousing);
     VIBECITY_CHECK(total_hunger_days(simulation) == 0);
-    VIBECITY_CHECK(simulation.total_inventory()[vibecity::resource_index(vibecity::ResourceId::Bread)] >= 25);
+    VIBECITY_CHECK(simulation.stored_bread() >= 25);
+    VIBECITY_CHECK(simulation.bread_days_remaining() >= 5);
 }
 
 }
