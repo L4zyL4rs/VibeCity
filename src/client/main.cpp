@@ -567,6 +567,14 @@ int draw_economy_summary(SDL_Renderer* renderer,
     draw_text(renderer,
         x,
         y,
+        std::string{"GROW: "} + std::string{vibecity::population_growth_blocker_text(simulation.population_growth_blocker())},
+        muted,
+        2);
+    y += 20;
+
+    draw_text(renderer,
+        x,
+        y,
         std::string{"IDLE: "} + std::to_string(simulation.idle_workers())
             + "  HAUL: " + std::to_string(simulation.available_haulers()),
         muted,

@@ -287,6 +287,26 @@ Quantity Simulation::daily_bread_need() const
     return need;
 }
 
+PopulationGrowthBlocker Simulation::population_growth_blocker() const
+{
+    if (free_housing_capacity() <= 0) {
+        return PopulationGrowthBlocker::NoHousing;
+    }
+
+    for (const auto& instance : buildings_) {
+        if (instance.residents > 0 && instance.blocking_reason == BlockingReason::MissingBread) {
+            return PopulationGrowthBlocker::HungryHouse;
+        }
+    }
+
+    const auto stored_bread = total_inventory()[resource_index(ResourceId::Bread)];
+    if (stored_bread < daily_bread_need() + prototype_immigrants_per_day) {
+        return PopulationGrowthBlocker::NotEnoughBread;
+    }
+
+    return PopulationGrowthBlocker::None;
+}
+
 ResourceArray Simulation::total_inventory() const
 {
     auto totals = empty_resources();
@@ -571,18 +591,7 @@ void Simulation::consume_daily_bread()
 
 void Simulation::grow_population()
 {
-    if (free_housing_capacity() <= 0) {
-        return;
-    }
-
-    for (const auto& instance : buildings_) {
-        if (instance.residents > 0 && instance.blocking_reason == BlockingReason::MissingBread) {
-            return;
-        }
-    }
-
-    const auto stored_bread = total_inventory()[resource_index(ResourceId::Bread)];
-    if (stored_bread < daily_bread_need() + prototype_immigrants_per_day) {
+    if (population_growth_blocker() != PopulationGrowthBlocker::None) {
         return;
     }
 
@@ -908,6 +917,21 @@ std::string_view transport_job_state_name(TransportJobState state)
         return "complete";
     case TransportJobState::Failed:
         return "failed";
+    }
+    return "unknown";
+}
+
+std::string_view population_growth_blocker_text(PopulationGrowthBlocker blocker)
+{
+    switch (blocker) {
+    case PopulationGrowthBlocker::None:
+        return "ready";
+    case PopulationGrowthBlocker::NoHousing:
+        return "no housing";
+    case PopulationGrowthBlocker::HungryHouse:
+        return "hungry house";
+    case PopulationGrowthBlocker::NotEnoughBread:
+        return "low bread";
     }
     return "unknown";
 }

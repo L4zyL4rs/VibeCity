@@ -92,6 +92,7 @@ void settlement_population_facts_track_housing_and_food_need()
     VIBECITY_CHECK(simulation.total_housing_capacity() == 10);
     VIBECITY_CHECK(simulation.free_housing_capacity() == 2);
     VIBECITY_CHECK(simulation.daily_bread_need() == 8);
+    VIBECITY_CHECK(simulation.population_growth_blocker() == vibecity::PopulationGrowthBlocker::NotEnoughBread);
 }
 
 void population_grows_into_free_housing_when_bread_is_available()
@@ -101,6 +102,7 @@ void population_grows_into_free_housing_when_bread_is_available()
     const auto house = simulation.add_building(vibecity::BuildingKind::House);
     simulation.set_residents(house, 4);
     VIBECITY_CHECK(simulation.building(house).inventory.add(vibecity::ResourceId::Bread, 10));
+    VIBECITY_CHECK(simulation.population_growth_blocker() == vibecity::PopulationGrowthBlocker::None);
 
     simulation.run_for(vibecity::ticks_per_day);
 
@@ -117,6 +119,7 @@ void population_does_not_grow_when_housing_is_full()
     const auto house = simulation.add_building(vibecity::BuildingKind::House);
     simulation.set_residents(house, 5);
     VIBECITY_CHECK(simulation.building(house).inventory.add(vibecity::ResourceId::Bread, 10));
+    VIBECITY_CHECK(simulation.population_growth_blocker() == vibecity::PopulationGrowthBlocker::NoHousing);
 
     simulation.run_for(vibecity::ticks_per_day);
 
@@ -131,12 +134,14 @@ void population_does_not_grow_when_bread_is_missing()
     const auto house = simulation.add_building(vibecity::BuildingKind::House);
     simulation.set_residents(house, 4);
     simulation.building(house).inventory.add(vibecity::ResourceId::Bread, 3);
+    VIBECITY_CHECK(simulation.population_growth_blocker() == vibecity::PopulationGrowthBlocker::NotEnoughBread);
 
     simulation.run_for(vibecity::ticks_per_day);
 
     VIBECITY_CHECK(simulation.building(house).residents == 4);
     VIBECITY_CHECK(simulation.building(house).hunger_days == 1);
     VIBECITY_CHECK(simulation.free_housing_capacity() == 1);
+    VIBECITY_CHECK(simulation.population_growth_blocker() == vibecity::PopulationGrowthBlocker::HungryHouse);
 }
 
 void population_does_not_grow_when_houses_are_hungry()

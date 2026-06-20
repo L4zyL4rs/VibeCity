@@ -52,6 +52,13 @@ struct ResourceRequest {
     int priority = 0;
 };
 
+enum class PopulationGrowthBlocker : std::uint8_t {
+    None,
+    NoHousing,
+    HungryHouse,
+    NotEnoughBread
+};
+
 class Simulation {
 public:
     BuildingId add_building(BuildingKind kind);
@@ -82,6 +89,7 @@ public:
     [[nodiscard]] int total_housing_capacity() const;
     [[nodiscard]] int free_housing_capacity() const;
     [[nodiscard]] Quantity daily_bread_need() const;
+    [[nodiscard]] PopulationGrowthBlocker population_growth_blocker() const;
     [[nodiscard]] ResourceArray total_inventory() const;
     [[nodiscard]] const ResourceStats& stats() const;
 
@@ -127,5 +135,6 @@ private:
 };
 
 [[nodiscard]] std::string_view transport_job_state_name(TransportJobState state);
+[[nodiscard]] std::string_view population_growth_blocker_text(PopulationGrowthBlocker blocker);
 
 }
