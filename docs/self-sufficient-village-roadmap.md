@@ -36,12 +36,14 @@ Already implemented:
 - Production recipes and storage capacities.
 - Houses consuming bread daily.
 - Settlement population facts: residents, housing capacity, free housing, and daily bread need.
+- Food pressure facts: stored bread and days of bread remaining.
 - Simple deterministic immigration when housing and bread are available.
 - Growth blocker reporting for no housing, hungry houses, and low bread.
 - Worker assignment by reachability.
 - Dirt paths and building reachability.
 - Transport jobs with reservations.
 - Construction sites with delivered materials and builder labor.
+- Construction summary facts for active sites and blockers.
 - Command-layer scenario test that reaches 25 residents and stays fed for several days.
 - SDL client with placement, inspector, economy summary, transport overlay, and drag path placement.
 - Tests for core production, consumption, logistics, reachability, construction, and command-layer flow.
@@ -49,7 +51,7 @@ Already implemented:
 Main gaps:
 
 - No village objective or win condition.
-- Current balance is placeholder and starts with generous stock.
+- Current balance is still provisional and starts with generous stock.
 - No proper benchmark target.
 - `src/client/main.cpp` needs splitting before much more UI work.
 
@@ -129,6 +131,8 @@ Remaining follow-up:
 
 ### Slice 3: Balance The Existing Chain
 
+Status: in progress.
+
 Programming work:
 
 - Tune storage capacities, recipe outputs, worker slots, construction costs, and labor durations.
@@ -136,6 +140,8 @@ Programming work:
 - Keep early waiting times short enough for a prototype session.
 - Make woodcutter output support both construction timber and bakery firewood.
 - Make bakery and farm rates support at least 25 residents with a readable building count.
+- Added explicit food-pressure facts so balance can assert days of bread remaining.
+- Added a regression test proving farm and woodcutter output can supply a bakery without preloaded inputs.
 
 Files likely touched:
 
@@ -148,7 +154,7 @@ Tests:
 
 - One farm/woodcutter/bakery configuration can support the target population, or the test documents the required counts.
 - A bakery stalls when firewood or grain is unavailable.
-- A woodcutter producing firewood unblocks a bakery after logistics delivery.
+- A woodcutter producing firewood and a farm producing grain unblock a bakery after logistics delivery.
 
 Done when:
 
@@ -161,6 +167,7 @@ Programming work:
 
 - Add basic construction priority or predictable construction ordering.
 - Show assigned builders and remaining labor more clearly.
+- Added settlement-level construction summary facts and client display for active sites, material blockers, and builder blockers.
 - Ensure haulers and builders do not starve production labor in surprising ways.
 - Consider a simple labor reservation model if idle worker accounting becomes unclear.
 
@@ -286,11 +293,11 @@ Done when:
 
 ## Suggested Order
 
-1. Balance production and construction around 25 residents.
+1. Finish balancing production and construction around 25 residents.
 2. Add objective tracking.
-3. Split the client UI and add the missing growth/food/construction summaries.
+3. Split the client UI before adding more panels.
 4. Add a benchmark before scaling the simulation further.
 
 ## First Concrete Next Task
 
-Balance the current 25-resident scenario. The scripted test now reaches the target, but the numbers are still placeholder values. The next pass should decide whether the current farm, woodcutter, bakery, construction labor, and starting stock values create an interesting 10-20 minute village loop.
+Tune the starting stock and construction durations around the scripted 25-resident scenario. The scenario now proves food stability and self-supplied bakery inputs; the next pass should make the player feel the need to build the chain without making the first 10-20 minutes drag.
