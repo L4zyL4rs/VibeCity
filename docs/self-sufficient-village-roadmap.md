@@ -35,6 +35,9 @@ Already implemented:
 - Buildings: house, farm, bakery, woodcutter, storehouse, construction site.
 - Production recipes and storage capacities.
 - Houses consuming bread daily.
+- Settlement population facts: residents, housing capacity, free housing, and daily bread need.
+- Simple deterministic immigration when housing and bread are available.
+- Growth blocker reporting for no housing, hungry houses, and low bread.
 - Worker assignment by reachability.
 - Dirt paths and building reachability.
 - Transport jobs with reservations.
@@ -44,10 +47,8 @@ Already implemented:
 
 Main gaps:
 
-- No population growth or immigration.
 - No village objective or win condition.
 - Current balance is placeholder and starts with generous stock.
-- No explicit housing capacity summary or growth blockers.
 - No proper benchmark target.
 - `src/client/main.cpp` needs splitting before much more UI work.
 
@@ -81,18 +82,24 @@ Done when:
 
 ### Slice 2: Population Capacity And Growth
 
+Status: first pass done.
+
 Programming work:
 
-- Add settlement-level population facts:
+- Added settlement-level population facts:
   - total residents
   - total housing capacity
   - free housing
-  - hungry residents or hunger days
-- Add a simple growth rule:
+  - daily bread need
+- Added a simple growth rule:
   - If houses have free capacity and bread is available, residents immigrate slowly.
   - Growth should be deterministic.
   - Growth should stop when food or housing is missing.
-- Decide first-pass growth cadence, probably daily at dawn after food consumption.
+- Added first-pass growth cadence at the end of each day after food consumption.
+- Added growth blocker reporting:
+  - no housing
+  - hungry house
+  - low bread
 
 Files likely touched:
 
@@ -113,6 +120,11 @@ Done when:
 
 - The player can build a new house and see population eventually occupy it.
 - Growth blockers are visible in the inspector or economy summary.
+
+Remaining follow-up:
+
+- Decide whether immigration should require a dedicated town hall, route, or desirability later.
+- Balance growth speed after the 25-resident scenario exists.
 
 ### Slice 3: Balance The Existing Chain
 
@@ -273,20 +285,12 @@ Done when:
 
 ## Suggested Order
 
-1. Finish test helper cleanup and add the milestone scenario test skeleton.
-2. Add population growth and housing capacity facts.
-3. Balance production and construction around 25 residents.
-4. Add objective tracking.
-5. Split the client UI and add the missing growth/food/construction summaries.
-6. Add a benchmark before scaling the simulation further.
+1. Add the milestone scenario test skeleton.
+2. Balance production and construction around 25 residents.
+3. Add objective tracking.
+4. Split the client UI and add the missing growth/food/construction summaries.
+5. Add a benchmark before scaling the simulation further.
 
 ## First Concrete Next Task
 
-Add settlement population facts to `Simulation`:
-
-- `total_residents()`
-- `total_housing_capacity()`
-- `free_housing_capacity()`
-- possibly `daily_bread_need()`
-
-Then add tests for these facts and display them in the client economy summary. This creates the data needed for population growth without committing to the exact growth rule yet.
+Add a self-sufficient village scenario test skeleton. The first version does not need perfect balance; it should script construction of the buildings needed for 25 residents and expose which balance or logistics constraint fails first.
