@@ -1,3 +1,5 @@
+#include "client/ClientMode.hpp"
+#include "client/Hud.hpp"
 #include "client/MapView.hpp"
 #include "client/Text.hpp"
 #include "game/Scenario.hpp"
@@ -5,7 +7,6 @@
 #include <SDL.h>
 
 #include <algorithm>
-#include <array>
 #include <cstddef>
 #include <optional>
 #include <sstream>
@@ -16,72 +17,27 @@ namespace {
 
 using vibecity::client::Color;
 using vibecity::client::Camera;
+using vibecity::client::ClientMode;
 using vibecity::client::building_at;
 using vibecity::client::can_place_building_preview;
 using vibecity::client::can_place_path_preview;
+using vibecity::client::clock_text;
+using vibecity::client::draw_hud;
 using vibecity::client::draw_placement_preview;
+using vibecity::client::draw_status;
 using vibecity::client::draw_text;
 using vibecity::client::draw_transport_jobs;
 using vibecity::client::draw_world;
+using vibecity::client::hud_height;
+using vibecity::client::mode_name;
 using vibecity::client::screen_to_map;
 using vibecity::client::set_color;
+using vibecity::client::target_kind_for_mode;
 using vibecity::client::tile_size;
 
 constexpr int initial_window_width = 1280;
 constexpr int initial_window_height = 800;
-constexpr int hud_height = 52;
 constexpr int inspector_width = 340;
-
-enum class ClientMode {
-    Select,
-    PlacePath,
-    BuildHouse,
-    BuildFarm,
-    BuildWoodcutter,
-    BuildBakery,
-    BuildStorehouse
-};
-
-const char* mode_name(ClientMode mode)
-{
-    switch (mode) {
-    case ClientMode::Select:
-        return "select";
-    case ClientMode::PlacePath:
-        return "path";
-    case ClientMode::BuildHouse:
-        return "build house";
-    case ClientMode::BuildFarm:
-        return "build farm";
-    case ClientMode::BuildWoodcutter:
-        return "build woodcutter";
-    case ClientMode::BuildBakery:
-        return "build bakery";
-    case ClientMode::BuildStorehouse:
-        return "build storehouse";
-    }
-    return "unknown";
-}
-
-std::optional<vibecity::BuildingKind> target_kind_for_mode(ClientMode mode)
-{
-    switch (mode) {
-    case ClientMode::BuildHouse:
-        return vibecity::BuildingKind::House;
-    case ClientMode::BuildFarm:
-        return vibecity::BuildingKind::Farm;
-    case ClientMode::BuildWoodcutter:
-        return vibecity::BuildingKind::Woodcutter;
-    case ClientMode::BuildBakery:
-        return vibecity::BuildingKind::Bakery;
-    case ClientMode::BuildStorehouse:
-        return vibecity::BuildingKind::Storehouse;
-    case ClientMode::Select:
-    case ClientMode::PlacePath:
-        return std::nullopt;
-    }
-    return std::nullopt;
-}
 
 std::string_view resource_short_name(vibecity::ResourceId resource)
 {
@@ -102,46 +58,6 @@ std::string_view resource_short_name(vibecity::ResourceId resource)
     return "UNK";
 }
 
-Color mode_color(ClientMode mode)
-{
-    switch (mode) {
-    case ClientMode::Select:
-        return Color{170, 176, 176, 255};
-    case ClientMode::PlacePath:
-        return Color{82, 86, 86, 255};
-    case ClientMode::BuildHouse:
-        return Color{92, 142, 210, 255};
-    case ClientMode::BuildFarm:
-        return Color{78, 156, 86, 255};
-    case ClientMode::BuildWoodcutter:
-        return Color{93, 128, 62, 255};
-    case ClientMode::BuildBakery:
-        return Color{196, 126, 54, 255};
-    case ClientMode::BuildStorehouse:
-        return Color{132, 118, 151, 255};
-    }
-    return Color{160, 160, 160, 255};
-}
-
-std::string clock_text(const vibecity::Simulation& simulation)
-{
-    const auto minute_of_day = simulation.minute_of_day();
-    const auto hour = minute_of_day / vibecity::ticks_per_hour;
-    const auto minute = minute_of_day % vibecity::ticks_per_hour;
-
-    auto output = std::ostringstream{};
-    output << "DAY: " << simulation.current_day() << " ";
-    if (hour < 10) {
-        output << "0";
-    }
-    output << hour << ":";
-    if (minute < 10) {
-        output << "0";
-    }
-    output << minute;
-    return output.str();
-}
-
 int total_assigned_workers(const vibecity::Simulation& simulation)
 {
     auto workers = 0;
@@ -149,80 +65,6 @@ int total_assigned_workers(const vibecity::Simulation& simulation)
         workers += building.assigned_workers;
     }
     return workers;
-}
-
-void draw_hud(SDL_Renderer* renderer,
-    const vibecity::Simulation& simulation,
-    ClientMode mode,
-    bool running,
-    int ticks_per_frame)
-{
-    int width = 0;
-    SDL_GetRendererOutputSize(renderer, &width, nullptr);
-
-    auto hud_rect = SDL_Rect{0, 0, width, hud_height};
-    set_color(renderer, Color{18, 20, 20, 255});
-    SDL_RenderFillRect(renderer, &hud_rect);
-
-    auto separator = SDL_Rect{0, hud_height - 2, width, 2};
-    set_color(renderer, Color{60, 64, 64, 255});
-    SDL_RenderFillRect(renderer, &separator);
-
-    constexpr std::array<ClientMode, 7> modes{{
-        ClientMode::Select,
-        ClientMode::PlacePath,
-        ClientMode::BuildFarm,
-        ClientMode::BuildWoodcutter,
-        ClientMode::BuildBakery,
-        ClientMode::BuildHouse,
-        ClientMode::BuildStorehouse
-    }};
-
-    for (std::size_t index = 0; index < modes.size(); ++index) {
-        auto box = SDL_Rect{
-            .x = 12 + static_cast<int>(index) * 38,
-            .y = 12,
-            .w = 28,
-            .h = 28
-        };
-        set_color(renderer, mode_color(modes[index]));
-        SDL_RenderFillRect(renderer, &box);
-
-        set_color(renderer, modes[index] == mode ? Color{230, 230, 218, 255} : Color{44, 48, 48, 255});
-        SDL_RenderDrawRect(renderer, &box);
-    }
-
-    auto speed_x = 304;
-    auto speed_value = ticks_per_frame;
-    for (int index = 0; index < 8; ++index) {
-        auto bar = SDL_Rect{
-            .x = speed_x + index * 8,
-            .y = 30 - index * 2,
-            .w = 5,
-            .h = 8 + index * 2
-        };
-        set_color(renderer, speed_value > 0 ? Color{164, 174, 116, 255} : Color{58, 62, 62, 255});
-        SDL_RenderFillRect(renderer, &bar);
-        speed_value /= 2;
-    }
-
-    auto run_indicator = SDL_Rect{width - 40, 14, 24, 24};
-    set_color(renderer, running ? Color{82, 170, 92, 255} : Color{190, 74, 70, 255});
-    SDL_RenderFillRect(renderer, &run_indicator);
-
-    draw_text(renderer, 390, 10, std::string{"MODE: "} + mode_name(mode), Color{210, 214, 204, 255}, 2);
-    draw_text(renderer, 390, 30, running ? "SPACE PAUSE   +/- SPEED   WASD PAN" : "SPACE RUN     +/- SPEED   WASD PAN", Color{128, 138, 136, 255}, 2);
-    draw_text(renderer,
-        760,
-        30,
-        clock_text(simulation) + " JOBS: " + std::to_string(simulation.transport_jobs().size()),
-        Color{128, 138, 136, 255},
-        2);
-}
-
-void draw_status(SDL_Renderer* renderer, std::string_view status)
-{
-    draw_text(renderer, 760, 10, std::string{"STATUS: "} + std::string{status}, Color{202, 204, 176, 255}, 2);
 }
 
 std::string selected_summary(const vibecity::Simulation& simulation, std::optional<vibecity::BuildingId> selected)
