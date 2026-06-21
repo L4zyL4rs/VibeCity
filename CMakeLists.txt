@@ -61,6 +61,24 @@ target_link_libraries(vibecity_headless
         vibecity_game
 )
 
+add_executable(vibecity_bench
+    src/bench/main.cpp
+)
+
+target_link_libraries(vibecity_bench
+    PRIVATE
+        vibecity_game
+)
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(vibecity_bench
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+endif()
+
 enable_testing()
 
 add_executable(vibecity_core_tests

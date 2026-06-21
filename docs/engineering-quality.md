@@ -14,6 +14,12 @@ SDL_VIDEODRIVER=dummy ./build/vibecity_client --smoke-test
 
 If SDL2 is unavailable, document that the client smoke check could not run.
 
+For performance-sensitive changes, also run the non-gating benchmark:
+
+```bash
+./build/vibecity_bench
+```
+
 ## Quality Bar
 
 - Simulation logic stays deterministic. No wall-clock time, hidden randomness, renderer state, or input state may affect core results.
@@ -35,6 +41,7 @@ Snapshot from 2026-06-20:
 | Core simulation implementation | 844 lines | Split pressure is building |
 | SDL client implementation | 1,119 lines | Needs decomposition before many more UI features |
 | Automated CTest targets | 3 | Core, game, and client smoke are covered |
+| Non-gating benchmark targets | 1 | Useful before optimizing logistics or pathfinding |
 | Named simulation scenarios | 13 | Good coverage for current prototype mechanics |
 | Named command-layer scenarios | 3 | Thin but appropriate for current command layer |
 | Informal headless 2-day demo runtime | ~0.02s | Useful only as a rough local smell test |

@@ -55,7 +55,7 @@ Main gaps:
 
 - Current balance is still provisional, but starting stock is now limited enough that production construction matters.
 - Objective completion exists, but there is no dedicated victory screen or richer endpoint feedback.
-- No proper benchmark target.
+- Non-gating benchmark target exists, but no historical baseline tracking yet.
 - `src/client/main.cpp` needs splitting before much more UI work.
 
 ## Implementation Slices
@@ -275,9 +275,11 @@ Done when:
 
 ### Slice 7: Performance Baseline
 
+Status: first pass done.
+
 Programming work:
 
-- Add a non-gating benchmark executable.
+- Added a non-gating benchmark executable.
 - Benchmark scenarios:
   - current starting village for 30 days
   - generated village with 100 buildings for 10 days
