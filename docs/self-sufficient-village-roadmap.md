@@ -45,13 +45,14 @@ Already implemented:
 - Construction sites with delivered materials and builder labor.
 - Construction summary facts for active sites and blockers.
 - Game-layer village objective tracker with stable-fed-days history.
-- Command-layer scenario test that reaches 25 residents and stays fed for several days.
+- Starting village that requires the player to construct the production chain.
+- Command-layer scenario test that constructs a woodcutter, farm, bakery, and houses, then reaches 25 residents and stays fed for several days.
 - SDL client with placement, inspector, economy summary, objective summary, transport overlay, and drag path placement.
 - Tests for core production, consumption, logistics, reachability, construction, and command-layer flow.
 
 Main gaps:
 
-- Current balance is still provisional and starts with generous stock.
+- Current balance is still provisional, but starting stock is now limited enough that production construction matters.
 - Objective completion exists, but there is no dedicated victory screen or richer endpoint feedback.
 - No proper benchmark target.
 - `src/client/main.cpp` needs splitting before much more UI work.
@@ -143,6 +144,8 @@ Programming work:
 - Make bakery and farm rates support at least 25 residents with a readable building count.
 - Added explicit food-pressure facts so balance can assert days of bread remaining.
 - Added a regression test proving farm and woodcutter output can supply a bakery without preloaded inputs.
+- Reworked the starting village so the farm, woodcutter, and bakery begin unbuilt.
+- Updated the milestone scenario to construct the woodcutter, farm, bakery, and two houses from limited startup materials.
 
 Files likely touched:
 
@@ -161,6 +164,7 @@ Done when:
 
 - The numbers produce a playable loop rather than instant abundance or permanent starvation.
 - The self-sufficient scenario passes without hidden inventory injections after startup.
+- The production-chain objectives are initially incomplete and become complete through construction.
 
 ### Slice 4: Construction And Work Priority
 
@@ -303,4 +307,4 @@ Done when:
 
 ## First Concrete Next Task
 
-Tune the starting stock and construction durations around the scripted 25-resident scenario. The scenario now proves food stability and self-supplied bakery inputs; the next pass should make the player feel the need to build the chain without making the first 10-20 minutes drag.
+Split `src/client/main.cpp` before adding more village readability UI. The gameplay loop now needs more on-screen explanation, and the client file is large enough that another panel or interaction pass should not land there monolithically.

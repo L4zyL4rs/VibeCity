@@ -6,10 +6,9 @@ namespace vibecity {
 namespace {
 
 constexpr Quantity starting_house_bread = 6;
-constexpr Quantity starting_grain = 6;
-constexpr Quantity starting_firewood = 1;
-constexpr Quantity starting_timber = 24;
-constexpr Quantity starting_tools = 2;
+constexpr Quantity starting_storehouse_bread = 24;
+constexpr Quantity starting_timber = 28;
+constexpr Quantity starting_tools = 1;
 
 CommandResult require(GameSession& game, const GameCommand& command)
 {
@@ -51,7 +50,7 @@ StartingVillageIds create_starting_village(GameSession& game)
 {
     auto ids = StartingVillageIds{};
 
-    add_path_line(game, 0, 1, 21);
+    add_path_line(game, 0, 1, 30);
 
     ids.houses.push_back(require_building(game, PlaceBuildingCommand{
         .kind = BuildingKind::House,
@@ -66,25 +65,9 @@ StartingVillageIds create_starting_village(GameSession& game)
         .position = GridPosition{5, 1}
     }));
 
-    ids.farm = require_building(game, PlaceBuildingCommand{
-        .kind = BuildingKind::Farm,
-        .position = GridPosition{7, 1}
-    });
-    ids.woodcutter = require_building(game, PlaceBuildingCommand{
-        .kind = BuildingKind::Woodcutter,
-        .position = GridPosition{10, 1}
-    });
-    ids.bakery = require_building(game, PlaceBuildingCommand{
-        .kind = BuildingKind::Bakery,
-        .position = GridPosition{13, 1}
-    });
     ids.storehouse = require_building(game, PlaceBuildingCommand{
         .kind = BuildingKind::Storehouse,
-        .position = GridPosition{16, 1}
-    });
-    ids.farm_site = require_building(game, PlaceConstructionCommand{
-        .target_kind = BuildingKind::Farm,
-        .position = GridPosition{19, 1}
+        .position = GridPosition{7, 1}
     });
 
     for (const auto house : ids.houses) {
@@ -92,8 +75,7 @@ StartingVillageIds create_starting_village(GameSession& game)
         add_stock(game, house, ResourceId::Bread, starting_house_bread);
     }
 
-    add_stock(game, ids.storehouse, ResourceId::Grain, starting_grain);
-    add_stock(game, ids.storehouse, ResourceId::Firewood, starting_firewood);
+    add_stock(game, ids.storehouse, ResourceId::Bread, starting_storehouse_bread);
     add_stock(game, ids.storehouse, ResourceId::Timber, starting_timber);
     add_stock(game, ids.storehouse, ResourceId::Tools, starting_tools);
 

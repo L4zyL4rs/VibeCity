@@ -117,8 +117,7 @@ int main()
 
     std::cout << "VibeCity headless simulation\n";
     std::cout << "scenario houses=" << scenario.houses.size()
-              << ", storehouse=#" << scenario.storehouse
-              << ", farm_site=#" << scenario.farm_site << "\n";
+              << ", storehouse=#" << scenario.storehouse << "\n";
     std::cout << "day=" << simulation.current_day() << ", tick=" << simulation.current_tick() << "\n\n";
 
     for (const auto& building : simulation.buildings()) {

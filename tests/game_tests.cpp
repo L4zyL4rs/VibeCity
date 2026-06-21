@@ -66,12 +66,16 @@ void starting_village_runs_through_command_layer()
     const auto ids = vibecity::create_starting_village(game);
 
     VIBECITY_CHECK(ids.houses.size() == 3);
-    VIBECITY_CHECK(game.simulation().building(ids.storehouse).inventory.quantity(vibecity::ResourceId::Timber) == 24);
+    VIBECITY_CHECK(!ids.woodcutter.has_value());
+    VIBECITY_CHECK(!ids.farm.has_value());
+    VIBECITY_CHECK(!ids.bakery.has_value());
+    VIBECITY_CHECK(game.simulation().building(ids.storehouse).inventory.quantity(vibecity::ResourceId::Bread) == 24);
+    VIBECITY_CHECK(game.simulation().building(ids.storehouse).inventory.quantity(vibecity::ResourceId::Timber) == 28);
+    VIBECITY_CHECK(game.simulation().building(ids.storehouse).inventory.quantity(vibecity::ResourceId::Tools) == 1);
 
     auto result = game.execute(vibecity::AdvanceTimeCommand{.ticks = 2 * vibecity::ticks_per_day});
     VIBECITY_CHECK(result.success);
-    VIBECITY_CHECK(game.simulation().stats().constructed_buildings == 1);
-    VIBECITY_CHECK(game.simulation().building(ids.farm_site).kind == vibecity::BuildingKind::Farm);
+    VIBECITY_CHECK(game.simulation().stats().constructed_buildings == 0);
 }
 
 void objectives_track_starting_village_status()
@@ -83,9 +87,9 @@ void objectives_track_starting_village_status()
     const auto ids = vibecity::create_starting_village(game);
     VIBECITY_CHECK(ids.houses.size() == 3);
 
-    VIBECITY_CHECK(objective_status(game, vibecity::VillageObjectiveId::HaveWoodcutter).complete);
-    VIBECITY_CHECK(objective_status(game, vibecity::VillageObjectiveId::HaveFarm).complete);
-    VIBECITY_CHECK(objective_status(game, vibecity::VillageObjectiveId::HaveBakery).complete);
+    VIBECITY_CHECK(!objective_status(game, vibecity::VillageObjectiveId::HaveWoodcutter).complete);
+    VIBECITY_CHECK(!objective_status(game, vibecity::VillageObjectiveId::HaveFarm).complete);
+    VIBECITY_CHECK(!objective_status(game, vibecity::VillageObjectiveId::HaveBakery).complete);
     VIBECITY_CHECK(objective_status(game, vibecity::VillageObjectiveId::Reach15Residents).complete);
     VIBECITY_CHECK(objective_status(game, vibecity::VillageObjectiveId::Reach25Residents).current == 15);
     VIBECITY_CHECK(!objective_status(game, vibecity::VillageObjectiveId::Reach25Residents).complete);
@@ -131,17 +135,25 @@ void self_sufficient_village_reaches_25_residents()
     const auto ids = vibecity::create_starting_village(game);
     VIBECITY_CHECK(ids.houses.size() == 3);
 
-    for (int x = 22; x <= 25; ++x) {
-        require(game, vibecity::PlacePathCommand{.position = vibecity::GridPosition{x, 0}});
-    }
-
+    const auto woodcutter = require_building(game, vibecity::PlaceConstructionCommand{
+        .target_kind = vibecity::BuildingKind::Woodcutter,
+        .position = vibecity::GridPosition{10, 1}
+    });
+    const auto farm = require_building(game, vibecity::PlaceConstructionCommand{
+        .target_kind = vibecity::BuildingKind::Farm,
+        .position = vibecity::GridPosition{13, 1}
+    });
+    const auto bakery = require_building(game, vibecity::PlaceConstructionCommand{
+        .target_kind = vibecity::BuildingKind::Bakery,
+        .position = vibecity::GridPosition{16, 1}
+    });
     const auto first_house = require_building(game, vibecity::PlaceConstructionCommand{
         .target_kind = vibecity::BuildingKind::House,
-        .position = vibecity::GridPosition{22, 1}
+        .position = vibecity::GridPosition{19, 1}
     });
     const auto second_house = require_building(game, vibecity::PlaceConstructionCommand{
         .target_kind = vibecity::BuildingKind::House,
-        .position = vibecity::GridPosition{24, 1}
+        .position = vibecity::GridPosition{21, 1}
     });
 
     for (int day = 0; day < 16; ++day) {
@@ -149,9 +161,12 @@ void self_sufficient_village_reaches_25_residents()
     }
 
     const auto& simulation = game.simulation();
+    VIBECITY_CHECK(simulation.building(woodcutter).kind == vibecity::BuildingKind::Woodcutter);
+    VIBECITY_CHECK(simulation.building(farm).kind == vibecity::BuildingKind::Farm);
+    VIBECITY_CHECK(simulation.building(bakery).kind == vibecity::BuildingKind::Bakery);
     VIBECITY_CHECK(simulation.building(first_house).kind == vibecity::BuildingKind::House);
     VIBECITY_CHECK(simulation.building(second_house).kind == vibecity::BuildingKind::House);
-    VIBECITY_CHECK(simulation.stats().constructed_buildings >= 3);
+    VIBECITY_CHECK(simulation.stats().constructed_buildings >= 5);
     VIBECITY_CHECK(simulation.total_residents() == 25);
     VIBECITY_CHECK(simulation.total_housing_capacity() == 25);
     VIBECITY_CHECK(simulation.free_housing_capacity() == 0);
