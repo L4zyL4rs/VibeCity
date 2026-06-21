@@ -41,6 +41,38 @@ std::optional<ScreenPoint> building_center_screen(const Simulation& simulation, 
     return std::nullopt;
 }
 
+void draw_construction_progress(SDL_Renderer* renderer, const BuildingInstance& building, const SDL_Rect& rect)
+{
+    if (building.kind != BuildingKind::ConstructionSite || building.construction_labor_required <= 0) {
+        return;
+    }
+
+    const auto completed = std::clamp(
+        building.construction_labor_completed,
+        Tick{0},
+        building.construction_labor_required);
+    const auto progress = static_cast<float>(completed) / static_cast<float>(building.construction_labor_required);
+    const auto track = SDL_Rect{
+        .x = rect.x + 1,
+        .y = rect.y + rect.h - 4,
+        .w = std::max(0, rect.w - 2),
+        .h = 3
+    };
+    const auto fill = SDL_Rect{
+        .x = track.x,
+        .y = track.y,
+        .w = static_cast<int>(static_cast<float>(track.w) * progress),
+        .h = track.h
+    };
+
+    set_color(renderer, Color{58, 47, 30, 255});
+    SDL_RenderFillRect(renderer, &track);
+    if (fill.w > 0) {
+        set_color(renderer, Color{226, 186, 84, 255});
+        SDL_RenderFillRect(renderer, &fill);
+    }
+}
+
 }
 
 GridPosition screen_to_map(int screen_x, int screen_y, Camera camera)
@@ -143,6 +175,8 @@ void draw_world(SDL_Renderer* renderer,
             set_color(renderer, Color{18, 20, 20, 255});
             SDL_RenderDrawRect(renderer, &blocker);
         }
+
+        draw_construction_progress(renderer, building, rect);
 
         if (selected.has_value() && *selected == building.id) {
             auto selected_rect = rect;

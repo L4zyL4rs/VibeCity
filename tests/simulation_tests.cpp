@@ -379,6 +379,40 @@ void construction_site_fetches_materials_and_completes()
     VIBECITY_CHECK(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Timber)] == 8);
 }
 
+void construction_summary_reports_queue_focus()
+{
+    vibecity::Simulation simulation;
+
+    const auto house = simulation.add_building(vibecity::BuildingKind::House);
+    const auto storehouse = simulation.add_building(vibecity::BuildingKind::Storehouse);
+    const auto first_site = simulation.place_construction(vibecity::BuildingKind::House);
+    const auto second_site = simulation.place_construction(vibecity::BuildingKind::Farm);
+
+    simulation.set_residents(house, 5);
+    simulation.building(storehouse).inventory.add(vibecity::ResourceId::Timber, 14);
+
+    auto summary = simulation.construction_summary();
+    VIBECITY_CHECK(summary.sites == 2);
+    VIBECITY_CHECK(summary.next_site == first_site);
+    VIBECITY_CHECK(summary.next_target == vibecity::BuildingKind::House);
+    VIBECITY_CHECK(summary.next_labor_remaining == 2 * 12 * vibecity::ticks_per_hour);
+    VIBECITY_CHECK(summary.active_builders == 0);
+
+    for (auto attempts = 0; attempts < 2'000
+        && simulation.building(first_site).kind == vibecity::BuildingKind::ConstructionSite; ++attempts) {
+        simulation.tick();
+    }
+
+    VIBECITY_CHECK(simulation.building(first_site).kind == vibecity::BuildingKind::House);
+    VIBECITY_CHECK(simulation.building(second_site).kind == vibecity::BuildingKind::ConstructionSite);
+
+    summary = simulation.construction_summary();
+    VIBECITY_CHECK(summary.sites == 1);
+    VIBECITY_CHECK(summary.next_site == second_site);
+    VIBECITY_CHECK(summary.next_target == vibecity::BuildingKind::Farm);
+    VIBECITY_CHECK(summary.next_labor_remaining > 0);
+}
+
 void construction_site_reports_missing_materials()
 {
     vibecity::Simulation simulation;
@@ -439,6 +473,7 @@ int main()
     bakery_fetches_inputs_before_producing();
     farm_and_woodcutter_supply_bakery_chain();
     construction_site_fetches_materials_and_completes();
+    construction_summary_reports_queue_focus();
     construction_site_reports_missing_materials();
     output_storage_full_blocks_production();
 

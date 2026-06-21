@@ -333,6 +333,16 @@ ConstructionSummary Simulation::construction_summary() const
         }
 
         ++summary.sites;
+        summary.active_builders += instance.assigned_builders;
+        if (!summary.next_site.has_value()) {
+            summary.next_site = instance.id;
+            summary.next_target = instance.construction_target;
+            summary.next_labor_remaining = std::max<Tick>(
+                0,
+                instance.construction_labor_required - instance.construction_labor_completed);
+            summary.next_blocker = instance.blocking_reason;
+        }
+
         switch (instance.blocking_reason) {
         case BlockingReason::MissingConstructionMaterial:
         case BlockingReason::NoReachableSource:

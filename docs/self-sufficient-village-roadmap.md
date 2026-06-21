@@ -45,10 +45,12 @@ Already implemented:
 - Settlement-level logistics summary facts for active jobs, reservations, and carried goods.
 - Construction sites with delivered materials and builder labor.
 - Construction summary facts for active sites and blockers.
+- Construction queue focus facts for the next site, remaining labor, and active builders.
 - Game-layer village objective tracker with stable-fed-days history.
 - Starting village that requires the player to construct the production chain.
 - Command-layer scenario test that constructs a woodcutter, farm, bakery, and houses, then reaches 25 residents and stays fed for several days.
 - SDL client with placement, inspector, economy summary, logistics reservation summary, objective summary, transport overlay, and drag path placement.
+- SDL client shows construction queue focus and per-site construction progress.
 - First client splits: pixel text helpers, core palette helpers, map-view helpers, HUD helpers, inspector helpers, input handling, and client mode definitions live outside `src/client/main.cpp`.
 - Tests for core production, consumption, logistics, reachability, construction, and command-layer flow.
 
@@ -170,11 +172,14 @@ Done when:
 
 ### Slice 4: Construction And Work Priority
 
+Status: first pass done.
+
 Programming work:
 
-- Add basic construction priority or predictable construction ordering.
+- Added basic construction priority visibility by exposing the next queued site in placement/id order.
 - Show assigned builders and remaining labor more clearly.
 - Added settlement-level construction summary facts and client display for active sites, material blockers, and builder blockers.
+- Added client display for next construction site, remaining labor, active builders, and per-site progress bars.
 - Ensure haulers and builders do not starve production labor in surprising ways.
 - Consider a simple labor reservation model if idle worker accounting becomes unclear.
 
@@ -316,7 +321,7 @@ Done when:
 
 1. Finish balancing production and construction around 25 residents.
 2. Add historical benchmark tracking before scaling the simulation further.
-3. Add predictable construction priority and clearer per-site order feedback.
+3. Prepare a playtest checklist and run the first manual village playtest.
 
 ## First Concrete Next Task
 

@@ -30,6 +30,11 @@ struct ConstructionSummary {
     int waiting_materials = 0;
     int waiting_logistics = 0;
     int waiting_builders = 0;
+    int active_builders = 0;
+    std::optional<BuildingId> next_site;
+    std::optional<BuildingKind> next_target;
+    Tick next_labor_remaining = 0;
+    BlockingReason next_blocker = BlockingReason::None;
 };
 
 struct LogisticsSummary {

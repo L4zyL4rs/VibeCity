@@ -200,10 +200,31 @@ int draw_economy_summary(SDL_Renderer* renderer,
         y,
         std::string{"SITE: "} + std::to_string(construction.sites)
             + " MAT:" + std::to_string(construction.waiting_materials)
+            + " LOG:" + std::to_string(construction.waiting_logistics)
             + " LAB:" + std::to_string(construction.waiting_builders),
         muted,
         2);
     y += 20;
+
+    if (construction.next_site.has_value() && construction.next_target.has_value()) {
+        draw_text(renderer,
+            x,
+            y,
+            std::string{"NEXT: #"} + std::to_string(*construction.next_site)
+                + " " + std::string{building_kind_name(*construction.next_target)},
+            muted,
+            2);
+        y += 20;
+
+        draw_text(renderer,
+            x,
+            y,
+            std::string{"LABOR: "} + std::to_string(construction.next_labor_remaining)
+                + "  BLDR: " + std::to_string(construction.active_builders),
+            muted,
+            2);
+        y += 20;
+    }
 
     draw_text(renderer,
         x,
@@ -382,6 +403,11 @@ void draw_inspector(SDL_Renderer* renderer,
         auto labor = std::ostringstream{};
         labor << "LABOR: " << building.construction_labor_completed << "/" << building.construction_labor_required;
         draw_text(renderer, panel_x + 18, y, labor.str(), muted, 2);
+        y += 20;
+
+        auto builders = std::ostringstream{};
+        builders << "BUILDERS: " << building.assigned_builders;
+        draw_text(renderer, panel_x + 18, y, builders.str(), muted, 2);
         y += 28;
     }
 
