@@ -109,6 +109,7 @@ endif()
 
 if(SDL2_FOUND)
     add_executable(vibecity_client
+        src/client/MapView.cpp
         src/client/Palette.cpp
         src/client/Text.cpp
         src/client/main.cpp

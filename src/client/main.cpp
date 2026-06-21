@@ -1,4 +1,4 @@
-#include "client/Palette.hpp"
+#include "client/MapView.hpp"
 #include "client/Text.hpp"
 #include "game/Scenario.hpp"
 
@@ -15,14 +15,20 @@
 namespace {
 
 using vibecity::client::Color;
-using vibecity::client::building_color;
+using vibecity::client::Camera;
+using vibecity::client::building_at;
+using vibecity::client::can_place_building_preview;
+using vibecity::client::can_place_path_preview;
+using vibecity::client::draw_placement_preview;
 using vibecity::client::draw_text;
-using vibecity::client::resource_color;
+using vibecity::client::draw_transport_jobs;
+using vibecity::client::draw_world;
+using vibecity::client::screen_to_map;
 using vibecity::client::set_color;
+using vibecity::client::tile_size;
 
 constexpr int initial_window_width = 1280;
 constexpr int initial_window_height = 800;
-constexpr int tile_size = 10;
 constexpr int hud_height = 52;
 constexpr int inspector_width = 340;
 
@@ -34,16 +40,6 @@ enum class ClientMode {
     BuildWoodcutter,
     BuildBakery,
     BuildStorehouse
-};
-
-struct Camera {
-    int offset_x = 80;
-    int offset_y = hud_height + 24;
-};
-
-struct ScreenPoint {
-    float x = 0.0F;
-    float y = 0.0F;
 };
 
 const char* mode_name(ClientMode mode)
@@ -83,53 +79,6 @@ std::optional<vibecity::BuildingKind> target_kind_for_mode(ClientMode mode)
     case ClientMode::Select:
     case ClientMode::PlacePath:
         return std::nullopt;
-    }
-    return std::nullopt;
-}
-
-vibecity::GridPosition screen_to_map(int screen_x, int screen_y, Camera camera)
-{
-    return vibecity::GridPosition{
-        .x = (screen_x - camera.offset_x) / tile_size,
-        .y = (screen_y - camera.offset_y) / tile_size
-    };
-}
-
-SDL_Rect tile_rect(vibecity::GridPosition position, vibecity::Footprint footprint, Camera camera)
-{
-    return SDL_Rect{
-        .x = camera.offset_x + position.x * tile_size,
-        .y = camera.offset_y + position.y * tile_size,
-        .w = footprint.width * tile_size,
-        .h = footprint.height * tile_size
-    };
-}
-
-bool contains(vibecity::GridPosition position, vibecity::Footprint footprint, vibecity::GridPosition point)
-{
-    return point.x >= position.x && point.y >= position.y
-        && point.x < position.x + footprint.width
-        && point.y < position.y + footprint.height;
-}
-
-vibecity::Footprint footprint_for(const vibecity::BuildingInstance& building)
-{
-    if (building.kind == vibecity::BuildingKind::ConstructionSite && building.construction_target.has_value()) {
-        return vibecity::building_definition(*building.construction_target).footprint;
-    }
-    return vibecity::building_definition(building.kind).footprint;
-}
-
-std::optional<vibecity::BuildingId> building_at(const vibecity::Simulation& simulation, vibecity::GridPosition tile)
-{
-    for (const auto& building : simulation.buildings()) {
-        if (!building.position.has_value()) {
-            continue;
-        }
-
-        if (contains(*building.position, footprint_for(building), tile)) {
-            return building.id;
-        }
     }
     return std::nullopt;
 }
@@ -614,70 +563,6 @@ void draw_inspector(SDL_Renderer* renderer,
     }
 }
 
-std::optional<ScreenPoint> building_center_screen(const vibecity::Simulation& simulation,
-    vibecity::BuildingId building_id,
-    Camera camera)
-{
-    for (const auto& building : simulation.buildings()) {
-        if (building.id != building_id || !building.position.has_value()) {
-            continue;
-        }
-
-        const auto footprint = footprint_for(building);
-        return ScreenPoint{
-            .x = static_cast<float>(camera.offset_x)
-                + (static_cast<float>(building.position->x) + static_cast<float>(footprint.width) * 0.5F)
-                    * static_cast<float>(tile_size),
-            .y = static_cast<float>(camera.offset_y)
-                + (static_cast<float>(building.position->y) + static_cast<float>(footprint.height) * 0.5F)
-                    * static_cast<float>(tile_size)
-        };
-    }
-
-    return std::nullopt;
-}
-
-void draw_transport_jobs(SDL_Renderer* renderer, const vibecity::Simulation& simulation, Camera camera)
-{
-    for (const auto& job : simulation.transport_jobs()) {
-        const auto source = building_center_screen(simulation, job.source, camera);
-        const auto destination = building_center_screen(simulation, job.destination, camera);
-        if (!source.has_value() || !destination.has_value()) {
-            continue;
-        }
-
-        auto color = resource_color(job.resource);
-        set_color(renderer, Color{color.r, color.g, color.b, 72});
-        SDL_RenderDrawLine(renderer,
-            static_cast<int>(source->x),
-            static_cast<int>(source->y),
-            static_cast<int>(destination->x),
-            static_cast<int>(destination->y));
-
-        auto marker = *source;
-        if (job.state == vibecity::TransportJobState::CarryingGoods) {
-            const auto total_ticks = std::max<vibecity::Tick>(1, job.leg_ticks_total);
-            const auto remaining = std::clamp(job.ticks_remaining, vibecity::Tick{0}, total_ticks);
-            const auto progress = 1.0F - static_cast<float>(remaining) / static_cast<float>(total_ticks);
-            marker.x = source->x + (destination->x - source->x) * progress;
-            marker.y = source->y + (destination->y - source->y) * progress;
-        }
-
-        const auto marker_size = job.state == vibecity::TransportJobState::GoingToPickup ? 5 : 7;
-        auto marker_rect = SDL_Rect{
-            .x = static_cast<int>(marker.x) - marker_size / 2,
-            .y = static_cast<int>(marker.y) - marker_size / 2,
-            .w = marker_size,
-            .h = marker_size
-        };
-
-        set_color(renderer, color);
-        SDL_RenderFillRect(renderer, &marker_rect);
-        set_color(renderer, Color{18, 20, 20, 255});
-        SDL_RenderDrawRect(renderer, &marker_rect);
-    }
-}
-
 std::optional<vibecity::Footprint> preview_footprint_for_mode(ClientMode mode)
 {
     if (mode == ClientMode::PlacePath) {
@@ -694,40 +579,25 @@ std::optional<vibecity::Footprint> preview_footprint_for_mode(ClientMode mode)
 bool can_place_preview(const vibecity::Simulation& simulation, ClientMode mode, vibecity::GridPosition tile)
 {
     if (mode == ClientMode::PlacePath) {
-        return simulation.map().in_bounds(tile)
-            && !simulation.map().has_path(tile)
-            && !building_at(simulation, tile).has_value();
+        return can_place_path_preview(simulation, tile);
     }
 
     if (const auto target = target_kind_for_mode(mode)) {
-        return simulation.map().can_place_building(tile, vibecity::building_definition(*target).footprint);
+        return can_place_building_preview(simulation, *target, tile);
     }
 
     return false;
 }
 
-void draw_placement_preview(SDL_Renderer* renderer,
+void draw_mode_placement_preview(SDL_Renderer* renderer,
     const vibecity::Simulation& simulation,
     Camera camera,
     ClientMode mode,
     std::optional<vibecity::GridPosition> hover_tile)
 {
-    if (!hover_tile.has_value()) {
-        return;
-    }
-
     const auto footprint = preview_footprint_for_mode(mode);
-    if (!footprint.has_value()) {
-        return;
-    }
-
-    const auto valid = can_place_preview(simulation, mode, *hover_tile);
-    auto rect = tile_rect(*hover_tile, *footprint, camera);
-
-    set_color(renderer, valid ? Color{96, 190, 116, 76} : Color{220, 76, 72, 76});
-    SDL_RenderFillRect(renderer, &rect);
-    set_color(renderer, valid ? Color{140, 236, 156, 230} : Color{255, 112, 96, 230});
-    SDL_RenderDrawRect(renderer, &rect);
+    const auto valid = hover_tile.has_value() && can_place_preview(simulation, mode, *hover_tile);
+    draw_placement_preview(renderer, camera, hover_tile, footprint, valid);
 }
 
 void update_title(SDL_Window* window,
@@ -761,63 +631,9 @@ void draw_map(SDL_Renderer* renderer,
     set_color(renderer, Color{24, 28, 28, 255});
     SDL_RenderClear(renderer);
 
-    const auto& map = simulation.map();
-    set_color(renderer, Color{48, 52, 52, 255});
-    for (int y = 0; y < map.height(); ++y) {
-        for (int x = 0; x < map.width(); ++x) {
-            const auto position = vibecity::GridPosition{x, y};
-            if (!map.has_path(position)) {
-                continue;
-            }
-
-            auto rect = tile_rect(position, vibecity::Footprint{1, 1}, camera);
-            SDL_RenderFillRect(renderer, &rect);
-        }
-    }
-
-    for (const auto& building : simulation.buildings()) {
-        if (!building.position.has_value()) {
-            continue;
-        }
-
-        const auto footprint = footprint_for(building);
-        auto rect = tile_rect(*building.position, footprint, camera);
-        set_color(renderer, building_color(building));
-        SDL_RenderFillRect(renderer, &rect);
-
-        if (building.blocking_reason != vibecity::BlockingReason::None) {
-            set_color(renderer, Color{202, 76, 66, 255});
-        } else {
-            set_color(renderer, Color{28, 31, 31, 255});
-        }
-        SDL_RenderDrawRect(renderer, &rect);
-
-        if (building.blocking_reason != vibecity::BlockingReason::None) {
-            auto blocker = SDL_Rect{
-                .x = rect.x + rect.w - 7,
-                .y = rect.y + 1,
-                .w = 6,
-                .h = 6
-            };
-            set_color(renderer, Color{230, 74, 68, 255});
-            SDL_RenderFillRect(renderer, &blocker);
-            set_color(renderer, Color{18, 20, 20, 255});
-            SDL_RenderDrawRect(renderer, &blocker);
-        }
-
-        if (selected.has_value() && *selected == building.id) {
-            auto selected_rect = rect;
-            selected_rect.x -= 2;
-            selected_rect.y -= 2;
-            selected_rect.w += 4;
-            selected_rect.h += 4;
-            set_color(renderer, Color{230, 230, 218, 255});
-            SDL_RenderDrawRect(renderer, &selected_rect);
-        }
-    }
-
+    draw_world(renderer, simulation, camera, selected);
     draw_transport_jobs(renderer, simulation, camera);
-    draw_placement_preview(renderer, simulation, camera, mode, hover_tile);
+    draw_mode_placement_preview(renderer, simulation, camera, mode, hover_tile);
     draw_inspector(renderer, simulation, objectives, selected);
     draw_hud(renderer, simulation, mode, running, ticks_per_frame);
     draw_status(renderer, status);
