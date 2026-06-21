@@ -67,6 +67,19 @@ void print_transport_jobs(const vibecity::Simulation& simulation)
 
 void print_objectives(const vibecity::VillageObjectiveTracker& objectives)
 {
+    std::cout << "completed=" << objectives.completed_count()
+              << "/" << vibecity::village_objective_count << "\n";
+    if (objectives.all_complete()) {
+        std::cout << "milestone=complete\n";
+    } else if (const auto* active = objectives.active_status()) {
+        const auto current = active->current > active->target ? active->target : active->current;
+        std::cout << "active=" << active->label;
+        if (active->target > 1) {
+            std::cout << " " << current << "/" << active->target;
+        }
+        std::cout << "\n";
+    }
+
     for (const auto& status : objectives.statuses()) {
         const auto current = status.current > status.target ? status.target : status.current;
         std::cout << (status.complete ? "ok " : "-- ") << status.label;

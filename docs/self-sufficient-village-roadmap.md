@@ -55,7 +55,7 @@ Already implemented:
 Main gaps:
 
 - Current balance is still provisional, but starting stock is now limited enough that production construction matters.
-- Objective completion exists, but there is no dedicated victory screen or richer endpoint feedback.
+- Objective completion now has a HUD banner and headless summary, but there is no richer endpoint stats screen.
 - Non-gating benchmark target exists, but no historical baseline tracking yet.
 - Client responsibilities are now split enough for near-term UI work, but the inspector can still become crowded quickly.
 
@@ -213,6 +213,8 @@ Programming work:
   - reach 25 residents
   - run 5 stable days at 25 residents
 - Exposed active objective status in the client inspector and headless output.
+- Added objective summary helpers for active objective, completed count, and all-complete state.
+- Added a client milestone-complete banner and headless completion summary.
 
 Files likely touched:
 
@@ -313,9 +315,9 @@ Done when:
 ## Suggested Order
 
 1. Finish balancing production and construction around 25 residents.
-2. Add a clearer milestone endpoint once the village objective completes.
-3. Start historical benchmark tracking before scaling the simulation further.
+2. Add historical benchmark tracking before scaling the simulation further.
+3. Add predictable construction priority and clearer per-site order feedback.
 
 ## First Concrete Next Task
 
-Add richer objective completion feedback and/or a short post-completion summary. The core village loop can now explain most shortages, so the next usability gap is making the milestone endpoint feel explicit instead of quietly marking the final objective complete.
+Add lightweight benchmark history tracking. We have a repeatable benchmark target, but no checked-in baseline or trend-friendly output yet, so performance changes are still hard to compare.

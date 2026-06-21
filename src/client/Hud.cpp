@@ -2,6 +2,7 @@
 
 #include "client/Text.hpp"
 
+#include <algorithm>
 #include <sstream>
 #include <string>
 
@@ -88,6 +89,39 @@ void draw_hud(SDL_Renderer* renderer,
 void draw_status(SDL_Renderer* renderer, std::string_view status)
 {
     draw_text(renderer, 760, 10, std::string{"STATUS: "} + std::string{status}, Color{202, 204, 176, 255}, 2);
+}
+
+void draw_objective_completion_banner(SDL_Renderer* renderer,
+    const VillageObjectiveTracker& objectives,
+    int reserved_right_width)
+{
+    if (!objectives.all_complete()) {
+        return;
+    }
+
+    int width = 0;
+    SDL_GetRendererOutputSize(renderer, &width, nullptr);
+
+    const auto available_width = std::max(0, width - reserved_right_width - 32);
+    if (available_width < 320) {
+        return;
+    }
+    const auto banner_width = std::min(520, available_width);
+
+    const auto banner = SDL_Rect{
+        .x = 16,
+        .y = hud_height + 16,
+        .w = banner_width,
+        .h = 58
+    };
+
+    set_color(renderer, Color{24, 42, 34, 230});
+    SDL_RenderFillRect(renderer, &banner);
+    set_color(renderer, Color{120, 176, 116, 255});
+    SDL_RenderDrawRect(renderer, &banner);
+
+    draw_text(renderer, banner.x + 14, banner.y + 10, "MILESTONE COMPLETE", Color{220, 232, 204, 255}, 2);
+    draw_text(renderer, banner.x + 14, banner.y + 32, "25 FED RESIDENTS FOR 5 DAYS", Color{150, 176, 144, 255}, 2);
 }
 
 }

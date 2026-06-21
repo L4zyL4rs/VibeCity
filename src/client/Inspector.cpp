@@ -122,18 +122,8 @@ int draw_objective_summary(SDL_Renderer* renderer,
     draw_text(renderer, x, y, "OBJECTIVE", text, 2);
     y += 24;
 
-    auto completed = 0;
-    const auto* active = static_cast<const VillageObjectiveStatus*>(nullptr);
-    for (const auto& status : objectives.statuses()) {
-        if (status.complete) {
-            ++completed;
-            continue;
-        }
-
-        if (active == nullptr) {
-            active = &status;
-        }
-    }
+    const auto completed = objectives.completed_count();
+    const auto* active = objectives.active_status();
 
     if (active == nullptr) {
         draw_text(renderer, x, y, "OK VILLAGE STABLE", text, 2);

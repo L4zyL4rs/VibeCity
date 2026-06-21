@@ -23,6 +23,7 @@ using vibecity::client::can_place_path_preview;
 using vibecity::client::ClientInteractionState;
 using vibecity::client::draw_hud;
 using vibecity::client::draw_inspector;
+using vibecity::client::draw_objective_completion_banner;
 using vibecity::client::draw_placement_preview;
 using vibecity::client::draw_status;
 using vibecity::client::draw_transport_jobs;
@@ -110,6 +111,7 @@ void draw_map(SDL_Renderer* renderer,
     draw_inspector(renderer, simulation, objectives, selected);
     draw_hud(renderer, simulation, mode, running, ticks_per_frame);
     draw_status(renderer, status);
+    draw_objective_completion_banner(renderer, objectives, vibecity::client::inspector_width);
     SDL_RenderPresent(renderer);
 }
 

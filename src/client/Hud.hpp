@@ -2,6 +2,7 @@
 
 #include "client/ClientMode.hpp"
 #include "core/Simulation.hpp"
+#include "game/Objectives.hpp"
 
 #include <SDL.h>
 
@@ -21,5 +22,8 @@ void draw_hud(SDL_Renderer* renderer,
     int ticks_per_frame);
 
 void draw_status(SDL_Renderer* renderer, std::string_view status);
+void draw_objective_completion_banner(SDL_Renderer* renderer,
+    const VillageObjectiveTracker& objectives,
+    int reserved_right_width);
 
 }
