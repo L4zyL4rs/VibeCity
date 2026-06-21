@@ -1,13 +1,13 @@
 #include "client/ClientMode.hpp"
 #include "client/Hud.hpp"
 #include "client/Inspector.hpp"
+#include "client/InputController.hpp"
 #include "client/MapView.hpp"
 #include "client/Text.hpp"
 #include "game/Scenario.hpp"
 
 #include <SDL.h>
 
-#include <algorithm>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -18,21 +18,20 @@ namespace {
 using vibecity::client::Color;
 using vibecity::client::Camera;
 using vibecity::client::ClientMode;
-using vibecity::client::building_at;
 using vibecity::client::can_place_building_preview;
 using vibecity::client::can_place_path_preview;
+using vibecity::client::ClientInteractionState;
 using vibecity::client::draw_hud;
 using vibecity::client::draw_inspector;
 using vibecity::client::draw_placement_preview;
 using vibecity::client::draw_status;
 using vibecity::client::draw_transport_jobs;
 using vibecity::client::draw_world;
+using vibecity::client::handle_event;
 using vibecity::client::mode_name;
-using vibecity::client::screen_to_map;
 using vibecity::client::selected_summary;
 using vibecity::client::set_color;
 using vibecity::client::target_kind_for_mode;
-using vibecity::client::tile_size;
 
 constexpr int initial_window_width = 1280;
 constexpr int initial_window_height = 800;
@@ -124,24 +123,6 @@ bool is_smoke_test(int argc, char** argv)
     return false;
 }
 
-void place_path_tile(vibecity::GameSession& game,
-    vibecity::GridPosition tile,
-    std::optional<vibecity::BuildingId>& selected,
-    std::string& status,
-    bool quiet_failure)
-{
-    const auto result = game.execute(vibecity::PlacePathCommand{.position = tile});
-    if (result.success) {
-        status = result.message;
-        return;
-    }
-
-    if (!quiet_failure) {
-        selected = std::nullopt;
-        status = result.message;
-    }
-}
-
 }
 
 int main(int argc, char** argv)
@@ -174,145 +155,41 @@ int main(int argc, char** argv)
     }
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
-    auto mode = ClientMode::Select;
-    auto running = false;
-    auto ticks_per_frame = 10;
-    auto selected = std::optional<vibecity::BuildingId>{};
-    auto hover_tile = std::optional<vibecity::GridPosition>{};
-    auto path_dragging = false;
-    auto last_path_drag_tile = std::optional<vibecity::GridPosition>{};
-    auto status = std::string{"ready"};
+    auto state = ClientInteractionState{};
     auto game = vibecity::GameSession{};
     const auto scenario = vibecity::create_starting_village(game);
-    selected = scenario.storehouse;
-    auto camera = Camera{};
-    auto quit = false;
+    state.selected = scenario.storehouse;
     auto frame_count = 0;
 
-    while (!quit) {
+    while (!state.quit) {
         auto event = SDL_Event{};
         while (SDL_PollEvent(&event) != 0) {
-            if (event.type == SDL_QUIT) {
-                quit = true;
-            }
-
-            if (event.type == SDL_KEYDOWN) {
-                switch (event.key.keysym.sym) {
-                case SDLK_ESCAPE:
-                    quit = true;
-                    break;
-                case SDLK_SPACE:
-                    running = !running;
-                    status = running ? "simulation running" : "simulation paused";
-                    break;
-                case SDLK_1:
-                    mode = ClientMode::Select;
-                    status = "select mode";
-                    break;
-                case SDLK_2:
-                    mode = ClientMode::PlacePath;
-                    status = "path mode";
-                    break;
-                case SDLK_3:
-                    mode = ClientMode::BuildFarm;
-                    status = "farm construction mode";
-                    break;
-                case SDLK_4:
-                    mode = ClientMode::BuildWoodcutter;
-                    status = "woodcutter construction mode";
-                    break;
-                case SDLK_5:
-                    mode = ClientMode::BuildBakery;
-                    status = "bakery construction mode";
-                    break;
-                case SDLK_6:
-                    mode = ClientMode::BuildHouse;
-                    status = "house construction mode";
-                    break;
-                case SDLK_7:
-                    mode = ClientMode::BuildStorehouse;
-                    status = "storehouse construction mode";
-                    break;
-                case SDLK_EQUALS:
-                case SDLK_PLUS:
-                    ticks_per_frame = std::min(240, ticks_per_frame * 2);
-                    break;
-                case SDLK_MINUS:
-                    ticks_per_frame = std::max(1, ticks_per_frame / 2);
-                    break;
-                case SDLK_LEFT:
-                case SDLK_a:
-                    camera.offset_x += tile_size * 4;
-                    break;
-                case SDLK_RIGHT:
-                case SDLK_d:
-                    camera.offset_x -= tile_size * 4;
-                    break;
-                case SDLK_UP:
-                case SDLK_w:
-                    camera.offset_y += tile_size * 4;
-                    break;
-                case SDLK_DOWN:
-                case SDLK_s:
-                    camera.offset_y -= tile_size * 4;
-                    break;
-                default:
-                    break;
-                }
-            }
-
-            if (event.type == SDL_MOUSEMOTION) {
-                hover_tile = screen_to_map(event.motion.x, event.motion.y, camera);
-                if (path_dragging && mode == ClientMode::PlacePath && (event.motion.state & SDL_BUTTON_LMASK) != 0) {
-                    if (!last_path_drag_tile.has_value() || !(*last_path_drag_tile == *hover_tile)) {
-                        place_path_tile(game, *hover_tile, selected, status, true);
-                        last_path_drag_tile = hover_tile;
-                    }
-                }
-            }
-
-            if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT) {
-                const auto tile = screen_to_map(event.button.x, event.button.y, camera);
-                hover_tile = tile;
-                if (mode == ClientMode::Select) {
-                    selected = building_at(game.simulation(), tile);
-                    status = selected.has_value() ? "building selected" : "no building selected";
-                } else if (mode == ClientMode::PlacePath) {
-                    path_dragging = true;
-                    last_path_drag_tile = tile;
-                    place_path_tile(game, tile, selected, status, false);
-                } else if (auto target = target_kind_for_mode(mode)) {
-                    const auto result = game.execute(vibecity::PlaceConstructionCommand{
-                        .target_kind = *target,
-                        .position = tile
-                    });
-                    if (result.success) {
-                        selected = result.building;
-                    }
-                    status = result.message;
-                }
-            }
-
-            if (event.type == SDL_MOUSEBUTTONUP && event.button.button == SDL_BUTTON_LEFT) {
-                path_dragging = false;
-                last_path_drag_tile = std::nullopt;
-            }
+            handle_event(game, state, event);
         }
 
-        if (running || smoke_test) {
-            const auto result = game.execute(vibecity::AdvanceTimeCommand{.ticks = ticks_per_frame});
+        if (state.running || smoke_test) {
+            const auto result = game.execute(vibecity::AdvanceTimeCommand{.ticks = state.ticks_per_frame});
             if (!result.success) {
-                status = result.message;
-                quit = true;
+                state.status = result.message;
+                state.quit = true;
             }
         }
 
-        draw_map(renderer, game.simulation(), game.objectives(), camera, selected, hover_tile, mode, running, ticks_per_frame, status);
-        update_title(window, game.simulation(), mode, running, ticks_per_frame, selected);
+        draw_map(renderer,
+            game.simulation(),
+            game.objectives(),
+            state.camera,
+            state.selected,
+            state.hover_tile,
+            state.mode,
+            state.running,
+            state.ticks_per_frame,
+            state.status);
+        update_title(window, game.simulation(), state.mode, state.running, state.ticks_per_frame, state.selected);
 
         ++frame_count;
         if (smoke_test && frame_count >= 3) {
-            quit = true;
+            state.quit = true;
         }
     }
 
