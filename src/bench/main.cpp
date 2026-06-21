@@ -13,6 +13,7 @@ struct BenchmarkResult {
     std::string_view name;
     vibecity::Tick ticks = 0;
     double milliseconds = 0.0;
+    double ticks_per_second = 0.0;
     std::size_t buildings = 0;
     std::size_t active_transport_jobs = 0;
     vibecity::Quantity transported = 0;
@@ -159,6 +160,7 @@ BenchmarkResult run_case(std::string_view name, vibecity::Tick ticks, Setup setu
         .name = name,
         .ticks = ticks,
         .milliseconds = elapsed,
+        .ticks_per_second = elapsed > 0.0 ? static_cast<double>(ticks) * 1'000.0 / elapsed : 0.0,
         .buildings = simulation.buildings().size(),
         .active_transport_jobs = simulation.transport_jobs().size(),
         .transported = total_transported(simulation.stats()),
@@ -171,6 +173,7 @@ void print_result(const BenchmarkResult& result)
     std::cout << std::left << std::setw(28) << result.name
               << " ticks=" << std::right << std::setw(7) << result.ticks
               << " ms=" << std::setw(9) << std::fixed << std::setprecision(2) << result.milliseconds
+              << " ticks/s=" << std::setw(11) << std::fixed << std::setprecision(0) << result.ticks_per_second
               << " buildings=" << std::setw(4) << result.buildings
               << " jobs=" << std::setw(3) << result.active_transport_jobs
               << " transported=" << std::setw(6) << result.transported
@@ -178,14 +181,57 @@ void print_result(const BenchmarkResult& result)
               << "\n";
 }
 
+void print_csv_header()
+{
+    std::cout << "case,ticks,milliseconds,ticks_per_second,buildings,active_transport_jobs,transported,constructed\n";
 }
 
-int main()
+void print_csv_result(const BenchmarkResult& result)
+{
+    std::cout << result.name
+              << "," << result.ticks
+              << "," << std::fixed << std::setprecision(2) << result.milliseconds
+              << "," << std::fixed << std::setprecision(0) << result.ticks_per_second
+              << "," << result.buildings
+              << "," << result.active_transport_jobs
+              << "," << result.transported
+              << "," << result.constructed
+              << "\n";
+}
+
+bool wants_csv(int argc, char** argv)
+{
+    for (int index = 1; index < argc; ++index) {
+        if (std::string_view{argv[index]} == "--csv") {
+            return true;
+        }
+    }
+    return false;
+}
+
+}
+
+int main(int argc, char** argv)
 {
     try {
-        print_result(run_case("starting village 30d", 30 * vibecity::ticks_per_day, starting_village));
-        print_result(run_case("construction village 30d", 30 * vibecity::ticks_per_day, construction_village));
-        print_result(run_case("100 buildings 10d", 10 * vibecity::ticks_per_day, generated_hundred_buildings));
+        const auto csv = wants_csv(argc, argv);
+        if (csv) {
+            print_csv_header();
+        }
+
+        const auto starting = run_case("starting village 30d", 30 * vibecity::ticks_per_day, starting_village);
+        const auto construction = run_case("construction village 30d", 30 * vibecity::ticks_per_day, construction_village);
+        const auto generated = run_case("100 buildings 10d", 10 * vibecity::ticks_per_day, generated_hundred_buildings);
+
+        if (csv) {
+            print_csv_result(starting);
+            print_csv_result(construction);
+            print_csv_result(generated);
+        } else {
+            print_result(starting);
+            print_result(construction);
+            print_result(generated);
+        }
     } catch (const std::exception& exception) {
         std::cerr << "benchmark failed: " << exception.what() << "\n";
         return 1;

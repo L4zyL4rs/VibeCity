@@ -18,7 +18,10 @@ For performance-sensitive changes, also run the non-gating benchmark:
 
 ```bash
 ./build/vibecity_bench
+./build/vibecity_bench --csv
 ```
+
+Record meaningful benchmark snapshots in `docs/benchmark-history.md`.
 
 ## Quality Bar
 
@@ -41,7 +44,7 @@ Snapshot from 2026-06-20:
 | Core simulation implementation | 844 lines | Split pressure is building |
 | SDL client implementation | 1,119 lines | Needs decomposition before many more UI features |
 | Automated CTest targets | 3 | Core, game, and client smoke are covered |
-| Non-gating benchmark targets | 1 | Useful before optimizing logistics or pathfinding |
+| Non-gating benchmark targets | 1 | CSV output and baseline history exist for logistics/pathfinding work |
 | Named simulation scenarios | 13 | Good coverage for current prototype mechanics |
 | Named command-layer scenarios | 3 | Thin but appropriate for current command layer |
 | Informal headless 2-day demo runtime | ~0.02s | Useful only as a rough local smell test |

@@ -58,7 +58,7 @@ Main gaps:
 
 - Current balance is still provisional, but starting stock is now limited enough that production construction matters.
 - Objective completion now has a HUD banner and headless summary, but there is no richer endpoint stats screen.
-- Non-gating benchmark target exists, but no historical baseline tracking yet.
+- Non-gating benchmark target exists with CSV output and an initial baseline history.
 - Client responsibilities are now split enough for near-term UI work, but the inspector can still become crowded quickly.
 
 ## Implementation Slices
@@ -300,14 +300,18 @@ Programming work:
 - Report:
   - ticks simulated
   - elapsed time
+  - ticks per second
   - active buildings
   - active/completed transport count if useful
+- Added CSV output for trend-friendly benchmark snapshots.
+- Added initial benchmark history documentation.
 
 Files likely touched:
 
 - `src/bench/main.cpp`
 - `CMakeLists.txt`
 - `docs/engineering-quality.md`
+- `docs/benchmark-history.md`
 
 Tests:
 
@@ -320,9 +324,9 @@ Done when:
 ## Suggested Order
 
 1. Finish balancing production and construction around 25 residents.
-2. Add historical benchmark tracking before scaling the simulation further.
-3. Prepare a playtest checklist and run the first manual village playtest.
+2. Prepare a playtest checklist and run the first manual village playtest.
+3. Use benchmark history before optimizing logistics/pathfinding.
 
 ## First Concrete Next Task
 
-Add lightweight benchmark history tracking. We have a repeatable benchmark target, but no checked-in baseline or trend-friendly output yet, so performance changes are still hard to compare.
+Prepare a playtest checklist and run the first manual village playtest. The current prototype has enough settlement-loop visibility to start gathering usability and pacing feedback before adding more systems.
