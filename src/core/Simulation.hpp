@@ -32,6 +32,15 @@ struct ConstructionSummary {
     int waiting_builders = 0;
 };
 
+struct LogisticsSummary {
+    int active_jobs = 0;
+    int going_to_pickup = 0;
+    int carrying_goods = 0;
+    ResourceArray reserved_incoming{};
+    ResourceArray reserved_outgoing{};
+    ResourceArray in_transit{};
+};
+
 using TransportJobId = std::uint32_t;
 
 enum class TransportJobState : std::uint8_t {
@@ -100,6 +109,7 @@ public:
     [[nodiscard]] Quantity bread_days_remaining() const;
     [[nodiscard]] PopulationGrowthBlocker population_growth_blocker() const;
     [[nodiscard]] ConstructionSummary construction_summary() const;
+    [[nodiscard]] LogisticsSummary logistics_summary() const;
     [[nodiscard]] ResourceArray total_inventory() const;
     [[nodiscard]] const ResourceStats& stats() const;
 

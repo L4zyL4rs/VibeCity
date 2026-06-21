@@ -185,6 +185,40 @@ void logistics_delivers_bread_from_storehouse_to_house()
     VIBECITY_CHECK(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Bread)] == 10);
 }
 
+void logistics_summary_tracks_reservations_and_in_transit_goods()
+{
+    vibecity::Simulation simulation;
+
+    const auto house = simulation.add_building(vibecity::BuildingKind::House);
+    const auto storehouse = simulation.add_building(vibecity::BuildingKind::Storehouse);
+
+    simulation.set_residents(house, 5);
+    simulation.building(storehouse).inventory.add(vibecity::ResourceId::Bread, 10);
+
+    simulation.tick();
+
+    auto summary = simulation.logistics_summary();
+    VIBECITY_CHECK(summary.active_jobs == 1);
+    VIBECITY_CHECK(summary.going_to_pickup == 1);
+    VIBECITY_CHECK(summary.carrying_goods == 0);
+    VIBECITY_CHECK(summary.reserved_incoming[vibecity::resource_index(vibecity::ResourceId::Bread)] == 5);
+    VIBECITY_CHECK(summary.reserved_outgoing[vibecity::resource_index(vibecity::ResourceId::Bread)] == 5);
+    VIBECITY_CHECK(summary.in_transit[vibecity::resource_index(vibecity::ResourceId::Bread)] == 0);
+
+    for (auto attempts = 0; attempts < 20 && !simulation.transport_jobs().empty()
+        && simulation.transport_jobs().front().state != vibecity::TransportJobState::CarryingGoods; ++attempts) {
+        simulation.tick();
+    }
+
+    summary = simulation.logistics_summary();
+    VIBECITY_CHECK(summary.active_jobs == 1);
+    VIBECITY_CHECK(summary.going_to_pickup == 0);
+    VIBECITY_CHECK(summary.carrying_goods == 1);
+    VIBECITY_CHECK(summary.reserved_incoming[vibecity::resource_index(vibecity::ResourceId::Bread)] == 5);
+    VIBECITY_CHECK(summary.reserved_outgoing[vibecity::resource_index(vibecity::ResourceId::Bread)] == 0);
+    VIBECITY_CHECK(summary.in_transit[vibecity::resource_index(vibecity::ResourceId::Bread)] == 5);
+}
+
 void disconnected_buildings_cannot_exchange_goods()
 {
     vibecity::Simulation simulation;
@@ -397,6 +431,7 @@ int main()
     population_does_not_grow_when_bread_is_missing();
     population_does_not_grow_when_houses_are_hungry();
     logistics_delivers_bread_from_storehouse_to_house();
+    logistics_summary_tracks_reservations_and_in_transit_goods();
     disconnected_buildings_cannot_exchange_goods();
     connected_paths_allow_goods_exchange();
     logistics_prefers_nearest_reachable_source();

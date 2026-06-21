@@ -355,6 +355,37 @@ ConstructionSummary Simulation::construction_summary() const
     return summary;
 }
 
+LogisticsSummary Simulation::logistics_summary() const
+{
+    auto summary = LogisticsSummary{};
+    summary.active_jobs = static_cast<int>(transport_jobs_.size());
+
+    for (const auto& job : transport_jobs_) {
+        switch (job.state) {
+        case TransportJobState::GoingToPickup:
+            ++summary.going_to_pickup;
+            break;
+        case TransportJobState::CarryingGoods:
+            ++summary.carrying_goods;
+            summary.in_transit[resource_index(job.resource)] += job.quantity;
+            break;
+        case TransportJobState::Complete:
+        case TransportJobState::Failed:
+            break;
+        }
+    }
+
+    for (const auto& instance : buildings_) {
+        for (std::size_t index = 0; index < resource_count; ++index) {
+            const auto resource = static_cast<ResourceId>(index);
+            summary.reserved_incoming[index] += instance.inventory.reserved_incoming(resource);
+            summary.reserved_outgoing[index] += instance.inventory.reserved_outgoing(resource);
+        }
+    }
+
+    return summary;
+}
+
 ResourceArray Simulation::total_inventory() const
 {
     auto totals = empty_resources();

@@ -42,12 +42,13 @@ Already implemented:
 - Worker assignment by reachability.
 - Dirt paths and building reachability.
 - Transport jobs with reservations.
+- Settlement-level logistics summary facts for active jobs, reservations, and carried goods.
 - Construction sites with delivered materials and builder labor.
 - Construction summary facts for active sites and blockers.
 - Game-layer village objective tracker with stable-fed-days history.
 - Starting village that requires the player to construct the production chain.
 - Command-layer scenario test that constructs a woodcutter, farm, bakery, and houses, then reaches 25 residents and stays fed for several days.
-- SDL client with placement, inspector, economy summary, objective summary, transport overlay, and drag path placement.
+- SDL client with placement, inspector, economy summary, logistics reservation summary, objective summary, transport overlay, and drag path placement.
 - First client splits: pixel text helpers, core palette helpers, map-view helpers, HUD helpers, inspector helpers, input handling, and client mode definitions live outside `src/client/main.cpp`.
 - Tests for core production, consumption, logistics, reachability, construction, and command-layer flow.
 
@@ -56,7 +57,7 @@ Main gaps:
 - Current balance is still provisional, but starting stock is now limited enough that production construction matters.
 - Objective completion exists, but there is no dedicated victory screen or richer endpoint feedback.
 - Non-gating benchmark target exists, but no historical baseline tracking yet.
-- `src/client/main.cpp` needs splitting before much more UI work.
+- Client responsibilities are now split enough for near-term UI work, but the inspector can still become crowded quickly.
 
 ## Implementation Slices
 
@@ -235,18 +236,18 @@ Done when:
 
 ### Slice 6: UI Split And Village Readability
 
-Status: started.
+Status: first pass done.
 
 Programming work:
 
 - Split `src/client/main.cpp` before adding larger UI features.
-- Suggested modules:
-  - `Text` (started)
-  - `Palette` (started)
-  - `MapView` (started)
-  - `Hud` (started)
-  - `Inspector` (started)
-  - `InputController` (started)
+- Added modules:
+  - `Text`
+  - `Palette`
+  - `MapView`
+  - `Hud`
+  - `Inspector`
+  - `InputController`
 - Add housing/population rows.
 - Add food pressure rows:
   - bread stored
@@ -256,6 +257,11 @@ Programming work:
   - active sites
   - missing materials
   - waiting for builders
+- Add logistics summary:
+  - active jobs
+  - jobs moving to pickup
+  - jobs carrying goods
+  - incoming, outgoing, and in-transit reservation totals
 
 Files likely touched:
 
@@ -307,9 +313,9 @@ Done when:
 ## Suggested Order
 
 1. Finish balancing production and construction around 25 residents.
-2. Split the client UI before adding more panels.
-3. Add a benchmark before scaling the simulation further.
+2. Add a clearer milestone endpoint once the village objective completes.
+3. Start historical benchmark tracking before scaling the simulation further.
 
 ## First Concrete Next Task
 
-Split `src/client/main.cpp` before adding more village readability UI. The gameplay loop now needs more on-screen explanation, and the client file is large enough that another panel or interaction pass should not land there monolithically.
+Add richer objective completion feedback and/or a short post-completion summary. The core village loop can now explain most shortages, so the next usability gap is making the milestone endpoint feel explicit instead of quietly marking the final objective complete.

@@ -40,6 +40,15 @@ int total_assigned_workers(const Simulation& simulation)
     return workers;
 }
 
+Quantity resource_total(const ResourceArray& amounts)
+{
+    auto total = Quantity{0};
+    for (const auto amount : amounts) {
+        total += amount;
+    }
+    return total;
+}
+
 std::string resource_line(const BuildingInstance& building, ResourceId resource)
 {
     const auto quantity = building.inventory.quantity(resource);
@@ -220,6 +229,34 @@ int draw_economy_summary(SDL_Renderer* renderer,
         y,
         std::string{"BLD: "} + std::to_string(simulation.buildings().size())
             + "  JOBS: " + std::to_string(simulation.transport_jobs().size()),
+        muted,
+        2);
+    y += 20;
+
+    const auto logistics = simulation.logistics_summary();
+    draw_text(renderer,
+        x,
+        y,
+        std::string{"MOVE: "} + std::to_string(logistics.active_jobs)
+            + " P:" + std::to_string(logistics.going_to_pickup)
+            + " C:" + std::to_string(logistics.carrying_goods),
+        muted,
+        2);
+    y += 20;
+
+    draw_text(renderer,
+        x,
+        y,
+        std::string{"RSV: IN:"} + std::to_string(resource_total(logistics.reserved_incoming))
+            + " OUT:" + std::to_string(resource_total(logistics.reserved_outgoing)),
+        muted,
+        2);
+    y += 20;
+
+    draw_text(renderer,
+        x,
+        y,
+        std::string{"LOAD: "} + std::to_string(resource_total(logistics.in_transit)),
         muted,
         2);
     y += 28;
