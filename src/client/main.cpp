@@ -1,3 +1,4 @@
+#include "client/Palette.hpp"
 #include "client/Text.hpp"
 #include "game/Scenario.hpp"
 
@@ -14,7 +15,9 @@
 namespace {
 
 using vibecity::client::Color;
+using vibecity::client::building_color;
 using vibecity::client::draw_text;
+using vibecity::client::resource_color;
 using vibecity::client::set_color;
 
 constexpr int initial_window_width = 1280;
@@ -129,49 +132,6 @@ std::optional<vibecity::BuildingId> building_at(const vibecity::Simulation& simu
         }
     }
     return std::nullopt;
-}
-
-Color building_color(const vibecity::BuildingInstance& building)
-{
-    if (building.kind == vibecity::BuildingKind::ConstructionSite) {
-        return Color{178, 140, 64, 255};
-    }
-
-    switch (building.kind) {
-    case vibecity::BuildingKind::House:
-        return Color{92, 142, 210, 255};
-    case vibecity::BuildingKind::Farm:
-        return Color{78, 156, 86, 255};
-    case vibecity::BuildingKind::Bakery:
-        return Color{196, 126, 54, 255};
-    case vibecity::BuildingKind::Woodcutter:
-        return Color{93, 128, 62, 255};
-    case vibecity::BuildingKind::Storehouse:
-        return Color{132, 118, 151, 255};
-    case vibecity::BuildingKind::ConstructionSite:
-    case vibecity::BuildingKind::Count:
-        return Color{160, 160, 160, 255};
-    }
-    return Color{160, 160, 160, 255};
-}
-
-Color resource_color(vibecity::ResourceId resource)
-{
-    switch (resource) {
-    case vibecity::ResourceId::Grain:
-        return Color{198, 176, 78, 255};
-    case vibecity::ResourceId::Bread:
-        return Color{220, 178, 112, 255};
-    case vibecity::ResourceId::Timber:
-        return Color{136, 90, 48, 255};
-    case vibecity::ResourceId::Firewood:
-        return Color{206, 82, 48, 255};
-    case vibecity::ResourceId::Tools:
-        return Color{168, 176, 184, 255};
-    case vibecity::ResourceId::Count:
-        return Color{210, 214, 204, 255};
-    }
-    return Color{210, 214, 204, 255};
 }
 
 std::string_view resource_short_name(vibecity::ResourceId resource)

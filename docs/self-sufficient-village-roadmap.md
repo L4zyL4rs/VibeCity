@@ -48,7 +48,7 @@ Already implemented:
 - Starting village that requires the player to construct the production chain.
 - Command-layer scenario test that constructs a woodcutter, farm, bakery, and houses, then reaches 25 residents and stays fed for several days.
 - SDL client with placement, inspector, economy summary, objective summary, transport overlay, and drag path placement.
-- First client split: pixel text and color helpers live outside `src/client/main.cpp`.
+- First client splits: pixel text helpers and core palette helpers live outside `src/client/main.cpp`.
 - Tests for core production, consumption, logistics, reachability, construction, and command-layer flow.
 
 Main gaps:
@@ -242,7 +242,7 @@ Programming work:
 - Split `src/client/main.cpp` before adding larger UI features.
 - Suggested modules:
   - `Text` (started)
-  - `Palette`
+  - `Palette` (started)
   - `MapView`
   - `Hud`
   - `Inspector`
