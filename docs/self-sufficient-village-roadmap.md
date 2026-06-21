@@ -59,6 +59,7 @@ Main gaps:
 - Current balance is still provisional, but starting stock is now limited enough that production construction matters.
 - Objective completion now has a HUD banner and headless summary, but there is no richer endpoint stats screen.
 - Non-gating benchmark target exists with CSV output and an initial baseline history.
+- Village playtest checklist exists for the first manual usability/pacing pass.
 - Client responsibilities are now split enough for near-term UI work, but the inspector can still become crowded quickly.
 
 ## Implementation Slices
@@ -329,4 +330,4 @@ Done when:
 
 ## First Concrete Next Task
 
-Prepare a playtest checklist and run the first manual village playtest. The current prototype has enough settlement-loop visibility to start gathering usability and pacing feedback before adding more systems.
+Run the first manual village playtest from `docs/playtest-checklist.md`. The current prototype has enough settlement-loop visibility to start gathering usability and pacing feedback before adding more systems.
