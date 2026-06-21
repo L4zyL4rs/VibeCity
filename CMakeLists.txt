@@ -111,6 +111,7 @@ if(SDL2_FOUND)
     add_executable(vibecity_client
         src/client/ClientMode.cpp
         src/client/Hud.cpp
+        src/client/Inspector.cpp
         src/client/MapView.cpp
         src/client/Palette.cpp
         src/client/Text.cpp
