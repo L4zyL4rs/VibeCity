@@ -91,6 +91,7 @@ endif()
 
 if(SDL2_FOUND)
     add_executable(vibecity_client
+        src/client/Text.cpp
         src/client/main.cpp
     )
 
