@@ -102,6 +102,31 @@ const std::array<VillageObjectiveStatus, village_objective_count>& VillageObject
     return statuses_;
 }
 
+const VillageObjectiveStatus* VillageObjectiveTracker::active_status() const
+{
+    const auto found = std::find_if(statuses_.begin(), statuses_.end(), [](const VillageObjectiveStatus& status) {
+        return !status.complete;
+    });
+
+    if (found == statuses_.end()) {
+        return nullptr;
+    }
+
+    return &*found;
+}
+
+int VillageObjectiveTracker::completed_count() const
+{
+    return static_cast<int>(std::count_if(statuses_.begin(), statuses_.end(), [](const VillageObjectiveStatus& status) {
+        return status.complete;
+    }));
+}
+
+bool VillageObjectiveTracker::all_complete() const
+{
+    return active_status() == nullptr;
+}
+
 int VillageObjectiveTracker::stable_days_at_25_residents() const
 {
     return stable_days_at_25_residents_;

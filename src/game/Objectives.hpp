@@ -38,6 +38,9 @@ public:
     void update(const Simulation& simulation);
 
     [[nodiscard]] const std::array<VillageObjectiveStatus, village_objective_count>& statuses() const;
+    [[nodiscard]] const VillageObjectiveStatus* active_status() const;
+    [[nodiscard]] int completed_count() const;
+    [[nodiscard]] bool all_complete() const;
     [[nodiscard]] int stable_days_at_25_residents() const;
 
 private:

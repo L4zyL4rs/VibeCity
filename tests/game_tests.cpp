@@ -82,11 +82,19 @@ void objectives_track_starting_village_status()
 {
     vibecity::GameSession game;
 
+    VIBECITY_CHECK(game.objectives().completed_count() == 0);
+    VIBECITY_CHECK(!game.objectives().all_complete());
+    VIBECITY_CHECK(game.objectives().active_status() != nullptr);
+    VIBECITY_CHECK(game.objectives().active_status()->id == vibecity::VillageObjectiveId::HaveWoodcutter);
     VIBECITY_CHECK(!objective_status(game, vibecity::VillageObjectiveId::HaveWoodcutter).complete);
 
     const auto ids = vibecity::create_starting_village(game);
     VIBECITY_CHECK(ids.houses.size() == 3);
 
+    VIBECITY_CHECK(game.objectives().completed_count() == 1);
+    VIBECITY_CHECK(!game.objectives().all_complete());
+    VIBECITY_CHECK(game.objectives().active_status() != nullptr);
+    VIBECITY_CHECK(game.objectives().active_status()->id == vibecity::VillageObjectiveId::HaveWoodcutter);
     VIBECITY_CHECK(!objective_status(game, vibecity::VillageObjectiveId::HaveWoodcutter).complete);
     VIBECITY_CHECK(!objective_status(game, vibecity::VillageObjectiveId::HaveFarm).complete);
     VIBECITY_CHECK(!objective_status(game, vibecity::VillageObjectiveId::HaveBakery).complete);
@@ -177,6 +185,9 @@ void self_sufficient_village_reaches_25_residents()
     VIBECITY_CHECK(simulation.bread_days_remaining() >= 5);
     VIBECITY_CHECK(objective_status(game, vibecity::VillageObjectiveId::Reach25Residents).complete);
     VIBECITY_CHECK(objective_status(game, vibecity::VillageObjectiveId::Stable25Residents).complete);
+    VIBECITY_CHECK(game.objectives().completed_count() == static_cast<int>(vibecity::village_objective_count));
+    VIBECITY_CHECK(game.objectives().all_complete());
+    VIBECITY_CHECK(game.objectives().active_status() == nullptr);
 }
 
 }
