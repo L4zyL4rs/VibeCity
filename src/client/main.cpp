@@ -29,6 +29,7 @@ using vibecity::client::draw_status;
 using vibecity::client::draw_transport_jobs;
 using vibecity::client::draw_world;
 using vibecity::client::handle_event;
+using vibecity::client::InspectorScrollMetrics;
 using vibecity::client::mode_name;
 using vibecity::client::selected_summary;
 using vibecity::client::set_color;
@@ -91,7 +92,7 @@ void update_title(SDL_Window* window,
     SDL_SetWindowTitle(window, title.str().c_str());
 }
 
-void draw_map(SDL_Renderer* renderer,
+InspectorScrollMetrics draw_map(SDL_Renderer* renderer,
     const vibecity::Simulation& simulation,
     const vibecity::VillageObjectiveTracker& objectives,
     Camera camera,
@@ -100,6 +101,7 @@ void draw_map(SDL_Renderer* renderer,
     ClientMode mode,
     bool running,
     int ticks_per_frame,
+    int inspector_scroll,
     std::string_view status)
 {
     set_color(renderer, Color{24, 28, 28, 255});
@@ -108,11 +110,17 @@ void draw_map(SDL_Renderer* renderer,
     draw_world(renderer, simulation, camera, selected);
     draw_transport_jobs(renderer, simulation, camera);
     draw_mode_placement_preview(renderer, simulation, camera, mode, hover_tile);
-    draw_inspector(renderer, simulation, objectives, selected);
+    const auto inspector_metrics = draw_inspector(
+        renderer,
+        simulation,
+        objectives,
+        selected,
+        inspector_scroll);
     draw_hud(renderer, simulation, mode, running, ticks_per_frame);
     draw_status(renderer, status);
     draw_objective_completion_banner(renderer, objectives, vibecity::client::inspector_width);
     SDL_RenderPresent(renderer);
+    return inspector_metrics;
 }
 
 bool is_smoke_test(int argc, char** argv)
@@ -177,7 +185,7 @@ int main(int argc, char** argv)
             }
         }
 
-        draw_map(renderer,
+        const auto inspector_metrics = draw_map(renderer,
             game.simulation(),
             game.objectives(),
             state.camera,
@@ -186,8 +194,15 @@ int main(int argc, char** argv)
             state.mode,
             state.running,
             state.ticks_per_frame,
+            state.inspector_scroll,
             state.status);
+        state.inspector_scroll = inspector_metrics.offset;
+        state.inspector_max_scroll = inspector_metrics.max_offset;
         update_title(window, game.simulation(), state.mode, state.running, state.ticks_per_frame, state.selected);
+
+        if (smoke_test && frame_count == 0) {
+            state.inspector_scroll = state.inspector_max_scroll;
+        }
 
         ++frame_count;
         if (smoke_test && frame_count >= 3) {

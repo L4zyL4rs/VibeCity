@@ -1,9 +1,44 @@
 #include "client/InputController.hpp"
 
+#include "client/Hud.hpp"
+#include "client/Inspector.hpp"
+
 #include <algorithm>
 
 namespace vibecity::client {
 namespace {
+
+bool point_is_over_world(Uint32 window_id, int x, int y)
+{
+    auto* window = SDL_GetWindowFromID(window_id);
+    if (window == nullptr) {
+        return false;
+    }
+
+    auto width = 0;
+    auto height = 0;
+    SDL_GetWindowSize(window, &width, &height);
+    return x >= 0
+        && y >= hud_height
+        && x < std::max(0, width - inspector_width)
+        && y < height;
+}
+
+bool point_is_over_inspector(Uint32 window_id, int x, int y)
+{
+    auto* window = SDL_GetWindowFromID(window_id);
+    if (window == nullptr) {
+        return false;
+    }
+
+    auto width = 0;
+    auto height = 0;
+    SDL_GetWindowSize(window, &width, &height);
+    return x >= std::max(0, width - inspector_width)
+        && x < width
+        && y >= hud_height
+        && y < height;
+}
 
 void place_path_tile(GameSession& game,
     GridPosition tile,
@@ -91,6 +126,11 @@ void handle_keydown(ClientInteractionState& state, SDL_Keycode key)
 
 void handle_mouse_motion(GameSession& game, ClientInteractionState& state, const SDL_MouseMotionEvent& motion)
 {
+    if (!point_is_over_world(motion.windowID, motion.x, motion.y)) {
+        state.hover_tile = std::nullopt;
+        return;
+    }
+
     state.hover_tile = screen_to_map(motion.x, motion.y, state.camera);
     if (state.path_dragging && state.mode == ClientMode::PlacePath && (motion.state & SDL_BUTTON_LMASK) != 0) {
         if (!state.last_path_drag_tile.has_value() || !(*state.last_path_drag_tile == *state.hover_tile)) {
@@ -106,6 +146,7 @@ void handle_left_mouse_down(GameSession& game, ClientInteractionState& state, in
     state.hover_tile = tile;
     if (state.mode == ClientMode::Select) {
         state.selected = building_at(game.simulation(), tile);
+        state.inspector_scroll = 0;
         state.status = state.selected.has_value() ? "building selected" : "no building selected";
     } else if (state.mode == ClientMode::PlacePath) {
         state.path_dragging = true;
@@ -118,9 +159,26 @@ void handle_left_mouse_down(GameSession& game, ClientInteractionState& state, in
         });
         if (result.success) {
             state.selected = result.building;
+            state.inspector_scroll = 0;
         }
         state.status = result.message;
     }
+}
+
+void handle_mouse_wheel(ClientInteractionState& state, const SDL_MouseWheelEvent& wheel)
+{
+    auto mouse_x = 0;
+    auto mouse_y = 0;
+    SDL_GetMouseState(&mouse_x, &mouse_y);
+    if (!point_is_over_inspector(wheel.windowID, mouse_x, mouse_y)) {
+        return;
+    }
+
+    const auto direction = wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -wheel.y : wheel.y;
+    state.inspector_scroll = std::clamp(
+        state.inspector_scroll - direction * 60,
+        0,
+        state.inspector_max_scroll);
 }
 
 }
@@ -139,13 +197,19 @@ void handle_event(GameSession& game, ClientInteractionState& state, const SDL_Ev
         handle_mouse_motion(game, state, event.motion);
     }
 
-    if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT) {
+    if (event.type == SDL_MOUSEBUTTONDOWN
+        && event.button.button == SDL_BUTTON_LEFT
+        && point_is_over_world(event.button.windowID, event.button.x, event.button.y)) {
         handle_left_mouse_down(game, state, event.button.x, event.button.y);
     }
 
     if (event.type == SDL_MOUSEBUTTONUP && event.button.button == SDL_BUTTON_LEFT) {
         state.path_dragging = false;
         state.last_path_drag_tile = std::nullopt;
+    }
+
+    if (event.type == SDL_MOUSEWHEEL) {
+        handle_mouse_wheel(state, event.wheel);
     }
 }
 

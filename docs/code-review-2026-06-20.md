@@ -52,7 +52,7 @@ The inspector writes rows directly downward from fixed positions in [src/client/
 
 Action: when splitting the client, introduce a small vertical layout helper and either clipped scrolling or collapsible sections.
 
-Status: open.
+Status: fixed on 2026-06-24. The inspector has a fixed header, clipped scrollable content, and a visible scrollbar. HUD and inspector input regions also prevent map interactions from passing through the UI.
 
 ## Positive Notes
 
@@ -64,6 +64,5 @@ Status: open.
 
 ## Next Quality Actions
 
-1. Add inspector scrolling or section collapse before substantially increasing inspector content.
-2. Profile the next simulation bottleneck before adding more path or storage caching.
-3. Keep Release CTest runs in periodic quality reviews.
+1. Profile the next simulation bottleneck before adding more path or storage caching.
+2. Keep Release CTest runs in periodic quality reviews.

@@ -12,11 +12,17 @@ namespace vibecity::client {
 
 inline constexpr int inspector_width = 340;
 
+struct InspectorScrollMetrics {
+    int offset = 0;
+    int max_offset = 0;
+};
+
 [[nodiscard]] std::string selected_summary(const Simulation& simulation, std::optional<BuildingId> selected);
 
-void draw_inspector(SDL_Renderer* renderer,
+[[nodiscard]] InspectorScrollMetrics draw_inspector(SDL_Renderer* renderer,
     const Simulation& simulation,
     const VillageObjectiveTracker& objectives,
-    std::optional<BuildingId> selected);
+    std::optional<BuildingId> selected,
+    int requested_scroll);
 
 }

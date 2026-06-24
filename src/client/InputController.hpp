@@ -19,6 +19,8 @@ struct ClientInteractionState {
     std::optional<GridPosition> hover_tile;
     bool path_dragging = false;
     std::optional<GridPosition> last_path_drag_tile;
+    int inspector_scroll = 0;
+    int inspector_max_scroll = 0;
     std::string status = "ready";
     Camera camera;
     bool quit = false;

@@ -30,6 +30,7 @@ If the client fails to start, run the headless and benchmark checks instead and 
 - `Space`: pause or run
 - `+` / `-`: simulation speed
 - Arrow keys or `WASD`: pan
+- Mouse wheel over inspector: scroll details
 
 ## Playtest Goal
 
@@ -101,4 +102,4 @@ Helpful evidence:
 - The UI does not yet have mouse tooltips.
 - The game has no costs for placing construction sites beyond delivered materials.
 - Workers do not visibly commute yet; reachability and assignment are simulated.
-- The 100-building benchmark is slow because pathfinding/logistics are still naive.
+- The 100-building benchmark is still a prototype stress case, despite the first pathfinding optimization.

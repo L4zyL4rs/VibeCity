@@ -306,6 +306,122 @@ int draw_economy_summary(SDL_Renderer* renderer,
     return y + 10;
 }
 
+int draw_inspector_content(SDL_Renderer* renderer,
+    const Simulation& simulation,
+    const VillageObjectiveTracker& objectives,
+    std::optional<BuildingId> selected,
+    int x,
+    int y,
+    Color text,
+    Color muted)
+{
+    y = draw_economy_summary(renderer, simulation, objectives, x, y, text, muted);
+
+    if (!selected.has_value()) {
+        draw_text(renderer, x, y, "NO SELECTION", muted, 2);
+        return y + 30;
+    }
+
+    draw_text(renderer, x, y, "SELECTION", text, 2);
+    y += 24;
+
+    const auto& building = simulation.building(*selected);
+    auto title = std::ostringstream{};
+    title << "#" << building.id << " " << building_kind_name(building.kind);
+    draw_text(renderer, x, y, title.str(), text, 2);
+    y += 24;
+
+    auto block = std::ostringstream{};
+    block << "BLOCK: " << blocking_reason_text(building.blocking_reason);
+    draw_text(renderer, x, y, block.str(), muted, 2);
+    y += 24;
+
+    auto workers = std::ostringstream{};
+    workers << "WORKERS: " << building.assigned_workers;
+    draw_text(renderer, x, y, workers.str(), muted, 2);
+    y += 20;
+
+    auto residents = std::ostringstream{};
+    residents << "RES: " << building.residents;
+    draw_text(renderer, x, y, residents.str(), muted, 2);
+    y += 28;
+
+    if (building.kind == BuildingKind::ConstructionSite && building.construction_target.has_value()) {
+        auto target = std::ostringstream{};
+        target << "TARGET: " << building_kind_name(*building.construction_target);
+        draw_text(renderer, x, y, target.str(), muted, 2);
+        y += 20;
+
+        auto labor = std::ostringstream{};
+        labor << "LABOR: " << building.construction_labor_completed << "/" << building.construction_labor_required;
+        draw_text(renderer, x, y, labor.str(), muted, 2);
+        y += 20;
+
+        auto builders = std::ostringstream{};
+        builders << "BUILDERS: " << building.assigned_builders;
+        draw_text(renderer, x, y, builders.str(), muted, 2);
+        y += 28;
+    }
+
+    draw_text(renderer, x, y, "INVENTORY", text, 2);
+    y += 24;
+
+    auto drew_inventory = false;
+    for (std::size_t index = 0; index < resource_count; ++index) {
+        const auto resource = static_cast<ResourceId>(index);
+        const auto line = resource_line(building, resource);
+        if (line.empty()) {
+            continue;
+        }
+        draw_text(renderer, x, y, line, muted, 2);
+        y += 20;
+        drew_inventory = true;
+    }
+
+    if (!drew_inventory) {
+        draw_text(renderer, x, y, "EMPTY", muted, 2);
+        y += 20;
+    }
+
+    return y + 18;
+}
+
+void draw_scrollbar(SDL_Renderer* renderer,
+    const SDL_Rect& content_rect,
+    int scroll_offset,
+    int max_scroll,
+    Color track,
+    Color thumb)
+{
+    if (max_scroll <= 0 || content_rect.h <= 0) {
+        return;
+    }
+
+    const auto content_height = content_rect.h + max_scroll;
+    const auto thumb_height = std::max(24, content_rect.h * content_rect.h / content_height);
+    const auto thumb_travel = std::max(0, content_rect.h - thumb_height);
+    const auto thumb_y = content_rect.y
+        + (max_scroll > 0 ? scroll_offset * thumb_travel / max_scroll : 0);
+
+    const auto track_rect = SDL_Rect{
+        .x = content_rect.x + content_rect.w - 6,
+        .y = content_rect.y,
+        .w = 4,
+        .h = content_rect.h
+    };
+    const auto thumb_rect = SDL_Rect{
+        .x = track_rect.x,
+        .y = thumb_y,
+        .w = track_rect.w,
+        .h = thumb_height
+    };
+
+    set_color(renderer, track);
+    SDL_RenderFillRect(renderer, &track_rect);
+    set_color(renderer, thumb);
+    SDL_RenderFillRect(renderer, &thumb_rect);
+}
+
 }
 
 std::string selected_summary(const Simulation& simulation, std::optional<BuildingId> selected)
@@ -335,10 +451,11 @@ std::string selected_summary(const Simulation& simulation, std::optional<Buildin
     return output.str();
 }
 
-void draw_inspector(SDL_Renderer* renderer,
+InspectorScrollMetrics draw_inspector(SDL_Renderer* renderer,
     const Simulation& simulation,
     const VillageObjectiveTracker& objectives,
-    std::optional<BuildingId> selected)
+    std::optional<BuildingId> selected,
+    int requested_scroll)
 {
     int width = 0;
     int height = 0;
@@ -351,7 +468,7 @@ void draw_inspector(SDL_Renderer* renderer,
         .w = inspector_width,
         .h = height - hud_height
     };
-    set_color(renderer, Color{20, 23, 23, 235});
+    set_color(renderer, Color{20, 23, 23, 255});
     SDL_RenderFillRect(renderer, &panel);
 
     set_color(renderer, Color{60, 64, 64, 255});
@@ -359,76 +476,64 @@ void draw_inspector(SDL_Renderer* renderer,
 
     const auto text = Color{210, 214, 204, 255};
     const auto muted = Color{126, 136, 134, 255};
-    auto y = hud_height + 18;
-    draw_text(renderer, panel_x + 18, y, "INSPECTOR", text, 2);
-    y += 28;
+    draw_text(renderer, panel_x + 18, hud_height + 18, "INSPECTOR", text, 2);
 
-    y = draw_economy_summary(renderer, simulation, objectives, panel_x + 18, y, text, muted);
+    auto content_rect = SDL_Rect{
+        .x = panel_x + 1,
+        .y = hud_height + 50,
+        .w = inspector_width - 2,
+        .h = std::max(0, height - hud_height - 51)
+    };
+    const auto content_x = panel_x + 18;
+    const auto unclamped_scroll = std::max(0, requested_scroll);
 
-    if (!selected.has_value()) {
-        draw_text(renderer, panel_x + 18, y, "NO SELECTION", muted, 2);
-        return;
+    const auto clip_was_enabled = SDL_RenderIsClipEnabled(renderer) == SDL_TRUE;
+    auto previous_clip = SDL_Rect{};
+    SDL_RenderGetClipRect(renderer, &previous_clip);
+    SDL_RenderSetClipRect(renderer, &content_rect);
+
+    auto content_start = content_rect.y - unclamped_scroll;
+    auto content_end = draw_inspector_content(
+        renderer,
+        simulation,
+        objectives,
+        selected,
+        content_x,
+        content_start,
+        text,
+        muted);
+    const auto content_height = std::max(0, content_end - content_start);
+    const auto max_scroll = std::max(0, content_height - content_rect.h);
+    const auto scroll_offset = std::clamp(unclamped_scroll, 0, max_scroll);
+
+    if (scroll_offset != unclamped_scroll) {
+        set_color(renderer, Color{20, 23, 23, 255});
+        SDL_RenderFillRect(renderer, &content_rect);
+        content_start = content_rect.y - scroll_offset;
+        draw_inspector_content(
+            renderer,
+            simulation,
+            objectives,
+            selected,
+            content_x,
+            content_start,
+            text,
+            muted);
     }
 
-    draw_text(renderer, panel_x + 18, y, "SELECTION", text, 2);
-    y += 24;
+    SDL_RenderSetClipRect(renderer, clip_was_enabled ? &previous_clip : nullptr);
+    draw_scrollbar(
+        renderer,
+        content_rect,
+        scroll_offset,
+        max_scroll,
+        Color{44, 48, 48, 255},
+        Color{116, 126, 124, 255});
 
-    const auto& building = simulation.building(*selected);
-    auto title = std::ostringstream{};
-    title << "#" << building.id << " " << building_kind_name(building.kind);
-    draw_text(renderer, panel_x + 18, y, title.str(), text, 2);
-    y += 24;
-
-    auto block = std::ostringstream{};
-    block << "BLOCK: " << blocking_reason_text(building.blocking_reason);
-    draw_text(renderer, panel_x + 18, y, block.str(), muted, 2);
-    y += 24;
-
-    auto workers = std::ostringstream{};
-    workers << "WORKERS: " << building.assigned_workers;
-    draw_text(renderer, panel_x + 18, y, workers.str(), muted, 2);
-    y += 20;
-
-    auto residents = std::ostringstream{};
-    residents << "RES: " << building.residents;
-    draw_text(renderer, panel_x + 18, y, residents.str(), muted, 2);
-    y += 28;
-
-    if (building.kind == BuildingKind::ConstructionSite && building.construction_target.has_value()) {
-        auto target = std::ostringstream{};
-        target << "TARGET: " << building_kind_name(*building.construction_target);
-        draw_text(renderer, panel_x + 18, y, target.str(), muted, 2);
-        y += 20;
-
-        auto labor = std::ostringstream{};
-        labor << "LABOR: " << building.construction_labor_completed << "/" << building.construction_labor_required;
-        draw_text(renderer, panel_x + 18, y, labor.str(), muted, 2);
-        y += 20;
-
-        auto builders = std::ostringstream{};
-        builders << "BUILDERS: " << building.assigned_builders;
-        draw_text(renderer, panel_x + 18, y, builders.str(), muted, 2);
-        y += 28;
-    }
-
-    draw_text(renderer, panel_x + 18, y, "INVENTORY", text, 2);
-    y += 24;
-
-    auto drew_inventory = false;
-    for (std::size_t index = 0; index < resource_count; ++index) {
-        const auto resource = static_cast<ResourceId>(index);
-        const auto line = resource_line(building, resource);
-        if (line.empty()) {
-            continue;
-        }
-        draw_text(renderer, panel_x + 18, y, line, muted, 2);
-        y += 20;
-        drew_inventory = true;
-    }
-
-    if (!drew_inventory) {
-        draw_text(renderer, panel_x + 18, y, "EMPTY", muted, 2);
-    }
+    return InspectorScrollMetrics{
+        .offset = scroll_offset,
+        .max_offset = max_scroll
+    };
 }
 
 }

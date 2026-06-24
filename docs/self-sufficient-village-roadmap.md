@@ -272,6 +272,7 @@ Programming work:
   - incoming, outgoing, and in-transit reservation totals
 - Cull path tiles and buildings outside the visible client viewport.
 - Resolve transport overlay endpoints through constant-time building lookup.
+- Clip and scroll inspector content while preventing UI input from reaching the map behind it.
 
 Files likely touched:
 

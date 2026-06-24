@@ -48,3 +48,4 @@ Client controls:
 - `Space`: pause or run
 - `+` / `-`: simulation speed
 - Arrow keys or `WASD`: pan
+- Mouse wheel over inspector: scroll details
