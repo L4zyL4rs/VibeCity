@@ -475,11 +475,6 @@ bool Simulation::buildings_connected(const BuildingInstance& source, const Build
     return transport_minutes_if_connected(source, destination).has_value();
 }
 
-Tick Simulation::transport_minutes_between(const BuildingInstance& source, const BuildingInstance& destination) const
-{
-    return transport_minutes_if_connected(source, destination).value_or(prototype_transport_leg_minutes);
-}
-
 std::optional<Tick> Simulation::transport_minutes_if_connected(const BuildingInstance& source,
     const BuildingInstance& destination) const
 {
@@ -533,6 +528,9 @@ void Simulation::dispatch_logistics()
     auto requests = collect_resource_requests();
     std::sort(requests.begin(), requests.end(), request_order);
 
+    auto cached_destination = std::optional<BuildingId>{};
+    auto cached_distance_field = std::optional<PathDistanceField>{};
+
     for (const auto& request : requests) {
         if (available_haulers() <= 0) {
             if (auto* destination = find_building(request.destination)) {
@@ -542,12 +540,28 @@ void Simulation::dispatch_logistics()
         }
 
         auto* destination = find_building(request.destination);
-        auto* source = find_source_for_request(request);
         if (destination == nullptr) {
             continue;
         }
 
-        if (source == nullptr) {
+        const auto source_count = viable_source_count(request);
+        const auto* distance_field = static_cast<const PathDistanceField*>(nullptr);
+        if (cached_destination == destination->id) {
+            distance_field = &*cached_distance_field;
+        } else if (source_count >= distance_field_candidate_threshold && destination->position.has_value()) {
+            if (cached_destination != destination->id) {
+                cached_distance_field = map_.path_distances_from_building(
+                    *destination->position,
+                    footprint_for(*destination));
+                cached_destination = destination->id;
+            }
+            distance_field = &*cached_distance_field;
+        }
+
+        const auto selection = source_count > 0
+            ? find_source_for_request(request, distance_field)
+            : std::nullopt;
+        if (!selection.has_value()) {
             if (request.priority == storehouse_pull_priority) {
                 continue;
             }
@@ -559,9 +573,10 @@ void Simulation::dispatch_logistics()
             continue;
         }
 
+        auto& source = *selection->building;
         const auto quantity = std::min({
             request.quantity,
-            source->inventory.available(request.resource),
+            source.inventory.available(request.resource),
             destination->inventory.free_capacity(request.resource),
             prototype_hauler_capacity
         });
@@ -570,7 +585,12 @@ void Simulation::dispatch_logistics()
             continue;
         }
 
-        if (!create_transport_job(*source, *destination, request.resource, quantity)) {
+        if (!create_transport_job(
+                source,
+                *destination,
+                request.resource,
+                quantity,
+                selection->distance)) {
             destination->blocking_reason = BlockingReason::WaitingForHauler;
         }
     }
@@ -604,7 +624,7 @@ void Simulation::advance_transport_jobs()
             }
 
             job.state = TransportJobState::CarryingGoods;
-            job.ticks_remaining = transport_minutes_between(*source, *destination);
+            job.ticks_remaining = job.delivery_ticks;
             job.leg_ticks_total = job.ticks_remaining;
             continue;
         }
@@ -797,33 +817,29 @@ std::vector<ResourceRequest> Simulation::collect_resource_requests() const
     return requests;
 }
 
-BuildingInstance* Simulation::find_source_for_request(const ResourceRequest& request)
+int Simulation::viable_source_count(const ResourceRequest& request) const
 {
-    const auto* destination = find_building(request.destination);
-    if (destination == nullptr) {
-        return nullptr;
-    }
-
-    auto* best = static_cast<BuildingInstance*>(nullptr);
-    auto best_distance = Tick{0};
-    const auto viable_source_count = std::count_if(
+    return static_cast<int>(std::count_if(
         buildings_.begin(),
         buildings_.end(),
         [this, &request](const BuildingInstance& candidate) {
             return candidate.id != request.destination
                 && can_source_resource(candidate, request.resource)
                 && candidate.inventory.available(request.resource) > 0;
-        });
-    if (viable_source_count == 0) {
-        return nullptr;
+        }));
+}
+
+std::optional<Simulation::SourceSelection> Simulation::find_source_for_request(
+    const ResourceRequest& request,
+    const PathDistanceField* distance_field)
+{
+    const auto* destination = find_building(request.destination);
+    if (destination == nullptr) {
+        return std::nullopt;
     }
 
-    auto distance_field = std::optional<PathDistanceField>{};
-    if (viable_source_count >= distance_field_candidate_threshold && destination->position.has_value()) {
-        distance_field = map_.path_distances_from_building(
-            *destination->position,
-            footprint_for(*destination));
-    }
+    auto* best = static_cast<BuildingInstance*>(nullptr);
+    auto best_distance = Tick{0};
 
     for (auto& candidate : buildings_) {
         if (candidate.id == request.destination || !can_source_resource(candidate, request.resource)) {
@@ -835,7 +851,7 @@ BuildingInstance* Simulation::find_source_for_request(const ResourceRequest& req
         }
 
         auto distance = std::optional<Tick>{};
-        if (distance_field.has_value() && candidate.position.has_value()) {
+        if (distance_field != nullptr && candidate.position.has_value()) {
             const auto path_distance = distance_field->distance_to_building(
                 *candidate.position,
                 footprint_for(candidate));
@@ -855,7 +871,14 @@ BuildingInstance* Simulation::find_source_for_request(const ResourceRequest& req
         }
     }
 
-    return best;
+    if (best == nullptr) {
+        return std::nullopt;
+    }
+
+    return SourceSelection{
+        .building = best,
+        .distance = best_distance
+    };
 }
 
 bool Simulation::can_source_resource(const BuildingInstance& source, ResourceId resource) const
@@ -897,7 +920,12 @@ bool Simulation::construction_materials_delivered(const BuildingInstance& site) 
     return true;
 }
 
-bool Simulation::create_transport_job(BuildingInstance& source, BuildingInstance& destination, ResourceId resource, Quantity quantity)
+bool Simulation::create_transport_job(
+    BuildingInstance& source,
+    BuildingInstance& destination,
+    ResourceId resource,
+    Quantity quantity,
+    Tick delivery_ticks)
 {
     if (!source.inventory.reserve_outgoing(resource, quantity)) {
         return false;
@@ -916,7 +944,8 @@ bool Simulation::create_transport_job(BuildingInstance& source, BuildingInstance
         .destination = destination.id,
         .state = TransportJobState::GoingToPickup,
         .ticks_remaining = prototype_transport_leg_minutes,
-        .leg_ticks_total = prototype_transport_leg_minutes
+        .leg_ticks_total = prototype_transport_leg_minutes,
+        .delivery_ticks = delivery_ticks
     });
     return true;
 }

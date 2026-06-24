@@ -312,6 +312,9 @@ Programming work:
 - Added adaptive destination-rooted path distance fields for logistics requests with many viable sources.
 - Improved the default-build 100-building benchmark by roughly 7x without changing scenario results.
 - Added constant-time lookup for append-only dense building IDs.
+- Reused destination distance fields across same-destination requests within a dispatch.
+- Stored selected route duration on transport jobs instead of recomputing it after pickup.
+- Improved the 100-building benchmark by another roughly 31% without changing scenario results.
 
 Files likely touched:
 

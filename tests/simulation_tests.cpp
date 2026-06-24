@@ -256,6 +256,47 @@ void logistics_summary_tracks_reservations_and_in_transit_goods()
     VIBECITY_CHECK(summary.in_transit[vibecity::resource_index(vibecity::ResourceId::Bread)] == 5);
 }
 
+void transport_job_keeps_dispatched_delivery_duration()
+{
+    vibecity::Simulation simulation;
+
+    const auto storehouse = simulation.add_building_at(
+        vibecity::BuildingKind::Storehouse,
+        vibecity::GridPosition{1, 1});
+    const auto house = simulation.add_building_at(
+        vibecity::BuildingKind::House,
+        vibecity::GridPosition{8, 1});
+    for (int x = 1; x <= 8; ++x) {
+        VIBECITY_CHECK(simulation.add_path(vibecity::GridPosition{x, 0}));
+    }
+
+    simulation.set_residents(house, 5);
+    simulation.building(storehouse).inventory.add(vibecity::ResourceId::Bread, 10);
+
+    const auto expected_distance = simulation.map().path_distance_between_buildings(
+        *simulation.building(storehouse).position,
+        vibecity::building_definition(vibecity::BuildingKind::Storehouse).footprint,
+        *simulation.building(house).position,
+        vibecity::building_definition(vibecity::BuildingKind::House).footprint);
+    VIBECITY_CHECK(expected_distance.has_value());
+
+    simulation.tick();
+    VIBECITY_CHECK(simulation.transport_jobs().size() == 1);
+    VIBECITY_CHECK(simulation.transport_jobs().front().delivery_ticks == *expected_distance);
+    VIBECITY_CHECK(simulation.transport_jobs().front().state == vibecity::TransportJobState::GoingToPickup);
+
+    for (auto attempts = 0; attempts < 20
+        && !simulation.transport_jobs().empty()
+        && simulation.transport_jobs().front().state == vibecity::TransportJobState::GoingToPickup; ++attempts) {
+        simulation.tick();
+    }
+
+    VIBECITY_CHECK(simulation.transport_jobs().size() == 1);
+    VIBECITY_CHECK(simulation.transport_jobs().front().state == vibecity::TransportJobState::CarryingGoods);
+    VIBECITY_CHECK(simulation.transport_jobs().front().ticks_remaining == *expected_distance);
+    VIBECITY_CHECK(simulation.transport_jobs().front().leg_ticks_total == *expected_distance);
+}
+
 void disconnected_buildings_cannot_exchange_goods()
 {
     vibecity::Simulation simulation;
@@ -541,6 +582,7 @@ int main()
     population_does_not_grow_when_houses_are_hungry();
     logistics_delivers_bread_from_storehouse_to_house();
     logistics_summary_tracks_reservations_and_in_transit_goods();
+    transport_job_keeps_dispatched_delivery_duration();
     disconnected_buildings_cannot_exchange_goods();
     connected_paths_allow_goods_exchange();
     logistics_prefers_nearest_reachable_source();

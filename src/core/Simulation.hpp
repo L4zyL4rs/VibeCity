@@ -64,6 +64,7 @@ struct TransportJob {
     TransportJobState state = TransportJobState::GoingToPickup;
     Tick ticks_remaining = 0;
     Tick leg_ticks_total = 0;
+    Tick delivery_ticks = 0;
 };
 
 struct ResourceRequest {
@@ -119,13 +120,17 @@ public:
     [[nodiscard]] const ResourceStats& stats() const;
 
 private:
+    struct SourceSelection {
+        BuildingInstance* building = nullptr;
+        Tick distance = 0;
+    };
+
     [[nodiscard]] BuildingInstance* find_building(BuildingId id);
     [[nodiscard]] const BuildingInstance* find_building(BuildingId id) const;
 
     [[nodiscard]] GridPosition auto_place_building(BuildingId id, Footprint footprint);
     [[nodiscard]] Footprint footprint_for(const BuildingInstance& building) const;
     [[nodiscard]] bool buildings_connected(const BuildingInstance& source, const BuildingInstance& destination) const;
-    [[nodiscard]] Tick transport_minutes_between(const BuildingInstance& source, const BuildingInstance& destination) const;
     [[nodiscard]] std::optional<Tick> transport_minutes_if_connected(const BuildingInstance& source,
         const BuildingInstance& destination) const;
     void run_production();
@@ -135,11 +140,19 @@ private:
     void consume_daily_bread();
     void grow_population();
     [[nodiscard]] std::vector<ResourceRequest> collect_resource_requests() const;
-    [[nodiscard]] BuildingInstance* find_source_for_request(const ResourceRequest& request);
+    [[nodiscard]] int viable_source_count(const ResourceRequest& request) const;
+    [[nodiscard]] std::optional<SourceSelection> find_source_for_request(
+        const ResourceRequest& request,
+        const PathDistanceField* distance_field);
     [[nodiscard]] bool can_source_resource(const BuildingInstance& source, ResourceId resource) const;
     [[nodiscard]] Quantity projected_quantity(const BuildingInstance& building, ResourceId resource) const;
     [[nodiscard]] bool construction_materials_delivered(const BuildingInstance& site) const;
-    [[nodiscard]] bool create_transport_job(BuildingInstance& source, BuildingInstance& destination, ResourceId resource, Quantity quantity);
+    [[nodiscard]] bool create_transport_job(
+        BuildingInstance& source,
+        BuildingInstance& destination,
+        ResourceId resource,
+        Quantity quantity,
+        Tick delivery_ticks);
     void complete_construction(BuildingInstance& site);
     bool start_recipe(BuildingInstance& building, const Recipe& recipe);
     void finish_recipe(BuildingInstance& building, const Recipe& recipe);

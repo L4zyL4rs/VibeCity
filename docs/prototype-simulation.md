@@ -190,6 +190,8 @@ Inventories need:
 
 Reservations prevent double-spending resources that are already promised to a construction site, building, or household.
 
+Transport jobs keep the route duration chosen at dispatch. A job therefore does not rerun pathfinding when it changes from going to pickup to carrying goods.
+
 ## 6. Population And Labor
 
 ### 6.1 Houses

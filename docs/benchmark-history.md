@@ -65,3 +65,22 @@ Notes:
 - A second post-change sample put the 100-building case at 1,760.77 ms. This is a 7.1-7.6x improvement over the 13,441.72 ms pre-change sample.
 - Starting and construction village timings remain within existing run-to-run noise.
 - All scenario sanity fields are unchanged, so this comparison measures pathfinding work rather than a gameplay behavior change.
+
+### 2026-06-24 Dispatch Route Reuse
+
+Transport jobs now keep the delivery duration selected during dispatch instead of running pathfinding again when pickup completes. Consecutive resource requests for the same destination also reuse one dispatch-local distance field.
+
+Representative default-build sample:
+
+| Case | Ticks | Milliseconds | Ticks/s | Buildings | Active Jobs | Transported | Constructed |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| starting village 30d | 43,200 | 12.74 | 3,390,798 | 4 | 0 | 24 | 0 |
+| construction village 30d | 43,200 | 61.32 | 704,505 | 9 | 0 | 2,121 | 5 |
+| 100 buildings 10d | 14,400 | 1,199.52 | 12,005 | 100 | 40 | 72,458 | 0 |
+
+Notes:
+
+- A second sequential sample put the 100-building case at 1,212.83 ms.
+- Compared with the previous 1,743.49 ms sample, the large case is roughly 31% faster.
+- `perf` confirmed that pathfinding no longer runs during the pickup-to-carrying transition.
+- Scenario sanity fields remain unchanged.
