@@ -84,3 +84,23 @@ Notes:
 - Compared with the previous 1,743.49 ms sample, the large case is roughly 31% faster.
 - `perf` confirmed that pathfinding no longer runs during the pickup-to-carrying transition.
 - Scenario sanity fields remain unchanged.
+
+### 2026-06-24 Reusable Path Workspace
+
+The logistics distance field now retains its distance storage and BFS frontier between dispatches. Resetting clears only tiles visited by the previous search instead of allocating and filling a full map-sized vector.
+
+Representative default-build sample:
+
+| Case | Ticks | Milliseconds | Ticks/s | Buildings | Active Jobs | Transported | Constructed |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| starting village 30d | 43,200 | 12.63 | 3,419,783 | 4 | 0 | 24 | 0 |
+| construction village 30d | 43,200 | 60.89 | 709,528 | 9 | 0 | 2,121 | 5 |
+| 100 buildings 10d | 14,400 | 567.46 | 25,376 | 100 | 40 | 72,458 | 0 |
+
+Notes:
+
+- A second sample put the 100-building case at 569.96 ms.
+- Compared with the previous 1,199.52 ms sample, the large case is roughly 2.1x faster.
+- Compared with the original 13,441.72 ms baseline, the large case is roughly 24x faster.
+- A regression test repopulates one field from disconnected road components and verifies that old distances are cleared.
+- Scenario sanity fields remain unchanged.

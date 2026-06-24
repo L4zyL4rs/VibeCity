@@ -44,6 +44,32 @@ void path_distance_field_matches_pairwise_pathfinding()
     VIBECITY_CHECK(!field.distance_to_building(far_position, vibecity::Footprint{0, 1}).has_value());
 }
 
+void path_distance_field_can_be_reused_without_stale_distances()
+{
+    vibecity::TileMap map{20, 10};
+    for (int x = 1; x <= 8; ++x) {
+        VIBECITY_CHECK(map.add_path(vibecity::GridPosition{x, 2}));
+    }
+    for (int x = 12; x <= 17; ++x) {
+        VIBECITY_CHECK(map.add_path(vibecity::GridPosition{x, 6}));
+    }
+
+    auto field = vibecity::PathDistanceField{};
+    constexpr auto first_source = vibecity::GridPosition{1, 3};
+    constexpr auto first_destination = vibecity::GridPosition{7, 3};
+    constexpr auto second_source = vibecity::GridPosition{12, 7};
+    constexpr auto second_destination = vibecity::GridPosition{16, 7};
+    constexpr auto footprint = vibecity::Footprint{1, 1};
+
+    map.populate_path_distances_from_building(field, first_source, footprint);
+    VIBECITY_CHECK(field.distance_to_building(first_destination, footprint).has_value());
+    VIBECITY_CHECK(!field.distance_to_building(second_destination, footprint).has_value());
+
+    map.populate_path_distances_from_building(field, second_source, footprint);
+    VIBECITY_CHECK(!field.distance_to_building(first_destination, footprint).has_value());
+    VIBECITY_CHECK(field.distance_to_building(second_destination, footprint).has_value());
+}
+
 void farm_produces_grain_when_staffed()
 {
     vibecity::Simulation simulation;
@@ -571,6 +597,7 @@ void output_storage_full_blocks_production()
 int main()
 {
     path_distance_field_matches_pairwise_pathfinding();
+    path_distance_field_can_be_reused_without_stale_distances();
     farm_produces_grain_when_staffed();
     bakery_consumes_inputs_and_produces_bread();
     house_consumes_bread_daily();

@@ -529,7 +529,6 @@ void Simulation::dispatch_logistics()
     std::sort(requests.begin(), requests.end(), request_order);
 
     auto cached_destination = std::optional<BuildingId>{};
-    auto cached_distance_field = std::optional<PathDistanceField>{};
 
     for (const auto& request : requests) {
         if (available_haulers() <= 0) {
@@ -547,15 +546,14 @@ void Simulation::dispatch_logistics()
         const auto source_count = viable_source_count(request);
         const auto* distance_field = static_cast<const PathDistanceField*>(nullptr);
         if (cached_destination == destination->id) {
-            distance_field = &*cached_distance_field;
+            distance_field = &logistics_distance_field_;
         } else if (source_count >= distance_field_candidate_threshold && destination->position.has_value()) {
-            if (cached_destination != destination->id) {
-                cached_distance_field = map_.path_distances_from_building(
-                    *destination->position,
-                    footprint_for(*destination));
-                cached_destination = destination->id;
-            }
-            distance_field = &*cached_distance_field;
+            map_.populate_path_distances_from_building(
+                logistics_distance_field_,
+                *destination->position,
+                footprint_for(*destination));
+            cached_destination = destination->id;
+            distance_field = &logistics_distance_field_;
         }
 
         const auto selection = source_count > 0

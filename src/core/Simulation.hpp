@@ -163,6 +163,7 @@ private:
     std::vector<BuildingInstance> buildings_;
     std::vector<TransportJob> transport_jobs_;
     TileMap map_{128, 128};
+    PathDistanceField logistics_distance_field_;
     BuildingId next_building_id_ = 1;
     TransportJobId next_transport_job_id_ = 1;
     int next_auto_building_x_ = 1;

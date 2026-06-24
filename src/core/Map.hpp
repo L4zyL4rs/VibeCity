@@ -30,10 +30,14 @@ private:
     [[nodiscard]] bool in_bounds(GridPosition position) const;
     [[nodiscard]] int index(GridPosition position) const;
     [[nodiscard]] std::optional<int> distance_at(GridPosition position) const;
+    void reset(int width, int height, std::size_t tile_count);
+    void visit(GridPosition position, int distance);
 
     int width_ = 0;
     int height_ = 0;
     std::vector<int> distances_;
+    std::vector<int> visited_indices_;
+    std::vector<GridPosition> frontier_;
 };
 
 class TileMap {
@@ -51,6 +55,10 @@ public:
         GridPosition destination_position,
         Footprint destination_footprint) const;
     [[nodiscard]] PathDistanceField path_distances_from_building(
+        GridPosition position,
+        Footprint footprint) const;
+    void populate_path_distances_from_building(
+        PathDistanceField& field,
         GridPosition position,
         Footprint footprint) const;
     [[nodiscard]] std::optional<int> path_distance_between_buildings(GridPosition source_position,

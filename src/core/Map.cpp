@@ -65,6 +65,36 @@ std::optional<int> PathDistanceField::distance_at(GridPosition position) const
     return distance >= 0 ? std::optional<int>{distance} : std::nullopt;
 }
 
+void PathDistanceField::reset(int width, int height, std::size_t tile_count)
+{
+    if (width_ != width || height_ != height || distances_.size() != tile_count) {
+        width_ = width;
+        height_ = height;
+        distances_.assign(tile_count, -1);
+        visited_indices_.clear();
+        frontier_.clear();
+        return;
+    }
+
+    for (const auto visited_index : visited_indices_) {
+        distances_[static_cast<std::size_t>(visited_index)] = -1;
+    }
+    visited_indices_.clear();
+    frontier_.clear();
+}
+
+void PathDistanceField::visit(GridPosition position, int distance)
+{
+    const auto tile_index = index(position);
+    if (distances_[static_cast<std::size_t>(tile_index)] != -1) {
+        return;
+    }
+
+    distances_[static_cast<std::size_t>(tile_index)] = distance;
+    visited_indices_.push_back(tile_index);
+    frontier_.push_back(position);
+}
+
 TileMap::TileMap(int width, int height)
 {
     if (width <= 0 || height <= 0) {
@@ -135,25 +165,22 @@ bool TileMap::buildings_connected(GridPosition source_position,
 PathDistanceField TileMap::path_distances_from_building(GridPosition position, Footprint footprint) const
 {
     auto field = PathDistanceField{};
-    field.width_ = width_;
-    field.height_ = height_;
-    field.distances_.assign(tiles_.size(), -1);
+    populate_path_distances_from_building(field, position, footprint);
+    return field;
+}
 
-    auto queue = std::queue<GridPosition>{};
+void TileMap::populate_path_distances_from_building(
+    PathDistanceField& field,
+    GridPosition position,
+    Footprint footprint) const
+{
+    field.reset(width_, height_, tiles_.size());
     for (const auto start : path_access_tiles(position, footprint)) {
-        const auto start_index = index(start);
-        if (field.distances_[static_cast<std::size_t>(start_index)] != -1) {
-            continue;
-        }
-
-        field.distances_[static_cast<std::size_t>(start_index)] = 0;
-        queue.push(start);
+        field.visit(start, 0);
     }
 
-    while (!queue.empty()) {
-        const auto current = queue.front();
-        queue.pop();
-
+    for (std::size_t frontier_index = 0; frontier_index < field.frontier_.size(); ++frontier_index) {
+        const auto current = field.frontier_[frontier_index];
         const auto current_distance = field.distances_[static_cast<std::size_t>(index(current))];
         for (const auto offset : neighbor_offsets) {
             const auto neighbor = GridPosition{current.x + offset.x, current.y + offset.y};
@@ -161,17 +188,9 @@ PathDistanceField TileMap::path_distances_from_building(GridPosition position, F
                 continue;
             }
 
-            const auto neighbor_index = index(neighbor);
-            if (field.distances_[static_cast<std::size_t>(neighbor_index)] != -1) {
-                continue;
-            }
-
-            field.distances_[static_cast<std::size_t>(neighbor_index)] = current_distance + 1;
-            queue.push(neighbor);
+            field.visit(neighbor, current_distance + 1);
         }
     }
-
-    return field;
 }
 
 std::optional<int> TileMap::path_distance_between_buildings(GridPosition source_position,

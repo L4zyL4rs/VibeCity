@@ -315,6 +315,9 @@ Programming work:
 - Reused destination distance fields across same-destination requests within a dispatch.
 - Stored selected route duration on transport jobs instead of recomputing it after pickup.
 - Improved the 100-building benchmark by another roughly 31% without changing scenario results.
+- Reused distance storage and BFS frontier capacity across logistics dispatches.
+- Cleared only previously visited road tiles between distance-field searches.
+- Improved the 100-building benchmark from roughly 1.20 seconds to 0.57 seconds without changing scenario results.
 
 Files likely touched:
 
