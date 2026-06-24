@@ -136,7 +136,6 @@ private:
     void grow_population();
     [[nodiscard]] std::vector<ResourceRequest> collect_resource_requests() const;
     [[nodiscard]] BuildingInstance* find_source_for_request(const ResourceRequest& request);
-    [[nodiscard]] const BuildingInstance* find_source_for_request(const ResourceRequest& request) const;
     [[nodiscard]] bool can_source_resource(const BuildingInstance& source, ResourceId resource) const;
     [[nodiscard]] Quantity projected_quantity(const BuildingInstance& building, ResourceId resource) const;
     [[nodiscard]] bool construction_materials_delivered(const BuildingInstance& site) const;

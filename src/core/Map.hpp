@@ -20,6 +20,22 @@ struct Footprint {
     int height = 1;
 };
 
+class PathDistanceField {
+public:
+    [[nodiscard]] std::optional<int> distance_to_building(GridPosition position, Footprint footprint) const;
+
+private:
+    friend class TileMap;
+
+    [[nodiscard]] bool in_bounds(GridPosition position) const;
+    [[nodiscard]] int index(GridPosition position) const;
+    [[nodiscard]] std::optional<int> distance_at(GridPosition position) const;
+
+    int width_ = 0;
+    int height_ = 0;
+    std::vector<int> distances_;
+};
+
 class TileMap {
 public:
     TileMap(int width = 128, int height = 128);
@@ -34,6 +50,9 @@ public:
         Footprint source_footprint,
         GridPosition destination_position,
         Footprint destination_footprint) const;
+    [[nodiscard]] PathDistanceField path_distances_from_building(
+        GridPosition position,
+        Footprint footprint) const;
     [[nodiscard]] std::optional<int> path_distance_between_buildings(GridPosition source_position,
         Footprint source_footprint,
         GridPosition destination_position,
@@ -52,7 +71,6 @@ private:
     [[nodiscard]] const Tile& tile(GridPosition position) const;
     [[nodiscard]] Tile& tile(GridPosition position);
     [[nodiscard]] std::vector<GridPosition> path_access_tiles(GridPosition position, Footprint footprint) const;
-    [[nodiscard]] std::vector<GridPosition> path_neighbors(GridPosition position) const;
 
     int width_ = 0;
     int height_ = 0;

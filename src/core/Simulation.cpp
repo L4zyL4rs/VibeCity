@@ -12,6 +12,7 @@ constexpr int construction_material_priority = 90;
 constexpr int recipe_input_priority = 80;
 constexpr int storehouse_pull_priority = 10;
 constexpr Quantity house_bread_target = 10;
+constexpr int distance_field_candidate_threshold = 4;
 
 bool has_any(const ResourceArray& amounts)
 {
@@ -793,6 +794,24 @@ BuildingInstance* Simulation::find_source_for_request(const ResourceRequest& req
 
     auto* best = static_cast<BuildingInstance*>(nullptr);
     auto best_distance = Tick{0};
+    const auto viable_source_count = std::count_if(
+        buildings_.begin(),
+        buildings_.end(),
+        [this, &request](const BuildingInstance& candidate) {
+            return candidate.id != request.destination
+                && can_source_resource(candidate, request.resource)
+                && candidate.inventory.available(request.resource) > 0;
+        });
+    if (viable_source_count == 0) {
+        return nullptr;
+    }
+
+    auto distance_field = std::optional<PathDistanceField>{};
+    if (viable_source_count >= distance_field_candidate_threshold && destination->position.has_value()) {
+        distance_field = map_.path_distances_from_building(
+            *destination->position,
+            footprint_for(*destination));
+    }
 
     for (auto& candidate : buildings_) {
         if (candidate.id == request.destination || !can_source_resource(candidate, request.resource)) {
@@ -803,40 +822,17 @@ BuildingInstance* Simulation::find_source_for_request(const ResourceRequest& req
             continue;
         }
 
-        const auto distance = transport_minutes_if_connected(candidate, *destination);
-        if (!distance.has_value()) {
-            continue;
+        auto distance = std::optional<Tick>{};
+        if (distance_field.has_value() && candidate.position.has_value()) {
+            const auto path_distance = distance_field->distance_to_building(
+                *candidate.position,
+                footprint_for(candidate));
+            distance = path_distance.has_value()
+                ? std::optional<Tick>{std::max<Tick>(1, *path_distance)}
+                : std::nullopt;
+        } else {
+            distance = transport_minutes_if_connected(candidate, *destination);
         }
-
-        if (best == nullptr || *distance < best_distance || (*distance == best_distance && candidate.id < best->id)) {
-            best = &candidate;
-            best_distance = *distance;
-        }
-    }
-
-    return best;
-}
-
-const BuildingInstance* Simulation::find_source_for_request(const ResourceRequest& request) const
-{
-    const auto* destination = find_building(request.destination);
-    if (destination == nullptr) {
-        return nullptr;
-    }
-
-    auto* best = static_cast<const BuildingInstance*>(nullptr);
-    auto best_distance = Tick{0};
-
-    for (const auto& candidate : buildings_) {
-        if (candidate.id == request.destination || !can_source_resource(candidate, request.resource)) {
-            continue;
-        }
-
-        if (candidate.inventory.available(request.resource) <= 0) {
-            continue;
-        }
-
-        const auto distance = transport_minutes_if_connected(candidate, *destination);
         if (!distance.has_value()) {
             continue;
         }

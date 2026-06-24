@@ -136,7 +136,7 @@ Use path-network pathfinding for the first prototype:
 - Buildings connect to adjacent path tiles.
 - Off-road movement is not needed initially.
 
-A* or BFS is sufficient at 128 x 128. Cache paths only after the naive implementation becomes visibly expensive.
+BFS is sufficient at 128 x 128. Logistics uses pairwise searches for small source sets and a reusable destination-rooted distance field for larger source sets. More persistent path-network caching should wait until benchmarks justify the added invalidation complexity.
 
 ## 5. Resources
 

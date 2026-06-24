@@ -20,7 +20,7 @@ Status: fixed in this quality pass.
 
 Action: before adding larger maps or hundreds of buildings, introduce a path-network cache, connected-component ids, or a one-to-many distance pass per destination request. Add a benchmark target before optimizing this.
 
-Status: open.
+Status: fixed on 2026-06-24. Logistics now uses an adaptive source search: small candidate sets retain pairwise pathfinding, while larger sets reuse one destination-rooted distance field. The 100-building benchmark improved by roughly 7x without changing scenario results.
 
 ### Medium: The SDL client is now too monolithic for sustained feature work
 
@@ -44,7 +44,7 @@ The headless demo completes a tiny two-day scenario quickly, but this is an info
 
 Action: add a non-gating `vibecity_bench` executable once logistics grows beyond prototype size.
 
-Status: open.
+Status: fixed. `vibecity_bench` includes CSV output and benchmark history.
 
 ### Low: Inspector layout will not scale to more resources or building details
 

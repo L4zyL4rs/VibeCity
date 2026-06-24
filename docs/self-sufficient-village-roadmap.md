@@ -306,6 +306,8 @@ Programming work:
   - active/completed transport count if useful
 - Added CSV output for trend-friendly benchmark snapshots.
 - Added initial benchmark history documentation.
+- Added adaptive destination-rooted path distance fields for logistics requests with many viable sources.
+- Improved the default-build 100-building benchmark by roughly 7x without changing scenario results.
 
 Files likely touched:
 
@@ -326,7 +328,7 @@ Done when:
 
 1. Finish balancing production and construction around 25 residents.
 2. Prepare a playtest checklist and run the first manual village playtest.
-3. Use benchmark history before optimizing logistics/pathfinding.
+3. Use benchmark history before further logistics/pathfinding changes.
 
 ## First Concrete Next Task
 

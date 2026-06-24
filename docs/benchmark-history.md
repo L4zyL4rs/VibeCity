@@ -47,3 +47,21 @@ Notes:
 
 - The 100-building case is intentionally logistics-heavy and currently slow. It is useful as a pathfinding/logistics regression detector, not as a target for immediate optimization.
 - This baseline was recorded before dedicated path-network caching or request batching.
+
+### 2026-06-24 Adaptive Path Distance Fields
+
+Logistics source selection now counts viable sources before pathfinding. Small candidate sets retain pairwise shortest-path searches, while larger sets build one destination-rooted distance field and reuse it for every candidate.
+
+Representative default-build sample:
+
+| Case | Ticks | Milliseconds | Ticks/s | Buildings | Active Jobs | Transported | Constructed |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| starting village 30d | 43,200 | 13.34 | 3,237,663 | 4 | 0 | 24 | 0 |
+| construction village 30d | 43,200 | 84.34 | 512,214 | 9 | 0 | 2,121 | 5 |
+| 100 buildings 10d | 14,400 | 1,885.39 | 7,638 | 100 | 40 | 72,458 | 0 |
+
+Notes:
+
+- A second post-change sample put the 100-building case at 1,760.77 ms. This is a 7.1-7.6x improvement over the 13,441.72 ms pre-change sample.
+- Starting and construction village timings remain within existing run-to-run noise.
+- All scenario sanity fields are unchanged, so this comparison measures pathfinding work rather than a gameplay behavior change.

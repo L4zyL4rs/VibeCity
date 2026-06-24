@@ -7,6 +7,43 @@
 
 namespace {
 
+void path_distance_field_matches_pairwise_pathfinding()
+{
+    vibecity::TileMap map{20, 10};
+
+    for (int x = 1; x <= 15; ++x) {
+        VIBECITY_CHECK(map.add_path(vibecity::GridPosition{x, 2}));
+    }
+    for (int y = 3; y <= 6; ++y) {
+        VIBECITY_CHECK(map.add_path(vibecity::GridPosition{8, y}));
+    }
+
+    constexpr auto source_position = vibecity::GridPosition{1, 3};
+    constexpr auto source_footprint = vibecity::Footprint{2, 2};
+    constexpr auto far_position = vibecity::GridPosition{14, 3};
+    constexpr auto far_footprint = vibecity::Footprint{2, 2};
+    constexpr auto branch_position = vibecity::GridPosition{7, 7};
+    constexpr auto branch_footprint = vibecity::Footprint{2, 1};
+    constexpr auto disconnected_position = vibecity::GridPosition{17, 3};
+
+    const auto field = map.path_distances_from_building(source_position, source_footprint);
+
+    VIBECITY_CHECK(field.distance_to_building(far_position, far_footprint)
+        == map.path_distance_between_buildings(
+            source_position,
+            source_footprint,
+            far_position,
+            far_footprint));
+    VIBECITY_CHECK(field.distance_to_building(branch_position, branch_footprint)
+        == map.path_distance_between_buildings(
+            source_position,
+            source_footprint,
+            branch_position,
+            branch_footprint));
+    VIBECITY_CHECK(!field.distance_to_building(disconnected_position, far_footprint).has_value());
+    VIBECITY_CHECK(!field.distance_to_building(far_position, vibecity::Footprint{0, 1}).has_value());
+}
+
 void farm_produces_grain_when_staffed()
 {
     vibecity::Simulation simulation;
@@ -288,6 +325,43 @@ void logistics_prefers_nearest_reachable_source()
     VIBECITY_CHECK(simulation.building(far_bakery).inventory.quantity(vibecity::ResourceId::Bread) == 10);
 }
 
+void logistics_breaks_equal_distance_ties_by_building_id()
+{
+    vibecity::Simulation simulation;
+
+    const auto lower_id_bakery = simulation.add_building_at(
+        vibecity::BuildingKind::Bakery,
+        vibecity::GridPosition{3, 1});
+    const auto destination_house = simulation.add_building_at(
+        vibecity::BuildingKind::House,
+        vibecity::GridPosition{8, 1});
+    const auto higher_id_bakery = simulation.add_building_at(
+        vibecity::BuildingKind::Bakery,
+        vibecity::GridPosition{13, 1});
+    const auto worker_house = simulation.add_building_at(
+        vibecity::BuildingKind::House,
+        vibecity::GridPosition{7, 4});
+
+    for (int x = 3; x <= 14; ++x) {
+        VIBECITY_CHECK(simulation.add_path(vibecity::GridPosition{x, 0}));
+    }
+    for (int y = 1; y <= 3; ++y) {
+        VIBECITY_CHECK(simulation.add_path(vibecity::GridPosition{7, y}));
+    }
+
+    simulation.set_residents(destination_house, 5);
+    simulation.set_residents(worker_house, 5);
+    simulation.building(worker_house).inventory.add(vibecity::ResourceId::Bread, 10);
+    simulation.building(lower_id_bakery).inventory.add(vibecity::ResourceId::Bread, 10);
+    simulation.building(higher_id_bakery).inventory.add(vibecity::ResourceId::Bread, 10);
+
+    simulation.run_for(30);
+
+    VIBECITY_CHECK(simulation.building(destination_house).inventory.quantity(vibecity::ResourceId::Bread) == 10);
+    VIBECITY_CHECK(simulation.building(lower_id_bakery).inventory.quantity(vibecity::ResourceId::Bread) == 0);
+    VIBECITY_CHECK(simulation.building(higher_id_bakery).inventory.quantity(vibecity::ResourceId::Bread) == 10);
+}
+
 void disconnected_workers_do_not_staff_workplaces()
 {
     vibecity::Simulation simulation;
@@ -455,6 +529,7 @@ void output_storage_full_blocks_production()
 
 int main()
 {
+    path_distance_field_matches_pairwise_pathfinding();
     farm_produces_grain_when_staffed();
     bakery_consumes_inputs_and_produces_bread();
     house_consumes_bread_daily();
@@ -469,6 +544,7 @@ int main()
     disconnected_buildings_cannot_exchange_goods();
     connected_paths_allow_goods_exchange();
     logistics_prefers_nearest_reachable_source();
+    logistics_breaks_equal_distance_ties_by_building_id();
     disconnected_workers_do_not_staff_workplaces();
     bakery_fetches_inputs_before_producing();
     farm_and_woodcutter_supply_bakery_chain();
