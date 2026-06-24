@@ -40,6 +40,24 @@ private:
     std::vector<GridPosition> frontier_;
 };
 
+class PathConnectivityMap {
+public:
+    [[nodiscard]] std::vector<int> components_touching_building(
+        GridPosition position,
+        Footprint footprint) const;
+
+private:
+    friend class TileMap;
+
+    [[nodiscard]] bool in_bounds(GridPosition position) const;
+    [[nodiscard]] int index(GridPosition position) const;
+    [[nodiscard]] int component_at(GridPosition position) const;
+
+    int width_ = 0;
+    int height_ = 0;
+    std::vector<int> components_;
+};
+
 class TileMap {
 public:
     TileMap(int width = 128, int height = 128);
@@ -61,6 +79,7 @@ public:
         PathDistanceField& field,
         GridPosition position,
         Footprint footprint) const;
+    [[nodiscard]] PathConnectivityMap path_connectivity() const;
     [[nodiscard]] std::optional<int> path_distance_between_buildings(GridPosition source_position,
         Footprint source_footprint,
         GridPosition destination_position,

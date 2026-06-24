@@ -95,6 +95,54 @@ void PathDistanceField::visit(GridPosition position, int distance)
     frontier_.push_back(position);
 }
 
+std::vector<int> PathConnectivityMap::components_touching_building(
+    GridPosition position,
+    Footprint footprint) const
+{
+    auto result = std::vector<int>{};
+    if (footprint.width <= 0 || footprint.height <= 0) {
+        return result;
+    }
+
+    const auto consider = [this, &result](GridPosition access) {
+        const auto component = component_at(access);
+        if (component >= 0 && std::find(result.begin(), result.end(), component) == result.end()) {
+            result.push_back(component);
+        }
+    };
+
+    for (int x = position.x; x < position.x + footprint.width; ++x) {
+        consider(GridPosition{x, position.y - 1});
+        consider(GridPosition{x, position.y + footprint.height});
+    }
+
+    for (int y = position.y; y < position.y + footprint.height; ++y) {
+        consider(GridPosition{position.x - 1, y});
+        consider(GridPosition{position.x + footprint.width, y});
+    }
+
+    std::sort(result.begin(), result.end());
+    return result;
+}
+
+bool PathConnectivityMap::in_bounds(GridPosition position) const
+{
+    return position.x >= 0 && position.y >= 0 && position.x < width_ && position.y < height_;
+}
+
+int PathConnectivityMap::index(GridPosition position) const
+{
+    return position.y * width_ + position.x;
+}
+
+int PathConnectivityMap::component_at(GridPosition position) const
+{
+    if (!in_bounds(position)) {
+        return -1;
+    }
+    return components_[static_cast<std::size_t>(index(position))];
+}
+
 TileMap::TileMap(int width, int height)
 {
     if (width <= 0 || height <= 0) {
@@ -191,6 +239,54 @@ void TileMap::populate_path_distances_from_building(
             field.visit(neighbor, current_distance + 1);
         }
     }
+}
+
+PathConnectivityMap TileMap::path_connectivity() const
+{
+    auto connectivity = PathConnectivityMap{};
+    connectivity.width_ = width_;
+    connectivity.height_ = height_;
+    connectivity.components_.assign(tiles_.size(), -1);
+
+    auto frontier = std::vector<GridPosition>{};
+    auto component = 0;
+    for (int y = 0; y < height_; ++y) {
+        for (int x = 0; x < width_; ++x) {
+            const auto start = GridPosition{x, y};
+            const auto start_index = index(start);
+            if (!has_path(start)
+                || connectivity.components_[static_cast<std::size_t>(start_index)] >= 0) {
+                continue;
+            }
+
+            frontier.clear();
+            frontier.push_back(start);
+            connectivity.components_[static_cast<std::size_t>(start_index)] = component;
+
+            for (std::size_t frontier_index = 0; frontier_index < frontier.size(); ++frontier_index) {
+                const auto current = frontier[frontier_index];
+                for (const auto offset : neighbor_offsets) {
+                    const auto neighbor = GridPosition{current.x + offset.x, current.y + offset.y};
+                    if (!has_path(neighbor)) {
+                        continue;
+                    }
+
+                    const auto neighbor_index = index(neighbor);
+                    auto& neighbor_component = connectivity.components_[static_cast<std::size_t>(neighbor_index)];
+                    if (neighbor_component >= 0) {
+                        continue;
+                    }
+
+                    neighbor_component = component;
+                    frontier.push_back(neighbor);
+                }
+            }
+
+            ++component;
+        }
+    }
+
+    return connectivity;
 }
 
 std::optional<int> TileMap::path_distance_between_buildings(GridPosition source_position,

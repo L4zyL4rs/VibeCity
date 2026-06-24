@@ -223,6 +223,8 @@ Assignment rules:
 
 Workers do not need to be physically simulated during every commute in the first pass. The important prototype rule is reachability. Visible worker dots can be added as a presentation layer once assignment works.
 
+Reachability uses pairwise path checks in small settlements and one connected-component map for larger house/workplace candidate sets. This changes only how connectivity is calculated, not deterministic assignment order.
+
 ### 6.3 Labor For Construction
 
 Construction sites request builder workers.

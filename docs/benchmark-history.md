@@ -104,3 +104,23 @@ Notes:
 - Compared with the original 13,441.72 ms baseline, the large case is roughly 24x faster.
 - A regression test repopulates one field from disconnected road components and verifies that old distances are cleared.
 - Scenario sanity fields remain unchanged.
+
+### 2026-06-24 Adaptive Worker Connectivity
+
+Worker assignment now labels path connected components once when the number of house/workplace pairs is large. Small settlements retain pairwise reachability checks because a full map pass costs more than a few short searches.
+
+Representative default-build sample:
+
+| Case | Ticks | Milliseconds | Ticks/s | Buildings | Active Jobs | Transported | Constructed |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| starting village 30d | 43,200 | 12.56 | 3,438,184 | 4 | 0 | 24 | 0 |
+| construction village 30d | 43,200 | 64.03 | 674,697 | 9 | 0 | 2,121 | 5 |
+| 100 buildings 10d | 14,400 | 336.26 | 42,824 | 100 | 40 | 72,458 | 0 |
+
+Notes:
+
+- Another sample put the 100-building case at 305.44 ms.
+- Compared with the previous 567.46 ms sample, the large case is roughly 1.7-1.9x faster.
+- Compared with the original 13,441.72 ms baseline, the large case is roughly 40x faster.
+- `perf` confirmed that worker assignment no longer contributes pairwise path searches in the large scenario.
+- Small scenario timings remain within their prior run-to-run range, and all sanity fields are unchanged.

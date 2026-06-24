@@ -13,6 +13,7 @@ constexpr int recipe_input_priority = 80;
 constexpr int storehouse_pull_priority = 10;
 constexpr Quantity house_bread_target = 10;
 constexpr int distance_field_candidate_threshold = 4;
+constexpr std::size_t worker_connectivity_pair_threshold = 64;
 
 bool has_any(const ResourceArray& amounts)
 {
@@ -30,6 +31,13 @@ bool request_order(const ResourceRequest& left, const ResourceRequest& right)
 {
     return std::tuple{-left.priority, left.destination, resource_index(left.resource)}
         < std::tuple{-right.priority, right.destination, resource_index(right.resource)};
+}
+
+bool shares_component(const std::vector<int>& left, const std::vector<int>& right)
+{
+    return std::any_of(left.begin(), left.end(), [&right](int component) {
+        return std::binary_search(right.begin(), right.end(), component);
+    });
 }
 
 }
@@ -156,16 +164,37 @@ void Simulation::assign_workers()
     struct WorkerPool {
         const BuildingInstance* house = nullptr;
         int available = 0;
+        std::vector<int> path_components;
     };
 
     auto worker_pools = std::vector<WorkerPool>{};
+    auto workplace_count = std::size_t{0};
     for (const auto& instance : buildings_) {
         const auto& definition = building_definition(instance.kind);
-        if (definition.worker_supply > 0) {
+        const auto available_workers = std::min(definition.worker_supply, instance.residents);
+        if (available_workers > 0) {
             worker_pools.push_back(WorkerPool{
                 .house = &instance,
-                .available = std::min(definition.worker_supply, instance.residents)
+                .available = available_workers,
+                .path_components = {}
             });
+        }
+        if (definition.worker_slots > 0) {
+            ++workplace_count;
+        }
+    }
+
+    const auto use_path_connectivity =
+        worker_pools.size() * workplace_count >= worker_connectivity_pair_threshold;
+    auto path_connectivity = std::optional<PathConnectivityMap>{};
+    if (use_path_connectivity) {
+        path_connectivity = map_.path_connectivity();
+        for (auto& pool : worker_pools) {
+            if (pool.house != nullptr && pool.house->position.has_value()) {
+                pool.path_components = path_connectivity->components_touching_building(
+                    *pool.house->position,
+                    footprint_for(*pool.house));
+            }
         }
     }
 
@@ -176,12 +205,26 @@ void Simulation::assign_workers()
         }
 
         auto remaining_slots = definition.worker_slots;
+        const auto workplace_components = use_path_connectivity && instance.position.has_value()
+            ? path_connectivity->components_touching_building(
+                *instance.position,
+                footprint_for(instance))
+            : std::vector<int>{};
         for (auto& pool : worker_pools) {
             if (remaining_slots <= 0) {
                 break;
             }
 
-            if (pool.available <= 0 || pool.house == nullptr || !buildings_connected(*pool.house, instance)) {
+            if (pool.available <= 0 || pool.house == nullptr) {
+                continue;
+            }
+
+            const auto reachable = use_path_connectivity
+                ? (!pool.house->position.has_value()
+                    || !instance.position.has_value()
+                    || shares_component(pool.path_components, workplace_components))
+                : transport_minutes_if_connected(*pool.house, instance).has_value();
+            if (!reachable) {
                 continue;
             }
 
@@ -464,15 +507,6 @@ Footprint Simulation::footprint_for(const BuildingInstance& building) const
     }
 
     return building_definition(building.kind).footprint;
-}
-
-bool Simulation::buildings_connected(const BuildingInstance& source, const BuildingInstance& destination) const
-{
-    if (source.id == destination.id) {
-        return true;
-    }
-
-    return transport_minutes_if_connected(source, destination).has_value();
 }
 
 std::optional<Tick> Simulation::transport_minutes_if_connected(const BuildingInstance& source,

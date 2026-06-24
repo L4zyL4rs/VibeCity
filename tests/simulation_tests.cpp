@@ -70,6 +70,39 @@ void path_distance_field_can_be_reused_without_stale_distances()
     VIBECITY_CHECK(field.distance_to_building(second_destination, footprint).has_value());
 }
 
+void path_connectivity_labels_building_access_components()
+{
+    vibecity::TileMap map{20, 10};
+    for (int x = 1; x <= 8; ++x) {
+        VIBECITY_CHECK(map.add_path(vibecity::GridPosition{x, 2}));
+    }
+    for (int x = 12; x <= 17; ++x) {
+        VIBECITY_CHECK(map.add_path(vibecity::GridPosition{x, 6}));
+    }
+    VIBECITY_CHECK(map.add_path(vibecity::GridPosition{10, 4}));
+    VIBECITY_CHECK(map.add_path(vibecity::GridPosition{10, 6}));
+
+    const auto connectivity = map.path_connectivity();
+    const auto first_source = connectivity.components_touching_building(
+        vibecity::GridPosition{1, 3},
+        vibecity::Footprint{1, 1});
+    const auto first_destination = connectivity.components_touching_building(
+        vibecity::GridPosition{7, 3},
+        vibecity::Footprint{1, 1});
+    const auto second_source = connectivity.components_touching_building(
+        vibecity::GridPosition{12, 7},
+        vibecity::Footprint{1, 1});
+    const auto multi_access = connectivity.components_touching_building(
+        vibecity::GridPosition{10, 5},
+        vibecity::Footprint{1, 1});
+
+    VIBECITY_CHECK(first_source.size() == 1);
+    VIBECITY_CHECK(first_source == first_destination);
+    VIBECITY_CHECK(second_source.size() == 1);
+    VIBECITY_CHECK(first_source != second_source);
+    VIBECITY_CHECK(multi_access.size() == 2);
+}
+
 void farm_produces_grain_when_staffed()
 {
     vibecity::Simulation simulation;
@@ -598,6 +631,7 @@ int main()
 {
     path_distance_field_matches_pairwise_pathfinding();
     path_distance_field_can_be_reused_without_stale_distances();
+    path_connectivity_labels_building_access_components();
     farm_produces_grain_when_staffed();
     bakery_consumes_inputs_and_produces_bread();
     house_consumes_bread_daily();

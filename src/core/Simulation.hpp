@@ -130,7 +130,6 @@ private:
 
     [[nodiscard]] GridPosition auto_place_building(BuildingId id, Footprint footprint);
     [[nodiscard]] Footprint footprint_for(const BuildingInstance& building) const;
-    [[nodiscard]] bool buildings_connected(const BuildingInstance& source, const BuildingInstance& destination) const;
     [[nodiscard]] std::optional<Tick> transport_minutes_if_connected(const BuildingInstance& source,
         const BuildingInstance& destination) const;
     void run_production();

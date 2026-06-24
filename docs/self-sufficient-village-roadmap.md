@@ -318,6 +318,9 @@ Programming work:
 - Reused distance storage and BFS frontier capacity across logistics dispatches.
 - Cleared only previously visited road tiles between distance-field searches.
 - Improved the 100-building benchmark from roughly 1.20 seconds to 0.57 seconds without changing scenario results.
+- Added path connected-component labeling for large worker-assignment candidate sets.
+- Retained pairwise reachability for small villages where a full component pass costs more.
+- Improved the 100-building benchmark again to roughly 0.31-0.34 seconds without changing scenario results.
 
 Files likely touched:
 
