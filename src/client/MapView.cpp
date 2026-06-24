@@ -13,6 +13,38 @@ struct ScreenPoint {
     float y = 0.0F;
 };
 
+struct TileBounds {
+    int first_x = 0;
+    int first_y = 0;
+    int end_x = 0;
+    int end_y = 0;
+};
+
+int floor_divide(int numerator, int denominator)
+{
+    auto quotient = numerator / denominator;
+    const auto remainder = numerator % denominator;
+    if (remainder < 0) {
+        --quotient;
+    }
+    return quotient;
+}
+
+int ceil_divide(int numerator, int denominator)
+{
+    return -floor_divide(-numerator, denominator);
+}
+
+TileBounds visible_tile_bounds(const TileMap& map, Camera camera, int viewport_width, int viewport_height)
+{
+    return TileBounds{
+        .first_x = std::clamp(floor_divide(-camera.offset_x, tile_size), 0, map.width()),
+        .first_y = std::clamp(floor_divide(-camera.offset_y, tile_size), 0, map.height()),
+        .end_x = std::clamp(ceil_divide(viewport_width - camera.offset_x, tile_size), 0, map.width()),
+        .end_y = std::clamp(ceil_divide(viewport_height - camera.offset_y, tile_size), 0, map.height())
+    };
+}
+
 bool contains(GridPosition position, Footprint footprint, GridPosition point)
 {
     return point.x >= position.x && point.y >= position.y
@@ -22,23 +54,20 @@ bool contains(GridPosition position, Footprint footprint, GridPosition point)
 
 std::optional<ScreenPoint> building_center_screen(const Simulation& simulation, BuildingId building_id, Camera camera)
 {
-    for (const auto& building : simulation.buildings()) {
-        if (building.id != building_id || !building.position.has_value()) {
-            continue;
-        }
-
-        const auto footprint = footprint_for(building);
-        return ScreenPoint{
-            .x = static_cast<float>(camera.offset_x)
-                + (static_cast<float>(building.position->x) + static_cast<float>(footprint.width) * 0.5F)
-                    * static_cast<float>(tile_size),
-            .y = static_cast<float>(camera.offset_y)
-                + (static_cast<float>(building.position->y) + static_cast<float>(footprint.height) * 0.5F)
-                    * static_cast<float>(tile_size)
-        };
+    const auto& building = simulation.building(building_id);
+    if (!building.position.has_value()) {
+        return std::nullopt;
     }
 
-    return std::nullopt;
+    const auto footprint = footprint_for(building);
+    return ScreenPoint{
+        .x = static_cast<float>(camera.offset_x)
+            + (static_cast<float>(building.position->x) + static_cast<float>(footprint.width) * 0.5F)
+                * static_cast<float>(tile_size),
+        .y = static_cast<float>(camera.offset_y)
+            + (static_cast<float>(building.position->y) + static_cast<float>(footprint.height) * 0.5F)
+                * static_cast<float>(tile_size)
+    };
 }
 
 void draw_construction_progress(SDL_Renderer* renderer, const BuildingInstance& building, const SDL_Rect& rect)
@@ -78,8 +107,8 @@ void draw_construction_progress(SDL_Renderer* renderer, const BuildingInstance& 
 GridPosition screen_to_map(int screen_x, int screen_y, Camera camera)
 {
     return GridPosition{
-        .x = (screen_x - camera.offset_x) / tile_size,
-        .y = (screen_y - camera.offset_y) / tile_size
+        .x = floor_divide(screen_x - camera.offset_x, tile_size),
+        .y = floor_divide(screen_y - camera.offset_y, tile_size)
     };
 }
 
@@ -133,9 +162,15 @@ void draw_world(SDL_Renderer* renderer,
     std::optional<BuildingId> selected)
 {
     const auto& map = simulation.map();
+    auto viewport_width = map.width() * tile_size;
+    auto viewport_height = map.height() * tile_size;
+    SDL_GetRendererOutputSize(renderer, &viewport_width, &viewport_height);
+    const auto visible = visible_tile_bounds(map, camera, viewport_width, viewport_height);
+    const auto viewport = SDL_Rect{.x = 0, .y = 0, .w = viewport_width, .h = viewport_height};
+
     set_color(renderer, Color{48, 52, 52, 255});
-    for (int y = 0; y < map.height(); ++y) {
-        for (int x = 0; x < map.width(); ++x) {
+    for (int y = visible.first_y; y < visible.end_y; ++y) {
+        for (int x = visible.first_x; x < visible.end_x; ++x) {
             const auto position = GridPosition{x, y};
             if (!map.has_path(position)) {
                 continue;
@@ -153,6 +188,10 @@ void draw_world(SDL_Renderer* renderer,
 
         const auto footprint = footprint_for(building);
         auto rect = tile_rect(*building.position, footprint, camera);
+        if (SDL_HasIntersection(&rect, &viewport) == SDL_FALSE) {
+            continue;
+        }
+
         set_color(renderer, building_color(building));
         SDL_RenderFillRect(renderer, &rect);
 

@@ -146,6 +146,7 @@ private:
     bool has_recipe_inputs(const BuildingInstance& building, const Recipe& recipe) const;
     bool has_recipe_output_capacity(const BuildingInstance& building, const Recipe& recipe) const;
 
+    // Buildings are append-only so stable ID N remains at index N - 1.
     std::vector<BuildingInstance> buildings_;
     std::vector<TransportJob> transport_jobs_;
     TileMap map_{128, 128};

@@ -28,7 +28,7 @@ Status: fixed on 2026-06-24. Logistics now uses an adaptive source search: small
 
 Action: split into client modules such as `Text`, `Palette`, `Hud`, `Inspector`, `MapView`, and `InputController` before adding the next broad UI feature.
 
-Status: open.
+Status: fixed. The client responsibilities now live in the proposed modules, and `src/client/main.cpp` is 202 lines.
 
 ### Medium: Client rendering scans whole data sets every frame
 
@@ -36,7 +36,7 @@ The map renderer scans all 128x128 tiles each frame in [src/client/main.cpp](/ho
 
 Action: render only visible tile ranges and keep a per-frame or simulation-owned building-id lookup for overlays.
 
-Status: open.
+Status: fixed on 2026-06-24. The map renderer clips tile traversal and building draws to the visible viewport. Simulation building lookup is constant-time for the append-only dense ID layout, and transport overlays use that lookup directly.
 
 ### Low: No real performance benchmark exists yet
 
@@ -64,7 +64,6 @@ Status: open.
 
 ## Next Quality Actions
 
-1. Split `src/client/main.cpp` before the next large UI feature.
-2. Add a benchmark target before optimizing logistics or changing data layout.
-3. Decide on a path-distance/cache strategy before raising map or building counts.
-4. Include a Release CTest run in periodic quality reviews.
+1. Add inspector scrolling or section collapse before substantially increasing inspector content.
+2. Profile the next simulation bottleneck before adding more path or storage caching.
+3. Keep Release CTest runs in periodic quality reviews.

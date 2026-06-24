@@ -270,6 +270,8 @@ Programming work:
   - jobs moving to pickup
   - jobs carrying goods
   - incoming, outgoing, and in-transit reservation totals
+- Cull path tiles and buildings outside the visible client viewport.
+- Resolve transport overlay endpoints through constant-time building lookup.
 
 Files likely touched:
 
@@ -308,6 +310,7 @@ Programming work:
 - Added initial benchmark history documentation.
 - Added adaptive destination-rooted path distance fields for logistics requests with many viable sources.
 - Improved the default-build 100-building benchmark by roughly 7x without changing scenario results.
+- Added constant-time lookup for append-only dense building IDs.
 
 Files likely touched:
 

@@ -416,18 +416,30 @@ const ResourceStats& Simulation::stats() const
 
 BuildingInstance* Simulation::find_building(BuildingId id)
 {
-    const auto found = std::find_if(buildings_.begin(), buildings_.end(), [id](const BuildingInstance& instance) {
-        return instance.id == id;
-    });
-    return found == buildings_.end() ? nullptr : &*found;
+    if (id == 0) {
+        return nullptr;
+    }
+
+    const auto index = static_cast<std::size_t>(id - 1);
+    if (index >= buildings_.size() || buildings_[index].id != id) {
+        return nullptr;
+    }
+
+    return &buildings_[index];
 }
 
 const BuildingInstance* Simulation::find_building(BuildingId id) const
 {
-    const auto found = std::find_if(buildings_.begin(), buildings_.end(), [id](const BuildingInstance& instance) {
-        return instance.id == id;
-    });
-    return found == buildings_.end() ? nullptr : &*found;
+    if (id == 0) {
+        return nullptr;
+    }
+
+    const auto index = static_cast<std::size_t>(id - 1);
+    if (index >= buildings_.size() || buildings_[index].id != id) {
+        return nullptr;
+    }
+
+    return &buildings_[index];
 }
 
 GridPosition Simulation::auto_place_building(BuildingId id, Footprint footprint)
