@@ -1,0 +1,222 @@
+#include "core/Simulation.hpp"
+
+#include <limits>
+#include <stdexcept>
+#include <type_traits>
+#include <utility>
+#include <vector>
+
+namespace vibecity {
+namespace {
+
+template <typename Enum>
+bool enum_less_than(Enum value, Enum limit)
+{
+    return static_cast<std::underlying_type_t<Enum>>(value)
+        < static_cast<std::underlying_type_t<Enum>>(limit);
+}
+
+template <typename Enum>
+bool enum_at_most(Enum value, Enum maximum)
+{
+    return static_cast<std::underlying_type_t<Enum>>(value)
+        <= static_cast<std::underlying_type_t<Enum>>(maximum);
+}
+
+}
+
+SimulationState Simulation::state() const
+{
+    return SimulationState{
+        .map_width = map_.width(),
+        .map_height = map_.height(),
+        .paths = map_.path_positions(),
+        .buildings = buildings_,
+        .transport_jobs = transport_jobs_,
+        .next_building_id = next_building_id_,
+        .next_transport_job_id = next_transport_job_id_,
+        .next_auto_building_x = next_auto_building_x_,
+        .current_tick = current_tick_,
+        .worker_assignment_dirty = worker_assignment_dirty_,
+        .idle_workers = idle_workers_,
+        .stats = stats_
+    };
+}
+
+Simulation Simulation::from_state(SimulationState state)
+{
+    constexpr auto max_map_dimension = 4'096;
+    constexpr auto max_map_tiles = 4'194'304;
+    if (state.map_width <= 0
+        || state.map_height <= 0
+        || state.map_width > max_map_dimension
+        || state.map_height > max_map_dimension
+        || static_cast<std::int64_t>(state.map_width) * state.map_height > max_map_tiles) {
+        throw std::invalid_argument("invalid saved map dimensions");
+    }
+    if (state.current_tick < 0
+        || state.next_building_id == 0
+        || state.next_transport_job_id == 0
+        || state.next_auto_building_x < 0
+        || state.idle_workers < 0
+        || state.stats.constructed_buildings < 0) {
+        throw std::invalid_argument("invalid saved simulation counters");
+    }
+    for (std::size_t index = 0; index < resource_count; ++index) {
+        if (state.stats.produced[index] < 0
+            || state.stats.consumed[index] < 0
+            || state.stats.transported[index] < 0) {
+            throw std::invalid_argument("invalid saved resource statistics");
+        }
+    }
+
+    auto restored_map = TileMap{state.map_width, state.map_height};
+    for (const auto path : state.paths) {
+        if (restored_map.has_path(path) || !restored_map.add_path(path)) {
+            throw std::invalid_argument("invalid or duplicate saved path");
+        }
+    }
+
+    for (std::size_t index = 0; index < state.buildings.size(); ++index) {
+        auto& building = state.buildings[index];
+        const auto expected_id = static_cast<BuildingId>(index + 1);
+        if (building.id != expected_id || !building.position.has_value()) {
+            throw std::invalid_argument("saved building IDs must be dense and positioned");
+        }
+        if (!enum_less_than(building.kind, BuildingKind::Count)
+            || !enum_at_most(building.blocking_reason, BlockingReason::WaitingForBuilderLabor)) {
+            throw std::invalid_argument("invalid saved building enum");
+        }
+        if (building.residents < 0
+            || building.assigned_workers < 0
+            || building.assigned_builders < 0
+            || building.recipe_progress < 0
+            || building.hunger_days < 0
+            || building.construction_labor_required < 0
+            || building.construction_labor_completed < 0) {
+            throw std::invalid_argument("invalid saved building counters");
+        }
+
+        const auto& definition = building_definition(building.kind);
+        if (building.residents > definition.resident_capacity
+            || building.assigned_workers > definition.worker_slots) {
+            throw std::invalid_argument("saved building occupancy exceeds capacity");
+        }
+        if ((building.kind == BuildingKind::ConstructionSite) != building.construction_target.has_value()) {
+            throw std::invalid_argument("invalid saved construction target");
+        }
+        if (building.construction_target.has_value()
+            && (!enum_less_than(*building.construction_target, BuildingKind::Count)
+                || *building.construction_target == BuildingKind::ConstructionSite)) {
+            throw std::invalid_argument("invalid saved construction target kind");
+        }
+
+        const auto& state_definition = building.kind == BuildingKind::ConstructionSite
+            ? building_definition(*building.construction_target)
+            : definition;
+        const auto expected_storage = building.kind == BuildingKind::ConstructionSite
+            ? state_definition.construction_materials
+            : state_definition.storage;
+        if (building.inventory.capacities() != expected_storage) {
+            throw std::invalid_argument("saved inventory capacities do not match building definition");
+        }
+        if (building.kind == BuildingKind::ConstructionSite) {
+            if (building.assigned_builders > prototype_builders_per_site
+                || building.construction_labor_required != state_definition.construction_labor_minutes
+                || building.construction_labor_completed > building.construction_labor_required
+                || building.recipe_progress != 0) {
+                throw std::invalid_argument("invalid saved construction progress");
+            }
+        } else if (building.assigned_builders != 0
+            || building.construction_labor_required != 0
+            || building.construction_labor_completed != 0
+            || (!definition.recipe.has_value() && building.recipe_progress != 0)
+            || (definition.recipe.has_value()
+                && building.recipe_progress >= definition.recipe->cycle_minutes)) {
+            throw std::invalid_argument("invalid saved building progress");
+        }
+
+        if (!restored_map.place_building(
+                building.id,
+                *building.position,
+                state_definition.footprint)) {
+            throw std::invalid_argument("invalid saved building placement");
+        }
+    }
+
+    if (state.buildings.size() >= std::numeric_limits<BuildingId>::max()
+        || state.next_building_id != static_cast<BuildingId>(state.buildings.size() + 1)) {
+        throw std::invalid_argument("invalid next saved building ID");
+    }
+
+    auto expected_outgoing = std::vector<ResourceArray>(state.buildings.size());
+    auto expected_incoming = std::vector<ResourceArray>(state.buildings.size());
+    auto previous_job_id = TransportJobId{0};
+    for (const auto& job : state.transport_jobs) {
+        if (job.id == 0
+            || job.id <= previous_job_id
+            || job.quantity <= 0
+            || job.source == 0
+            || job.destination == 0
+            || job.source > state.buildings.size()
+            || job.destination > state.buildings.size()
+            || job.source == job.destination
+            || !enum_less_than(job.resource, ResourceId::Count)
+            || (job.state != TransportJobState::GoingToPickup
+                && job.state != TransportJobState::CarryingGoods)
+            || job.ticks_remaining < 0
+            || job.ticks_remaining > job.leg_ticks_total
+            || job.leg_ticks_total <= 0
+            || job.delivery_ticks <= 0
+            || (job.state == TransportJobState::GoingToPickup
+                && job.leg_ticks_total != prototype_transport_leg_minutes)
+            || (job.state == TransportJobState::CarryingGoods
+                && job.leg_ticks_total != job.delivery_ticks)) {
+            throw std::invalid_argument("invalid saved transport job");
+        }
+
+        const auto source_index = static_cast<std::size_t>(job.source - 1);
+        const auto destination_index = static_cast<std::size_t>(job.destination - 1);
+        const auto resource = resource_index(job.resource);
+        if (job.quantity > std::numeric_limits<Quantity>::max() - expected_incoming[destination_index][resource]
+            || (job.state == TransportJobState::GoingToPickup
+                && job.quantity > std::numeric_limits<Quantity>::max() - expected_outgoing[source_index][resource])) {
+            throw std::invalid_argument("saved transport reservations overflow");
+        }
+
+        expected_incoming[destination_index][resource] += job.quantity;
+        if (job.state == TransportJobState::GoingToPickup) {
+            expected_outgoing[source_index][resource] += job.quantity;
+        }
+        previous_job_id = job.id;
+    }
+    if (state.next_transport_job_id <= previous_job_id) {
+        throw std::invalid_argument("invalid next saved transport job ID");
+    }
+    for (std::size_t building_index = 0; building_index < state.buildings.size(); ++building_index) {
+        const auto& inventory = state.buildings[building_index].inventory;
+        for (std::size_t resource = 0; resource < resource_count; ++resource) {
+            const auto resource_id = static_cast<ResourceId>(resource);
+            if (inventory.reserved_outgoing(resource_id) != expected_outgoing[building_index][resource]
+                || inventory.reserved_incoming(resource_id) < expected_incoming[building_index][resource]) {
+                throw std::invalid_argument("saved transport reservations do not match jobs");
+            }
+        }
+    }
+
+    auto simulation = Simulation{};
+    simulation.buildings_ = std::move(state.buildings);
+    simulation.transport_jobs_ = std::move(state.transport_jobs);
+    simulation.map_ = std::move(restored_map);
+    simulation.logistics_distance_field_ = PathDistanceField{};
+    simulation.next_building_id_ = state.next_building_id;
+    simulation.next_transport_job_id_ = state.next_transport_job_id;
+    simulation.next_auto_building_x_ = state.next_auto_building_x;
+    simulation.current_tick_ = state.current_tick;
+    simulation.worker_assignment_dirty_ = state.worker_assignment_dirty;
+    simulation.idle_workers_ = state.idle_workers;
+    simulation.stats_ = state.stats;
+    return simulation;
+}
+
+}

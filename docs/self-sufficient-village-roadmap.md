@@ -52,6 +52,7 @@ Already implemented:
 - SDL client with placement, inspector, economy summary, logistics reservation summary, objective summary, transport overlay, and drag path placement.
 - SDL client shows construction queue focus and per-site construction progress.
 - First client splits: pixel text helpers, core palette helpers, map-view helpers, HUD helpers, inspector helpers, input handling, and client mode definitions live outside `src/client/main.cpp`.
+- Versioned save/load with objective history, active logistics, reservations, construction progress, paths, and deterministic continuation.
 - Tests for core production, consumption, logistics, reachability, construction, and command-layer flow.
 
 Main gaps:
@@ -336,6 +337,38 @@ Tests:
 Done when:
 
 - We have a repeatable number before optimizing pathfinding, data layout, or render culling.
+
+### Slice 8: Persistence
+
+Status: first pass done.
+
+Programming work:
+
+- Added a versioned little-endian binary save format.
+- Save all authoritative village state:
+  - paths and building placement
+  - inventories and reservations
+  - active transport jobs and route durations
+  - production and construction progress
+  - population, hunger, worker assignment, statistics, and ID generators
+  - objective tracker history
+- Validate checksums, enum values, dimensions, counts, placements, inventory invariants, and transport reservations before accepting a load.
+- Load transactionally so an invalid file leaves the current session unchanged.
+- Save through a temporary file before replacing the previous save.
+- Added `F5` save and `F9` load controls for `vibecity-save.vcs`.
+
+Tests:
+
+- Canonical save/load/save round trip.
+- Deterministic continuation from active logistics and construction state.
+- Stable-days objective history survives loading.
+- Corrupt and unsupported-version files are rejected.
+- Failed loads do not replace the active session.
+
+Done when:
+
+- A village can be stopped and resumed without changing its deterministic outcome.
+- Persistence failures produce a useful status and do not damage the running game.
 
 ## Suggested Order
 

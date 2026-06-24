@@ -4,9 +4,12 @@
 #include "client/Inspector.hpp"
 
 #include <algorithm>
+#include <filesystem>
 
 namespace vibecity::client {
 namespace {
+
+const auto default_save_path = std::filesystem::path{"vibecity-save.vcs"};
 
 bool point_is_over_world(Uint32 window_id, int x, int y)
 {
@@ -58,7 +61,7 @@ void place_path_tile(GameSession& game,
     }
 }
 
-void handle_keydown(ClientInteractionState& state, SDL_Keycode key)
+void handle_keydown(GameSession& game, ClientInteractionState& state, SDL_Keycode key)
 {
     switch (key) {
     case SDLK_ESCAPE:
@@ -96,6 +99,25 @@ void handle_keydown(ClientInteractionState& state, SDL_Keycode key)
         state.mode = ClientMode::BuildStorehouse;
         state.status = "storehouse construction mode";
         break;
+    case SDLK_F5: {
+        const auto result = game.save_to_file(default_save_path);
+        state.status = result.message;
+        break;
+    }
+    case SDLK_F9: {
+        const auto result = game.load_from_file(default_save_path);
+        state.status = result.message;
+        if (result.success) {
+            state.running = false;
+            state.selected = std::nullopt;
+            state.hover_tile = std::nullopt;
+            state.path_dragging = false;
+            state.last_path_drag_tile = std::nullopt;
+            state.inspector_scroll = 0;
+            state.inspector_max_scroll = 0;
+        }
+        break;
+    }
     case SDLK_EQUALS:
     case SDLK_PLUS:
         state.ticks_per_frame = std::min(240, state.ticks_per_frame * 2);
@@ -190,7 +212,7 @@ void handle_event(GameSession& game, ClientInteractionState& state, const SDL_Ev
     }
 
     if (event.type == SDL_KEYDOWN) {
-        handle_keydown(state, event.key.keysym.sym);
+        handle_keydown(game, state, event.key.keysym.sym);
     }
 
     if (event.type == SDL_MOUSEMOTION) {

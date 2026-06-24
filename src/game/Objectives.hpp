@@ -31,6 +31,13 @@ struct VillageObjectiveStatus {
     bool complete = false;
 };
 
+struct VillageObjectiveTrackerState {
+    bool initialized = false;
+    int last_day = 0;
+    int last_hunger_days = 0;
+    int stable_days_at_25_residents = 0;
+};
+
 class VillageObjectiveTracker {
 public:
     VillageObjectiveTracker();
@@ -42,6 +49,8 @@ public:
     [[nodiscard]] int completed_count() const;
     [[nodiscard]] bool all_complete() const;
     [[nodiscard]] int stable_days_at_25_residents() const;
+    [[nodiscard]] VillageObjectiveTrackerState state() const;
+    void restore(const VillageObjectiveTrackerState& state, const Simulation& simulation);
 
 private:
     std::array<VillageObjectiveStatus, village_objective_count> statuses_{};

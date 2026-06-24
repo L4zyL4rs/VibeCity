@@ -81,6 +81,21 @@ enum class PopulationGrowthBlocker : std::uint8_t {
     NotEnoughBread
 };
 
+struct SimulationState {
+    int map_width = 128;
+    int map_height = 128;
+    std::vector<GridPosition> paths;
+    std::vector<BuildingInstance> buildings;
+    std::vector<TransportJob> transport_jobs;
+    BuildingId next_building_id = 1;
+    TransportJobId next_transport_job_id = 1;
+    int next_auto_building_x = 1;
+    Tick current_tick = 0;
+    bool worker_assignment_dirty = true;
+    int idle_workers = 0;
+    ResourceStats stats{};
+};
+
 class Simulation {
 public:
     BuildingId add_building(BuildingKind kind);
@@ -118,6 +133,8 @@ public:
     [[nodiscard]] LogisticsSummary logistics_summary() const;
     [[nodiscard]] ResourceArray total_inventory() const;
     [[nodiscard]] const ResourceStats& stats() const;
+    [[nodiscard]] SimulationState state() const;
+    [[nodiscard]] static Simulation from_state(SimulationState state);
 
 private:
     struct SourceSelection {

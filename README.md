@@ -20,6 +20,9 @@ playtest script and feedback checklist.
 See [docs/engineering-quality.md](docs/engineering-quality.md) for the current
 engineering quality bar and review metrics.
 
+See [docs/save-format.md](docs/save-format.md) for persistence behavior and
+save-version policy.
+
 ## Build
 
 ```bash
@@ -49,3 +52,5 @@ Client controls:
 - `+` / `-`: simulation speed
 - Arrow keys or `WASD`: pan
 - Mouse wheel over inspector: scroll details
+- `F5`: save to `vibecity-save.vcs`
+- `F9`: load from `vibecity-save.vcs`

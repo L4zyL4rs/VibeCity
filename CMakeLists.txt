@@ -16,6 +16,7 @@ add_library(vibecity_core
     src/core/Inventory.cpp
     src/core/Map.cpp
     src/core/Simulation.cpp
+    src/core/SimulationState.cpp
 )
 
 target_include_directories(vibecity_core
@@ -35,6 +36,7 @@ endif()
 add_library(vibecity_game
     src/game/GameSession.cpp
     src/game/Objectives.cpp
+    src/game/SaveGame.cpp
     src/game/Scenario.cpp
 )
 

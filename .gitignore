@@ -19,3 +19,7 @@ compile_commands.json
 
 # Logs
 *.log
+
+# Local game saves
+vibecity-save.vcs
+vibecity-save.vcs.tmp

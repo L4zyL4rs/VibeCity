@@ -1,6 +1,7 @@
 #include "game/Objectives.hpp"
 
 #include <algorithm>
+#include <stdexcept>
 
 namespace vibecity {
 namespace {
@@ -130,6 +131,38 @@ bool VillageObjectiveTracker::all_complete() const
 int VillageObjectiveTracker::stable_days_at_25_residents() const
 {
     return stable_days_at_25_residents_;
+}
+
+VillageObjectiveTrackerState VillageObjectiveTracker::state() const
+{
+    return VillageObjectiveTrackerState{
+        .initialized = initialized_,
+        .last_day = last_day_,
+        .last_hunger_days = last_hunger_days_,
+        .stable_days_at_25_residents = stable_days_at_25_residents_
+    };
+}
+
+void VillageObjectiveTracker::restore(
+    const VillageObjectiveTrackerState& state,
+    const Simulation& simulation)
+{
+    if (state.last_day < 0
+        || state.last_hunger_days < 0
+        || state.stable_days_at_25_residents < 0
+        || (state.initialized && state.last_day != simulation.current_day())
+        || (!state.initialized
+            && (state.last_day != 0
+                || state.last_hunger_days != 0
+                || state.stable_days_at_25_residents != 0))) {
+        throw std::invalid_argument("invalid saved objective state");
+    }
+
+    initialized_ = state.initialized;
+    last_day_ = state.last_day;
+    last_hunger_days_ = state.last_hunger_days;
+    stable_days_at_25_residents_ = state.stable_days_at_25_residents;
+    update(simulation);
 }
 
 std::string_view village_objective_label(VillageObjectiveId id)

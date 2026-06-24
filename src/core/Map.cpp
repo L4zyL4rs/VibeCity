@@ -174,6 +174,20 @@ bool TileMap::has_path(GridPosition position) const
     return in_bounds(position) && tile(position).path;
 }
 
+std::vector<GridPosition> TileMap::path_positions() const
+{
+    auto result = std::vector<GridPosition>{};
+    for (int y = 0; y < height_; ++y) {
+        for (int x = 0; x < width_; ++x) {
+            const auto position = GridPosition{x, y};
+            if (has_path(position)) {
+                result.push_back(position);
+            }
+        }
+    }
+    return result;
+}
+
 bool TileMap::can_place_building(GridPosition position, Footprint footprint) const
 {
     if (footprint.width <= 0 || footprint.height <= 0) {

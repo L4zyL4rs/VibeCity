@@ -1,5 +1,7 @@
 #include "core/Inventory.hpp"
 
+#include <stdexcept>
+
 namespace vibecity {
 
 Inventory::Inventory() = default;
@@ -156,6 +158,42 @@ const ResourceArray& Inventory::quantities() const
 const ResourceArray& Inventory::capacities() const
 {
     return capacities_;
+}
+
+InventoryState Inventory::state() const
+{
+    return InventoryState{
+        .quantities = quantities_,
+        .capacities = capacities_,
+        .reserved_outgoing = reserved_outgoing_,
+        .reserved_incoming = reserved_incoming_
+    };
+}
+
+Inventory Inventory::from_state(const InventoryState& state)
+{
+    for (std::size_t index = 0; index < resource_count; ++index) {
+        const auto capacity = state.capacities[index];
+        const auto quantity = state.quantities[index];
+        const auto outgoing = state.reserved_outgoing[index];
+        const auto incoming = state.reserved_incoming[index];
+        if (capacity < 0
+            || quantity < 0
+            || quantity > capacity
+            || outgoing < 0
+            || outgoing > quantity
+            || incoming < 0
+            || incoming > capacity - quantity) {
+            throw std::invalid_argument("invalid inventory state");
+        }
+    }
+
+    auto inventory = Inventory{};
+    inventory.quantities_ = state.quantities;
+    inventory.capacities_ = state.capacities;
+    inventory.reserved_outgoing_ = state.reserved_outgoing;
+    inventory.reserved_incoming_ = state.reserved_incoming;
+    return inventory;
 }
 
 }

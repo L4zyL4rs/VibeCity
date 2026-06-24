@@ -66,6 +66,7 @@ public:
     [[nodiscard]] int height() const;
     [[nodiscard]] bool in_bounds(GridPosition position) const;
     [[nodiscard]] bool has_path(GridPosition position) const;
+    [[nodiscard]] std::vector<GridPosition> path_positions() const;
     [[nodiscard]] bool can_place_building(GridPosition position, Footprint footprint) const;
     [[nodiscard]] bool has_path_access(GridPosition position, Footprint footprint) const;
     [[nodiscard]] bool buildings_connected(GridPosition source_position,

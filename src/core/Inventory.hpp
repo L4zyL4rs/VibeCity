@@ -4,6 +4,13 @@
 
 namespace vibecity {
 
+struct InventoryState {
+    ResourceArray quantities{};
+    ResourceArray capacities{};
+    ResourceArray reserved_outgoing{};
+    ResourceArray reserved_incoming{};
+};
+
 class Inventory {
 public:
     Inventory();
@@ -36,6 +43,8 @@ public:
 
     [[nodiscard]] const ResourceArray& quantities() const;
     [[nodiscard]] const ResourceArray& capacities() const;
+    [[nodiscard]] InventoryState state() const;
+    [[nodiscard]] static Inventory from_state(const InventoryState& state);
 
 private:
     ResourceArray quantities_{};

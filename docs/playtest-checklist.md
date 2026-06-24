@@ -31,6 +31,8 @@ If the client fails to start, run the headless and benchmark checks instead and 
 - `+` / `-`: simulation speed
 - Arrow keys or `WASD`: pan
 - Mouse wheel over inspector: scroll details
+- `F5`: save to `vibecity-save.vcs`
+- `F9`: load from `vibecity-save.vcs`
 
 ## Playtest Goal
 

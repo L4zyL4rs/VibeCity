@@ -3,6 +3,7 @@
 #include "core/Simulation.hpp"
 #include "game/Objectives.hpp"
 
+#include <filesystem>
 #include <optional>
 #include <string>
 #include <variant>
@@ -52,6 +53,11 @@ struct CommandResult {
     std::optional<BuildingId> building;
 };
 
+struct SessionIoResult {
+    bool success = false;
+    std::string message;
+};
+
 class GameSession {
 public:
     GameSession();
@@ -61,6 +67,8 @@ public:
     [[nodiscard]] const VillageObjectiveTracker& objectives() const;
 
     [[nodiscard]] CommandResult execute(const GameCommand& command);
+    [[nodiscard]] SessionIoResult save_to_file(const std::filesystem::path& path) const;
+    [[nodiscard]] SessionIoResult load_from_file(const std::filesystem::path& path);
 
 private:
     Simulation simulation_;

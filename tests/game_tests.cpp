@@ -4,7 +4,10 @@
 #include "game/Scenario.hpp"
 
 #include <cstddef>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
+#include <vector>
 
 namespace {
 
@@ -34,6 +37,31 @@ int total_hunger_days(const vibecity::Simulation& simulation)
 const vibecity::VillageObjectiveStatus& objective_status(const vibecity::GameSession& game, vibecity::VillageObjectiveId id)
 {
     return game.objectives().statuses()[static_cast<std::size_t>(id)];
+}
+
+std::vector<std::uint8_t> read_bytes(const std::filesystem::path& path)
+{
+    auto input = std::ifstream{path, std::ios::binary | std::ios::ate};
+    VIBECITY_CHECK(input.good());
+    const auto size = input.tellg();
+    VIBECITY_CHECK(size >= 0);
+    auto bytes = std::vector<std::uint8_t>(static_cast<std::size_t>(size));
+    input.seekg(0);
+    if (!bytes.empty()) {
+        input.read(reinterpret_cast<char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
+    }
+    VIBECITY_CHECK(input.good());
+    return bytes;
+}
+
+void write_bytes(const std::filesystem::path& path, const std::vector<std::uint8_t>& bytes)
+{
+    auto output = std::ofstream{path, std::ios::binary | std::ios::trunc};
+    VIBECITY_CHECK(output.good());
+    output.write(
+        reinterpret_cast<const char*>(bytes.data()),
+        static_cast<std::streamsize>(bytes.size()));
+    VIBECITY_CHECK(output.good());
 }
 
 void command_layer_places_path_and_building()
@@ -137,6 +165,142 @@ void objectives_count_stable_days_and_reset_on_hunger()
     VIBECITY_CHECK(objective_status(game, vibecity::VillageObjectiveId::Stable25Residents).current == 0);
 }
 
+void save_load_round_trip_preserves_deterministic_session()
+{
+    const auto directory = std::filesystem::temp_directory_path();
+    const auto first_save = directory / "vibecity-roundtrip-first.vcs";
+    const auto loaded_save = directory / "vibecity-roundtrip-loaded.vcs";
+    const auto continued_original = directory / "vibecity-roundtrip-original-continued.vcs";
+    const auto continued_loaded = directory / "vibecity-roundtrip-loaded-continued.vcs";
+
+    vibecity::GameSession original;
+    const auto ids = vibecity::create_starting_village(original);
+    VIBECITY_CHECK(ids.houses.size() == 3);
+    require_building(original, vibecity::PlaceConstructionCommand{
+        .target_kind = vibecity::BuildingKind::Woodcutter,
+        .position = vibecity::GridPosition{10, 1}
+    });
+    require_building(original, vibecity::PlaceConstructionCommand{
+        .target_kind = vibecity::BuildingKind::Farm,
+        .position = vibecity::GridPosition{13, 1}
+    });
+    require_building(original, vibecity::PlaceConstructionCommand{
+        .target_kind = vibecity::BuildingKind::Bakery,
+        .position = vibecity::GridPosition{16, 1}
+    });
+    require(original, vibecity::AdvanceTimeCommand{.ticks = 1});
+    VIBECITY_CHECK(!original.simulation().transport_jobs().empty());
+
+    auto io = original.save_to_file(first_save);
+    VIBECITY_CHECK(io.success);
+    io = original.save_to_file(first_save);
+    VIBECITY_CHECK(io.success);
+
+    vibecity::GameSession loaded;
+    io = loaded.load_from_file(first_save);
+    VIBECITY_CHECK(io.success);
+    io = loaded.save_to_file(loaded_save);
+    VIBECITY_CHECK(io.success);
+    VIBECITY_CHECK(read_bytes(first_save) == read_bytes(loaded_save));
+
+    const auto original_house = require_building(original, vibecity::PlaceConstructionCommand{
+        .target_kind = vibecity::BuildingKind::House,
+        .position = vibecity::GridPosition{19, 1}
+    });
+    const auto loaded_house = require_building(loaded, vibecity::PlaceConstructionCommand{
+        .target_kind = vibecity::BuildingKind::House,
+        .position = vibecity::GridPosition{19, 1}
+    });
+    VIBECITY_CHECK(original_house == loaded_house);
+
+    require(original, vibecity::AdvanceTimeCommand{.ticks = 4'000});
+    require(loaded, vibecity::AdvanceTimeCommand{.ticks = 4'000});
+    VIBECITY_CHECK(original.save_to_file(continued_original).success);
+    VIBECITY_CHECK(loaded.save_to_file(continued_loaded).success);
+    VIBECITY_CHECK(read_bytes(continued_original) == read_bytes(continued_loaded));
+
+    std::filesystem::remove(first_save);
+    std::filesystem::remove(loaded_save);
+    std::filesystem::remove(continued_original);
+    std::filesystem::remove(continued_loaded);
+}
+
+void save_load_preserves_objective_history()
+{
+    const auto path = std::filesystem::temp_directory_path() / "vibecity-objectives.vcs";
+    vibecity::GameSession game;
+
+    for (int house_index = 0; house_index < 5; ++house_index) {
+        const auto house = require_building(game, vibecity::PlaceBuildingCommand{
+            .kind = vibecity::BuildingKind::House,
+            .position = vibecity::GridPosition{house_index + 1, 1}
+        });
+        require(game, vibecity::SetResidentsCommand{.building = house, .residents = 5});
+        require(game, vibecity::AddInventoryCommand{
+            .building = house,
+            .resource = vibecity::ResourceId::Bread,
+            .quantity = 10
+        });
+    }
+    require(game, vibecity::AdvanceTimeCommand{.ticks = 2 * vibecity::ticks_per_day});
+    VIBECITY_CHECK(game.objectives().stable_days_at_25_residents() == 2);
+    VIBECITY_CHECK(game.save_to_file(path).success);
+
+    vibecity::GameSession loaded;
+    VIBECITY_CHECK(loaded.load_from_file(path).success);
+    VIBECITY_CHECK(loaded.objectives().stable_days_at_25_residents() == 2);
+    VIBECITY_CHECK(objective_status(loaded, vibecity::VillageObjectiveId::Stable25Residents).current == 2);
+
+    std::filesystem::remove(path);
+}
+
+void invalid_save_is_rejected_without_replacing_session()
+{
+    const auto directory = std::filesystem::temp_directory_path();
+    const auto valid_path = directory / "vibecity-valid.vcs";
+    const auto corrupt_path = directory / "vibecity-corrupt.vcs";
+    const auto version_path = directory / "vibecity-version.vcs";
+
+    vibecity::GameSession source;
+    [[maybe_unused]] const auto source_ids = vibecity::create_starting_village(source);
+    require(source, vibecity::AdvanceTimeCommand{.ticks = 100});
+    VIBECITY_CHECK(source.save_to_file(valid_path).success);
+
+    auto corrupt = read_bytes(valid_path);
+    VIBECITY_CHECK(corrupt.size() > 32);
+    corrupt.back() ^= 0xffU;
+    write_bytes(corrupt_path, corrupt);
+
+    auto version = read_bytes(valid_path);
+    VIBECITY_CHECK(version.size() > 12);
+    version[8] = 2;
+    write_bytes(version_path, version);
+
+    vibecity::GameSession target;
+    const auto target_ids = vibecity::create_starting_village(target);
+    const auto tick_before = target.simulation().current_tick();
+    const auto buildings_before = target.simulation().buildings().size();
+    const auto storehouse_bread_before = target.simulation()
+        .building(target_ids.storehouse)
+        .inventory.quantity(vibecity::ResourceId::Bread);
+
+    auto io = target.load_from_file(corrupt_path);
+    VIBECITY_CHECK(!io.success);
+    VIBECITY_CHECK(target.simulation().current_tick() == tick_before);
+    VIBECITY_CHECK(target.simulation().buildings().size() == buildings_before);
+    VIBECITY_CHECK(target.simulation().building(target_ids.storehouse)
+            .inventory.quantity(vibecity::ResourceId::Bread)
+        == storehouse_bread_before);
+
+    io = target.load_from_file(version_path);
+    VIBECITY_CHECK(!io.success);
+    VIBECITY_CHECK(target.simulation().current_tick() == tick_before);
+
+    std::filesystem::remove(valid_path);
+    std::filesystem::remove(corrupt_path);
+    std::filesystem::remove(version_path);
+}
+
 void self_sufficient_village_reaches_25_residents()
 {
     vibecity::GameSession game;
@@ -199,6 +363,9 @@ int main()
     starting_village_runs_through_command_layer();
     objectives_track_starting_village_status();
     objectives_count_stable_days_and_reset_on_hunger();
+    save_load_round_trip_preserves_deterministic_session();
+    save_load_preserves_objective_history();
+    invalid_save_is_rejected_without_replacing_session();
     self_sufficient_village_reaches_25_residents();
 
     std::cout << "game tests passed\n";
