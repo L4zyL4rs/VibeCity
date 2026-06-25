@@ -282,11 +282,11 @@ Example:
 [building.woodcutter]
 name = "Woodcutter"
 footprint = [2, 2]
-construction = { timber = 8, labor_days = 4 }
-workers = 2
-cycle_minutes = 240
-outputs = { timber = 4, firewood = 6 }
-internal_storage = { timber = 12, firewood = 18 }
+construction = { labor_days = 5 }
+workers = 1
+cycle_minutes = 360
+outputs = { timber = 1, firewood = 3 }
+internal_storage = { timber = 20, firewood = 20 }
 requires_access = ["path"]
 ```
 
@@ -294,12 +294,12 @@ requires_access = ["path"]
 [building.bakery]
 name = "Bakery"
 footprint = [2, 2]
-construction = { timber = 12, tools = 1, labor_days = 6 }
+construction = { timber = 14, tools = 1, labor_days = 8 }
 workers = 2
-cycle_minutes = 180
-inputs = { grain = 6, firewood = 1 }
-outputs = { bread = 12 }
-internal_storage = { grain = 18, firewood = 6, bread = 24 }
+cycle_minutes = 360
+inputs = { grain = 6, firewood = 2 }
+outputs = { bread = 4 }
+internal_storage = { grain = 24, firewood = 12, bread = 18 }
 requires_access = ["path"]
 ```
 
@@ -530,10 +530,10 @@ Required ledgers:
 
 Initial settlement:
 
-- 2 houses.
-- 10 residents.
+- 3 houses.
+- 15 residents.
 - 1 storehouse or town hall.
-- Starting stock: 30 bread, 40 timber, 5 tools.
+- Starting stock: 90 bread, 8 timber, 2 tools.
 - A few trees near the settlement.
 - Enough path tiles to connect starting buildings.
 
@@ -542,8 +542,10 @@ First player objective:
 1. Build a woodcutter.
 2. Build a farm.
 3. Build a bakery.
-4. Keep houses supplied with bread.
-5. Diagnose at least one shortage through the UI.
+4. Compare daily bread capacity with settlement demand.
+5. Expand to two production chains.
+6. Keep 25 residents supplied with bread.
+7. Diagnose at least one shortage through the UI.
 
 ## 15. What Is Explicitly Out Of Scope
 

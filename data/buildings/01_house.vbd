@@ -10,10 +10,10 @@ requests_storage_inputs = false
 internal_construction_site = false
 source_policy = none
 map_color = 116, 148, 176
-construction_labor_minutes = 1440
+construction_labor_minutes = 2880
 
 [construction]
-timber = 8
+timber = 12
 
 [storage]
 bread = 10

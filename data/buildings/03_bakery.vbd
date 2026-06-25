@@ -10,23 +10,23 @@ requests_storage_inputs = false
 internal_construction_site = false
 source_policy = recipe_outputs
 map_color = 204, 154, 92
-construction_labor_minutes = 4320
+construction_labor_minutes = 5760
 
 [construction]
-timber = 12
+timber = 14
 tools = 1
 
 [storage]
-grain = 18
-firewood = 6
-bread = 24
+grain = 24
+firewood = 12
+bread = 18
 
 [recipe]
-cycle_minutes = 180
+cycle_minutes = 360
 
 [inputs]
 grain = 6
-firewood = 1
+firewood = 2
 
 [outputs]
-bread = 12
+bread = 4

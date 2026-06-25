@@ -1,6 +1,8 @@
 # Village Playtest Checklist
 
-Use this checklist when the first manual playtest gate starts. The goal is not to prove you can optimize the village; the goal is to find the first places where the game state is unclear, too slow, or misleading.
+Use this checklist for the second village playtest. The goal is to verify that
+the first playtest fixes made throughput, shortages, pacing, and map interaction
+understandable.
 
 ## Build And Run
 
@@ -27,7 +29,9 @@ If the client fails to start, run the headless and benchmark checks instead and 
 - `Space`: pause or run
 - `+` / `-`: simulation speed
 - Arrow keys or `WASD`: pan
+- Mouse wheel over the map: zoom toward the cursor
 - Mouse wheel over the construction menu or inspector: scroll that panel
+- `Esc`: cancel placement, then clear the current selection
 - `F5`: save to `vibecity-save.vcs`
 - `F9`: load from `vibecity-save.vcs`
 
@@ -37,12 +41,12 @@ Starting state:
 
 - 3 full houses.
 - 1 storehouse.
-- Limited bread, timber, and one tool.
+- Limited bread, timber, and two tools.
 - No farm, woodcutter, or bakery built yet.
 
 Milestone:
 
-- Build the missing production chain.
+- Build enough production to exceed the village's daily bread demand.
 - Reach 25 residents.
 - Keep the village fed for 5 stable days.
 - Confirm that the milestone-complete banner appears.
@@ -66,11 +70,17 @@ Use this only after the preferred first run, or if you want to verify that the s
 
 The scripted scenario succeeds with this construction sequence on the existing path line:
 
-1. Woodcutter near `x=10, y=1`.
-2. Farm near `x=13, y=1`.
-3. Bakery near `x=16, y=1`.
-4. House near `x=19, y=1`.
-5. House near `x=21, y=1`.
+1. Woodcutter near `x=10, y=21`.
+2. Farm near `x=13, y=21`.
+3. Bakery near `x=16, y=21`.
+4. House near `x=19, y=21`.
+5. House near `x=21, y=21`.
+6. Second woodcutter near `x=23, y=21`.
+7. Second farm near `x=26, y=21`.
+8. Second bakery near `x=29, y=21`.
+
+One chain cannot support 25 residents. The selected-building production section
+and settlement daily bread need should make the shortfall visible.
 
 The exact coordinates are not meant to be final gameplay advice. They are a control route matching the automated milestone test.
 

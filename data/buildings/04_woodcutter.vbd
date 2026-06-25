@@ -2,7 +2,7 @@
 id = woodcutter
 name = Woodcutter
 footprint = 2, 2
-worker_slots = 2
+worker_slots = 1
 resident_capacity = 0
 worker_supply = 0
 consumes_bread = false
@@ -10,18 +10,15 @@ requests_storage_inputs = false
 internal_construction_site = false
 source_policy = recipe_outputs
 map_color = 112, 132, 82
-construction_labor_minutes = 2880
-
-[construction]
-timber = 8
+construction_labor_minutes = 3600
 
 [storage]
 timber = 20
 firewood = 20
 
 [recipe]
-cycle_minutes = 240
+cycle_minutes = 360
 
 [outputs]
-timber = 4
-firewood = 6
+timber = 1
+firewood = 3

@@ -2,7 +2,7 @@
 id = farm
 name = Farm
 footprint = 2, 2
-worker_slots = 2
+worker_slots = 1
 resident_capacity = 0
 worker_supply = 0
 consumes_bread = false
@@ -10,16 +10,16 @@ requests_storage_inputs = false
 internal_construction_site = false
 source_policy = recipe_outputs
 map_color = 142, 158, 86
-construction_labor_minutes = 2160
+construction_labor_minutes = 3600
 
 [construction]
-timber = 6
+timber = 8
 
 [storage]
 grain = 40
 
 [recipe]
-cycle_minutes = 720
+cycle_minutes = 480
 
 [outputs]
-grain = 20
+grain = 12

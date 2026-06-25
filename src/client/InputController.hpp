@@ -15,7 +15,7 @@ struct ClientInteractionState {
     ClientMode mode = ClientMode::Select;
     std::optional<BuildingKind> build_target;
     bool running = false;
-    int ticks_per_frame = 10;
+    int ticks_per_frame = 2;
     std::optional<BuildingId> selected;
     std::optional<GridPosition> hover_tile;
     bool path_dragging = false;
@@ -29,6 +29,7 @@ struct ClientInteractionState {
     bool quit = false;
 };
 
+void cancel_interaction(ClientInteractionState& state);
 void handle_event(GameSession& game, ClientInteractionState& state, const SDL_Event& event);
 
 }

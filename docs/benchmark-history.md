@@ -147,3 +147,27 @@ Notes:
 - Caching only the derived source mask removed that regression without placing
   definition ownership or behavior back into hardcoded building switches.
 - Scenario sanity fields remain unchanged.
+
+### 2026-06-25 First Playtest Balance
+
+The first manual playtest led to lower worker requirements, tighter recipes,
+longer construction, and substantially more active logistics in the generated
+case. These results establish a new gameplay baseline and are not directly
+comparable to the previous timings because the sanity counters changed.
+
+Representative default-build sample:
+
+| Case | Ticks | Milliseconds | Ticks/s | Buildings | Active Jobs | Transported | Constructed |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| starting village 30d | 43,200 | 12.00 | 3,598,794 | 4 | 0 | 60 | 0 |
+| construction village 30d | 43,200 | 53.99 | 800,109 | 9 | 0 | 1,759 | 5 |
+| 100 buildings 10d | 14,400 | 759.44 | 18,961 | 100 | 79 | 101,420 | 0 |
+
+Notes:
+
+- The large case now moves roughly 40% more goods and ends with nearly twice as
+  many active jobs.
+- Lower farm and woodcutter staffing leaves more workers available for hauling,
+  increasing the amount of logistics work performed per simulated day.
+- Future performance comparisons should use these counters as the baseline
+  unless the generated scenario is deliberately frozen independently of balance.

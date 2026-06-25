@@ -4,6 +4,7 @@
 #include "client/Text.hpp"
 
 #include <algorithm>
+#include <cmath>
 
 namespace vibecity::client {
 namespace {
@@ -38,10 +39,19 @@ int ceil_divide(int numerator, int denominator)
 TileBounds visible_tile_bounds(const TileMap& map, Camera camera, int viewport_width, int viewport_height)
 {
     return TileBounds{
-        .first_x = std::clamp(floor_divide(-camera.offset_x, tile_size), 0, map.width()),
-        .first_y = std::clamp(floor_divide(-camera.offset_y, tile_size), 0, map.height()),
-        .end_x = std::clamp(ceil_divide(viewport_width - camera.offset_x, tile_size), 0, map.width()),
-        .end_y = std::clamp(ceil_divide(viewport_height - camera.offset_y, tile_size), 0, map.height())
+        .first_x = std::clamp(
+            floor_divide(-camera.offset_x, camera.tile_size),
+            0,
+            map.width()),
+        .first_y = std::clamp(floor_divide(-camera.offset_y, camera.tile_size), 0, map.height()),
+        .end_x = std::clamp(
+            ceil_divide(viewport_width - camera.offset_x, camera.tile_size),
+            0,
+            map.width()),
+        .end_y = std::clamp(
+            ceil_divide(viewport_height - camera.offset_y, camera.tile_size),
+            0,
+            map.height())
     };
 }
 
@@ -63,10 +73,10 @@ std::optional<ScreenPoint> building_center_screen(const Simulation& simulation, 
     return ScreenPoint{
         .x = static_cast<float>(camera.offset_x)
             + (static_cast<float>(building.position->x) + static_cast<float>(footprint.width) * 0.5F)
-                * static_cast<float>(tile_size),
+                * static_cast<float>(camera.tile_size),
         .y = static_cast<float>(camera.offset_y)
             + (static_cast<float>(building.position->y) + static_cast<float>(footprint.height) * 0.5F)
-                * static_cast<float>(tile_size)
+                * static_cast<float>(camera.tile_size)
     };
 }
 
@@ -107,19 +117,42 @@ void draw_construction_progress(SDL_Renderer* renderer, const BuildingInstance& 
 GridPosition screen_to_map(int screen_x, int screen_y, Camera camera)
 {
     return GridPosition{
-        .x = floor_divide(screen_x - camera.offset_x, tile_size),
-        .y = floor_divide(screen_y - camera.offset_y, tile_size)
+        .x = floor_divide(screen_x - camera.offset_x, camera.tile_size),
+        .y = floor_divide(screen_y - camera.offset_y, camera.tile_size)
     };
 }
 
 SDL_Rect tile_rect(GridPosition position, Footprint footprint, Camera camera)
 {
     return SDL_Rect{
-        .x = camera.offset_x + position.x * tile_size,
-        .y = camera.offset_y + position.y * tile_size,
-        .w = footprint.width * tile_size,
-        .h = footprint.height * tile_size
+        .x = camera.offset_x + position.x * camera.tile_size,
+        .y = camera.offset_y + position.y * camera.tile_size,
+        .w = footprint.width * camera.tile_size,
+        .h = footprint.height * camera.tile_size
     };
+}
+
+void zoom_camera_at(Camera& camera, int screen_x, int screen_y, int steps)
+{
+    if (steps == 0) {
+        return;
+    }
+    const auto old_size = camera.tile_size;
+    const auto new_size = std::clamp(
+        old_size + steps * 2,
+        minimum_tile_size,
+        maximum_tile_size);
+    if (new_size == old_size) {
+        return;
+    }
+
+    const auto map_x =
+        static_cast<double>(screen_x - camera.offset_x) / static_cast<double>(old_size);
+    const auto map_y =
+        static_cast<double>(screen_y - camera.offset_y) / static_cast<double>(old_size);
+    camera.tile_size = new_size;
+    camera.offset_x = static_cast<int>(std::lround(screen_x - map_x * new_size));
+    camera.offset_y = static_cast<int>(std::lround(screen_y - map_y * new_size));
 }
 
 Footprint footprint_for(const Simulation& simulation, const BuildingInstance& building)
@@ -163,11 +196,42 @@ void draw_world(SDL_Renderer* renderer,
     std::optional<BuildingId> selected)
 {
     const auto& map = simulation.map();
-    auto viewport_width = map.width() * tile_size;
-    auto viewport_height = map.height() * tile_size;
+    auto viewport_width = map.width() * camera.tile_size;
+    auto viewport_height = map.height() * camera.tile_size;
     SDL_GetRendererOutputSize(renderer, &viewport_width, &viewport_height);
     const auto visible = visible_tile_bounds(map, camera, viewport_width, viewport_height);
     const auto viewport = SDL_Rect{.x = 0, .y = 0, .w = viewport_width, .h = viewport_height};
+
+    auto map_rect = tile_rect(
+        GridPosition{0, 0},
+        Footprint{map.width(), map.height()},
+        camera);
+    set_color(renderer, Color{30, 35, 33, 255});
+    SDL_RenderFillRect(renderer, &map_rect);
+    set_color(renderer, Color{72, 78, 72, 255});
+    SDL_RenderDrawRect(renderer, &map_rect);
+
+    if (camera.tile_size >= 14) {
+        set_color(renderer, Color{35, 41, 38, 255});
+        for (int x = visible.first_x; x <= visible.end_x; ++x) {
+            const auto screen_x = camera.offset_x + x * camera.tile_size;
+            SDL_RenderDrawLine(
+                renderer,
+                screen_x,
+                camera.offset_y + visible.first_y * camera.tile_size,
+                screen_x,
+                camera.offset_y + visible.end_y * camera.tile_size);
+        }
+        for (int y = visible.first_y; y <= visible.end_y; ++y) {
+            const auto screen_y = camera.offset_y + y * camera.tile_size;
+            SDL_RenderDrawLine(
+                renderer,
+                camera.offset_x + visible.first_x * camera.tile_size,
+                screen_y,
+                camera.offset_x + visible.end_x * camera.tile_size,
+                screen_y);
+        }
+    }
 
     set_color(renderer, Color{48, 52, 52, 255});
     for (int y = visible.first_y; y < visible.end_y; ++y) {

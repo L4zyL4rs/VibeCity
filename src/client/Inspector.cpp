@@ -12,19 +12,19 @@
 namespace vibecity::client {
 namespace {
 
-std::string_view resource_short_name(ResourceId resource)
+std::string_view resource_display_name(ResourceId resource)
 {
     switch (resource) {
     case ResourceId::Grain:
-        return "GRN";
+        return "GRAIN";
     case ResourceId::Bread:
-        return "BRD";
+        return "BREAD";
     case ResourceId::Timber:
-        return "TIM";
+        return "TIMBER";
     case ResourceId::Firewood:
-        return "FIR";
+        return "FIREWOOD";
     case ResourceId::Tools:
-        return "TLS";
+        return "TOOLS";
     case ResourceId::Count:
         return "UNK";
     }
@@ -60,7 +60,7 @@ std::string resource_line(const BuildingInstance& building, ResourceId resource)
     }
 
     auto output = std::ostringstream{};
-    output << resource_short_name(resource) << ": " << quantity << "/" << capacity;
+    output << resource_display_name(resource) << ": " << quantity << "/" << capacity;
     if (incoming > 0) {
         output << " IN:" << incoming;
     }
@@ -73,15 +73,15 @@ std::string resource_line(const BuildingInstance& building, ResourceId resource)
 std::string stored_pair_line(const ResourceArray& totals, ResourceId first, ResourceId second)
 {
     auto output = std::ostringstream{};
-    output << resource_short_name(first) << ": " << totals[resource_index(first)]
-           << "  " << resource_short_name(second) << ": " << totals[resource_index(second)];
+    output << resource_display_name(first) << ": " << totals[resource_index(first)]
+           << "  " << resource_display_name(second) << ": " << totals[resource_index(second)];
     return output.str();
 }
 
 std::string stored_single_line(const ResourceArray& totals, ResourceId resource)
 {
     auto output = std::ostringstream{};
-    output << resource_short_name(resource) << ": " << totals[resource_index(resource)];
+    output << resource_display_name(resource) << ": " << totals[resource_index(resource)];
     return output.str();
 }
 
@@ -95,11 +95,44 @@ std::string flow_line(const ResourceStats& stats, ResourceId resource)
 {
     const auto index = resource_index(resource);
     auto output = std::ostringstream{};
-    output << resource_short_name(resource)
-           << " P:" << stats.produced[index]
-           << " C:" << stats.consumed[index]
-           << " T:" << stats.transported[index];
+    output << resource_display_name(resource)
+           << "  PRODUCED " << stats.produced[index]
+           << "  CONSUMED " << stats.consumed[index]
+           << "  TRANSPORTED " << stats.transported[index];
     return output.str();
+}
+
+std::string resource_amounts_text(const ResourceArray& amounts)
+{
+    auto output = std::ostringstream{};
+    auto wrote_amount = false;
+    for (std::size_t index = 0; index < resource_count; ++index) {
+        if (amounts[index] <= 0) {
+            continue;
+        }
+        output << (wrote_amount ? " + " : "")
+               << amounts[index] << " "
+               << resource_display_name(static_cast<ResourceId>(index));
+        wrote_amount = true;
+    }
+    return wrote_amount ? output.str() : "NONE";
+}
+
+ResourceArray daily_recipe_amounts(const ResourceArray& amounts, Tick cycle_minutes)
+{
+    auto daily = empty_resources();
+    for (std::size_t index = 0; index < resource_count; ++index) {
+        daily[index] = amounts[index] * ticks_per_day / cycle_minutes;
+    }
+    return daily;
+}
+
+std::string duration_text(Tick minutes)
+{
+    if (minutes % ticks_per_hour == 0) {
+        return std::to_string(minutes / ticks_per_hour) + " HOURS";
+    }
+    return std::to_string(minutes) + " MINUTES";
 }
 
 std::string objective_progress_line(const VillageObjectiveStatus& status)
@@ -158,119 +191,101 @@ int draw_economy_summary(SDL_Renderer* renderer,
     draw_text(renderer, x, y, clock_text(simulation), muted, 2);
     y += 20;
 
-    draw_text(renderer,
-        x,
-        y,
-        std::string{"POP: "} + std::to_string(simulation.total_residents())
-            + "/" + std::to_string(simulation.total_housing_capacity())
-            + "  WORK: " + std::to_string(total_assigned_workers(simulation)),
-        muted,
-        2);
+    draw_text(renderer, x, y,
+        std::string{"POPULATION: "} + std::to_string(simulation.total_residents())
+            + " / " + std::to_string(simulation.total_housing_capacity()),
+        muted, 2);
     y += 20;
 
-    draw_text(renderer,
-        x,
-        y,
-        std::string{"HOME: "} + std::to_string(simulation.free_housing_capacity())
-            + "  BREAD/DAY: " + std::to_string(simulation.daily_bread_need()),
-        muted,
-        2);
+    draw_text(renderer, x, y,
+        std::string{"FREE HOMES: "} + std::to_string(simulation.free_housing_capacity()),
+        muted, 2);
     y += 20;
 
-    draw_text(renderer,
-        x,
-        y,
-        std::string{"FOOD: "} + std::to_string(simulation.stored_bread())
-            + " BRD  " + std::to_string(simulation.bread_days_remaining()) + " DAYS",
-        muted,
-        2);
+    draw_text(renderer, x, y,
+        std::string{"BREAD: "} + std::to_string(simulation.stored_bread())
+            + "  DAYS: " + std::to_string(simulation.bread_days_remaining()),
+        muted, 2);
     y += 20;
 
-    draw_text(renderer,
-        x,
-        y,
-        std::string{"GROW: "} + std::string{population_growth_blocker_text(simulation.population_growth_blocker())},
-        muted,
-        2);
+    draw_text(renderer, x, y,
+        std::string{"DAILY BREAD NEED: "} + std::to_string(simulation.daily_bread_need()),
+        muted, 2);
+    y += 20;
+
+    draw_text(renderer, x, y,
+        std::string{"GROWTH: "}
+            + std::string{population_growth_blocker_text(simulation.population_growth_blocker())},
+        muted, 2);
+    y += 20;
+
+    draw_text(renderer, x, y,
+        std::string{"WORKERS: "} + std::to_string(total_assigned_workers(simulation))
+            + " ASSIGNED  " + std::to_string(simulation.idle_workers()) + " IDLE",
+        muted, 1);
     y += 20;
 
     const auto construction = simulation.construction_summary();
-    draw_text(renderer,
-        x,
-        y,
-        std::string{"SITE: "} + std::to_string(construction.sites)
-            + " MAT:" + std::to_string(construction.waiting_materials)
-            + " LOG:" + std::to_string(construction.waiting_logistics)
-            + " LAB:" + std::to_string(construction.waiting_builders),
-        muted,
-        2);
-    y += 20;
-
-    if (construction.next_site.has_value() && construction.next_target.has_value()) {
-        draw_text(renderer,
-            x,
-            y,
-            std::string{"NEXT: #"} + std::to_string(*construction.next_site)
-                + " " + simulation.definition(*construction.next_target).name,
-            muted,
-            2);
+    if (construction.sites > 0) {
+        y += 8;
+        draw_text(renderer, x, y, "CONSTRUCTION", text, 2);
+        y += 24;
+        draw_text(renderer, x, y,
+            std::string{"SITES: "} + std::to_string(construction.sites)
+                + "  ACTIVE BUILDERS: " + std::to_string(construction.active_builders),
+            muted, 1);
+        y += 16;
+        draw_text(renderer, x, y,
+            std::string{"WAITING: MATERIALS "} + std::to_string(construction.waiting_materials)
+                + "  HAULERS " + std::to_string(construction.waiting_logistics),
+            muted, 1);
+        y += 16;
+        draw_text(renderer, x, y,
+            std::string{"WAITING FOR BUILDERS: "} + std::to_string(construction.waiting_builders),
+            muted, 1);
         y += 20;
 
-        draw_text(renderer,
-            x,
-            y,
-            std::string{"LABOR: "} + std::to_string(construction.next_labor_remaining)
-                + "  BLDR: " + std::to_string(construction.active_builders),
-            muted,
-            2);
-        y += 20;
+        if (construction.next_site.has_value() && construction.next_target.has_value()) {
+            draw_text(renderer, x, y,
+                std::string{"NEXT: #"} + std::to_string(*construction.next_site)
+                    + " " + simulation.definition(*construction.next_target).name,
+                muted, 2);
+            y += 20;
+            draw_text(renderer, x, y,
+                std::string{"LABOR REMAINING: "}
+                    + duration_text(construction.next_labor_remaining),
+                muted, 1);
+            y += 20;
+        }
     }
 
-    draw_text(renderer,
-        x,
-        y,
-        std::string{"IDLE: "} + std::to_string(simulation.idle_workers())
-            + "  HAUL: " + std::to_string(simulation.available_haulers()),
-        muted,
-        2);
-    y += 20;
-
-    draw_text(renderer,
-        x,
-        y,
-        std::string{"BLD: "} + std::to_string(simulation.buildings().size())
-            + "  JOBS: " + std::to_string(simulation.transport_jobs().size()),
-        muted,
-        2);
-    y += 20;
-
     const auto logistics = simulation.logistics_summary();
-    draw_text(renderer,
-        x,
-        y,
-        std::string{"MOVE: "} + std::to_string(logistics.active_jobs)
-            + " P:" + std::to_string(logistics.going_to_pickup)
-            + " C:" + std::to_string(logistics.carrying_goods),
-        muted,
-        2);
-    y += 20;
-
-    draw_text(renderer,
-        x,
-        y,
-        std::string{"RSV: IN:"} + std::to_string(resource_total(logistics.reserved_incoming))
-            + " OUT:" + std::to_string(resource_total(logistics.reserved_outgoing)),
-        muted,
-        2);
-    y += 20;
-
-    draw_text(renderer,
-        x,
-        y,
-        std::string{"LOAD: "} + std::to_string(resource_total(logistics.in_transit)),
-        muted,
-        2);
-    y += 28;
+    if (logistics.active_jobs > 0
+        || resource_total(logistics.reserved_incoming) > 0
+        || resource_total(logistics.reserved_outgoing) > 0) {
+        y += 8;
+        draw_text(renderer, x, y, "LOGISTICS", text, 2);
+        y += 24;
+        draw_text(renderer, x, y,
+            std::string{"JOBS: "} + std::to_string(logistics.active_jobs)
+                + "  PICKUP: " + std::to_string(logistics.going_to_pickup)
+                + "  CARRYING: " + std::to_string(logistics.carrying_goods),
+            muted, 1);
+        y += 16;
+        draw_text(renderer, x, y,
+            std::string{"RESERVED IN: "}
+                + std::to_string(resource_total(logistics.reserved_incoming))
+                + "  OUT: " + std::to_string(resource_total(logistics.reserved_outgoing)),
+            muted, 1);
+        y += 16;
+        draw_text(renderer, x, y,
+            std::string{"GOODS IN TRANSIT: "}
+                + std::to_string(resource_total(logistics.in_transit)),
+            muted, 1);
+        y += 24;
+    } else {
+        y += 8;
+    }
 
     y = draw_objective_summary(renderer, objectives, x, y, text, muted);
 
@@ -284,7 +299,7 @@ int draw_economy_summary(SDL_Renderer* renderer,
     draw_text(renderer, x, y, stored_single_line(totals, ResourceId::Tools), muted, 2);
     y += 28;
 
-    draw_text(renderer, x, y, "FLOW TOTAL", text, 2);
+    draw_text(renderer, x, y, "CUMULATIVE FLOW", text, 2);
     y += 24;
 
     auto drew_flow = false;
@@ -293,13 +308,13 @@ int draw_economy_summary(SDL_Renderer* renderer,
         if (!has_flow(simulation.stats(), resource)) {
             continue;
         }
-        draw_text(renderer, x, y, flow_line(simulation.stats(), resource), muted, 2);
-        y += 20;
+        draw_text(renderer, x, y, flow_line(simulation.stats(), resource), muted, 1);
+        y += 16;
         drew_flow = true;
     }
 
     if (!drew_flow) {
-        draw_text(renderer, x, y, "NO FLOW YET", muted, 2);
+        draw_text(renderer, x, y, "NO PRODUCTION OR TRANSPORT YET", muted, 1);
         y += 20;
     }
 
@@ -342,14 +357,17 @@ int draw_inspector_content(SDL_Renderer* renderer,
     y += 20;
 
     auto residents = std::ostringstream{};
-    residents << "RES: " << building.residents;
+    residents << "RESIDENTS: " << building.residents;
     draw_text(renderer, x, y, residents.str(), muted, 2);
     y += 28;
 
-    if (simulation.definition(building.kind).internal_construction_site
+    const auto& instance_definition = simulation.definition(building.kind);
+    const auto* operating_definition = &instance_definition;
+    if (instance_definition.internal_construction_site
         && building.construction_target.has_value()) {
+        operating_definition = &simulation.definition(*building.construction_target);
         auto target = std::ostringstream{};
-        target << "TARGET: " << simulation.definition(*building.construction_target).name;
+        target << "TARGET: " << operating_definition->name;
         draw_text(renderer, x, y, target.str(), muted, 2);
         y += 20;
 
@@ -362,6 +380,67 @@ int draw_inspector_content(SDL_Renderer* renderer,
         builders << "BUILDERS: " << building.assigned_builders;
         draw_text(renderer, x, y, builders.str(), muted, 2);
         y += 28;
+    }
+
+    if (operating_definition->recipe.has_value()) {
+        const auto& recipe = *operating_definition->recipe;
+        draw_text(renderer, x, y, "PRODUCTION", text, 2);
+        y += 24;
+        draw_text(
+            renderer,
+            x,
+            y,
+            std::string{"INPUT EACH CYCLE: "} + resource_amounts_text(recipe.inputs),
+            muted,
+            1);
+        y += 16;
+        draw_text(
+            renderer,
+            x,
+            y,
+            std::string{"OUTPUT EACH CYCLE: "} + resource_amounts_text(recipe.outputs),
+            muted,
+            1);
+        y += 16;
+        draw_text(
+            renderer,
+            x,
+            y,
+            std::string{"CYCLE AT FULL STAFF: "} + duration_text(recipe.cycle_minutes),
+            muted,
+            1);
+        y += 16;
+        draw_text(
+            renderer,
+            x,
+            y,
+            std::string{"DAILY INPUT CAPACITY: "}
+                + resource_amounts_text(daily_recipe_amounts(recipe.inputs, recipe.cycle_minutes)),
+            muted,
+            1);
+        y += 16;
+        draw_text(
+            renderer,
+            x,
+            y,
+            std::string{"DAILY OUTPUT CAPACITY: "}
+                + resource_amounts_text(daily_recipe_amounts(recipe.outputs, recipe.cycle_minutes)),
+            muted,
+            1);
+        y += 24;
+    } else if (operating_definition->consumes_bread) {
+        draw_text(renderer, x, y, "CONSUMPTION", text, 2);
+        y += 24;
+        draw_text(renderer, x, y, "1 BREAD PER RESIDENT PER DAY", muted, 1);
+        y += 16;
+        draw_text(
+            renderer,
+            x,
+            y,
+            std::string{"CURRENT DAILY NEED: "} + std::to_string(building.residents) + " BREAD",
+            muted,
+            1);
+        y += 24;
     }
 
     draw_text(renderer, x, y, "INVENTORY", text, 2);

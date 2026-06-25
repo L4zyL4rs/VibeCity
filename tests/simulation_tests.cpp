@@ -111,12 +111,12 @@ void farm_produces_grain_when_staffed()
     const auto farm = simulation.add_building(vibecity::BuildingKind::Farm);
 
     simulation.set_residents(house, 5);
-    simulation.run_for(720);
+    simulation.run_for(480);
 
     const auto& farm_instance = simulation.building(farm);
-    VIBECITY_CHECK(farm_instance.inventory.quantity(vibecity::ResourceId::Grain) == 20);
+    VIBECITY_CHECK(farm_instance.inventory.quantity(vibecity::ResourceId::Grain) == 12);
     VIBECITY_CHECK(farm_instance.blocking_reason == vibecity::BlockingReason::None);
-    VIBECITY_CHECK(simulation.stats().produced[vibecity::resource_index(vibecity::ResourceId::Grain)] == 20);
+    VIBECITY_CHECK(simulation.stats().produced[vibecity::resource_index(vibecity::ResourceId::Grain)] == 12);
 }
 
 void bakery_consumes_inputs_and_produces_bread()
@@ -128,14 +128,14 @@ void bakery_consumes_inputs_and_produces_bread()
 
     simulation.set_residents(house, 5);
     simulation.building(bakery).inventory.add(vibecity::ResourceId::Grain, 6);
-    simulation.building(bakery).inventory.add(vibecity::ResourceId::Firewood, 1);
+    simulation.building(bakery).inventory.add(vibecity::ResourceId::Firewood, 2);
 
-    simulation.run_for(180);
+    simulation.run_for(360);
 
     const auto& bakery_instance = simulation.building(bakery);
     VIBECITY_CHECK(bakery_instance.inventory.quantity(vibecity::ResourceId::Grain) == 0);
     VIBECITY_CHECK(bakery_instance.inventory.quantity(vibecity::ResourceId::Firewood) == 0);
-    VIBECITY_CHECK(bakery_instance.inventory.quantity(vibecity::ResourceId::Bread) == 12);
+    VIBECITY_CHECK(bakery_instance.inventory.quantity(vibecity::ResourceId::Bread) == 4);
     VIBECITY_CHECK(bakery_instance.blocking_reason == vibecity::BlockingReason::None);
 }
 
@@ -488,16 +488,16 @@ void bakery_fetches_inputs_before_producing()
 
     simulation.set_residents(house, 5);
     simulation.building(storehouse).inventory.add(vibecity::ResourceId::Grain, 6);
-    simulation.building(storehouse).inventory.add(vibecity::ResourceId::Firewood, 1);
+    simulation.building(storehouse).inventory.add(vibecity::ResourceId::Firewood, 2);
 
-    simulation.run_for(240);
+    simulation.run_for(420);
 
     const auto& bakery_instance = simulation.building(bakery);
     VIBECITY_CHECK(bakery_instance.inventory.quantity(vibecity::ResourceId::Grain) == 0);
     VIBECITY_CHECK(bakery_instance.inventory.quantity(vibecity::ResourceId::Firewood) == 0);
-    VIBECITY_CHECK(simulation.stats().produced[vibecity::resource_index(vibecity::ResourceId::Bread)] == 12);
+    VIBECITY_CHECK(simulation.stats().produced[vibecity::resource_index(vibecity::ResourceId::Bread)] == 4);
     VIBECITY_CHECK(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Grain)] == 6);
-    VIBECITY_CHECK(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Firewood)] == 1);
+    VIBECITY_CHECK(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Firewood)] == 2);
 }
 
 void farm_and_woodcutter_supply_bakery_chain()
@@ -520,14 +520,14 @@ void farm_and_woodcutter_supply_bakery_chain()
     const auto& farm_instance = simulation.building(farm);
     const auto& woodcutter_instance = simulation.building(woodcutter);
     const auto& bakery_instance = simulation.building(bakery);
-    VIBECITY_CHECK(farm_instance.assigned_workers == 2);
-    VIBECITY_CHECK(woodcutter_instance.assigned_workers == 2);
+    VIBECITY_CHECK(farm_instance.assigned_workers == 1);
+    VIBECITY_CHECK(woodcutter_instance.assigned_workers == 1);
     VIBECITY_CHECK(bakery_instance.assigned_workers == 2);
-    VIBECITY_CHECK(simulation.stats().produced[vibecity::resource_index(vibecity::ResourceId::Grain)] >= 20);
-    VIBECITY_CHECK(simulation.stats().produced[vibecity::resource_index(vibecity::ResourceId::Firewood)] >= 6);
-    VIBECITY_CHECK(simulation.stats().produced[vibecity::resource_index(vibecity::ResourceId::Bread)] >= 12);
+    VIBECITY_CHECK(simulation.stats().produced[vibecity::resource_index(vibecity::ResourceId::Grain)] >= 12);
+    VIBECITY_CHECK(simulation.stats().produced[vibecity::resource_index(vibecity::ResourceId::Firewood)] >= 3);
+    VIBECITY_CHECK(simulation.stats().produced[vibecity::resource_index(vibecity::ResourceId::Bread)] >= 4);
     VIBECITY_CHECK(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Grain)] >= 6);
-    VIBECITY_CHECK(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Firewood)] >= 1);
+    VIBECITY_CHECK(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Firewood)] >= 2);
 }
 
 void construction_site_fetches_materials_and_completes()
@@ -536,16 +536,16 @@ void construction_site_fetches_materials_and_completes()
 
     const auto house = simulation.add_building(vibecity::BuildingKind::House);
     const auto storehouse = simulation.add_building(vibecity::BuildingKind::Storehouse);
-    const auto site = simulation.place_construction(vibecity::BuildingKind::Woodcutter);
+    const auto site = simulation.place_construction(vibecity::BuildingKind::Farm);
 
     simulation.set_residents(house, 5);
     simulation.building(storehouse).inventory.add(vibecity::ResourceId::Timber, 8);
 
-    simulation.run_for(1'100);
+    simulation.run_for(1'300);
 
     const auto& completed = simulation.building(site);
     const auto& storehouse_instance = simulation.building(storehouse);
-    VIBECITY_CHECK(completed.kind == vibecity::BuildingKind::Woodcutter);
+    VIBECITY_CHECK(completed.kind == vibecity::BuildingKind::Farm);
     VIBECITY_CHECK(completed.position.has_value());
     VIBECITY_CHECK(completed.construction_target == std::nullopt);
     VIBECITY_CHECK(storehouse_instance.inventory.quantity(vibecity::ResourceId::Timber) == 0);
@@ -563,16 +563,17 @@ void construction_summary_reports_queue_focus()
     const auto second_site = simulation.place_construction(vibecity::BuildingKind::Farm);
 
     simulation.set_residents(house, 5);
-    simulation.building(storehouse).inventory.add(vibecity::ResourceId::Timber, 14);
+    simulation.building(storehouse).inventory.add(vibecity::ResourceId::Timber, 20);
 
     auto summary = simulation.construction_summary();
     VIBECITY_CHECK(summary.sites == 2);
     VIBECITY_CHECK(summary.next_site == first_site);
     VIBECITY_CHECK(summary.next_target == vibecity::BuildingKind::House);
-    VIBECITY_CHECK(summary.next_labor_remaining == 2 * 12 * vibecity::ticks_per_hour);
+    VIBECITY_CHECK(summary.next_labor_remaining
+        == simulation.definition(vibecity::BuildingKind::House).construction_labor_minutes);
     VIBECITY_CHECK(summary.active_builders == 0);
 
-    for (auto attempts = 0; attempts < 2'000
+    for (auto attempts = 0; attempts < 4'000
         && simulation.building(first_site).kind == vibecity::BuildingKind::ConstructionSite; ++attempts) {
         simulation.tick();
     }
@@ -592,7 +593,7 @@ void construction_site_reports_missing_materials()
     vibecity::Simulation simulation;
 
     const auto house = simulation.add_building(vibecity::BuildingKind::House);
-    const auto site = simulation.place_construction(vibecity::BuildingKind::Woodcutter);
+    const auto site = simulation.place_construction(vibecity::BuildingKind::Farm);
 
     simulation.set_residents(house, 5);
     simulation.run_for(20);
@@ -617,11 +618,11 @@ void output_storage_full_blocks_production()
     const auto farm = simulation.add_building(vibecity::BuildingKind::Farm);
 
     simulation.set_residents(house, 5);
-    simulation.run_for(2 * 720);
+    simulation.run_for(3 * 480);
     simulation.tick();
 
     const auto& farm_instance = simulation.building(farm);
-    VIBECITY_CHECK(farm_instance.inventory.quantity(vibecity::ResourceId::Grain) == 40);
+    VIBECITY_CHECK(farm_instance.inventory.quantity(vibecity::ResourceId::Grain) == 36);
     VIBECITY_CHECK(farm_instance.blocking_reason == vibecity::BlockingReason::OutputStorageFull);
 }
 

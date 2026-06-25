@@ -14,8 +14,11 @@ playable simulation target.
 See [docs/self-sufficient-village-roadmap.md](docs/self-sufficient-village-roadmap.md)
 for the next implementation roadmap.
 
-See [docs/playtest-checklist.md](docs/playtest-checklist.md) for the first village
-playtest script and feedback checklist.
+See [docs/playtest-checklist.md](docs/playtest-checklist.md) for the current
+village playtest script and feedback checklist.
+
+See [docs/playtest-2026-06-25.md](docs/playtest-2026-06-25.md) for the first
+manual playtest findings and implemented response.
 
 See [docs/engineering-quality.md](docs/engineering-quality.md) for the current
 engineering quality bar and review metrics.
@@ -51,6 +54,8 @@ Client controls:
 - `Space`: pause or run
 - `+` / `-`: simulation speed
 - Arrow keys or `WASD`: pan
+- Mouse wheel over the map: zoom toward the cursor
 - Mouse wheel over the construction menu or inspector: scroll that panel
+- `Esc`: cancel placement, then clear the current selection
 - `F5`: save to `vibecity-save.vcs`
 - `F9`: load from `vibecity-save.vcs`

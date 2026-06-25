@@ -10,15 +10,19 @@
 
 namespace vibecity::client {
 
-inline constexpr int tile_size = 10;
+inline constexpr int minimum_tile_size = 8;
+inline constexpr int maximum_tile_size = 32;
+inline constexpr int default_tile_size = 16;
 
 struct Camera {
     int offset_x = 320;
-    int offset_y = 76;
+    int offset_y = -120;
+    int tile_size = default_tile_size;
 };
 
 [[nodiscard]] GridPosition screen_to_map(int screen_x, int screen_y, Camera camera);
 [[nodiscard]] SDL_Rect tile_rect(GridPosition position, Footprint footprint, Camera camera);
+void zoom_camera_at(Camera& camera, int screen_x, int screen_y, int steps);
 [[nodiscard]] Footprint footprint_for(const Simulation& simulation, const BuildingInstance& building);
 [[nodiscard]] std::optional<BuildingId> building_at(const Simulation& simulation, GridPosition tile);
 [[nodiscard]] bool can_place_path_preview(const Simulation& simulation, GridPosition tile);

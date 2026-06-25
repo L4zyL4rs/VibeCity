@@ -13,7 +13,7 @@ namespace {
 
 constexpr int panel_padding = 12;
 constexpr int panel_header_height = 42;
-constexpr int entry_height = 78;
+constexpr int entry_height = 96;
 constexpr int entry_gap = 6;
 constexpr int entry_stride = entry_height + entry_gap;
 
@@ -147,6 +147,71 @@ std::string construction_cost_text(const BuildingDefinition& definition)
     return output.str();
 }
 
+std::string operation_summary_text(const BuildingDefinition& definition)
+{
+    if (definition.recipe.has_value()) {
+        auto output = std::ostringstream{};
+        auto wrote_input = false;
+        for (std::size_t index = 0; index < resource_count; ++index) {
+            const auto amount = definition.recipe->inputs[index];
+            if (amount <= 0) {
+                continue;
+            }
+            output << (wrote_input ? " + " : "")
+                   << amount << " "
+                   << uppercase(resource_name(static_cast<ResourceId>(index)));
+            wrote_input = true;
+        }
+        if (!wrote_input) {
+            output << "PRODUCES ";
+            auto wrote_output = false;
+            for (std::size_t index = 0; index < resource_count; ++index) {
+                const auto amount = definition.recipe->outputs[index];
+                if (amount <= 0) {
+                    continue;
+                }
+                output << (wrote_output ? " + " : "")
+                       << amount << " "
+                       << uppercase(resource_name(static_cast<ResourceId>(index)));
+                wrote_output = true;
+            }
+            output << " / ";
+            if (definition.recipe->cycle_minutes % ticks_per_hour == 0) {
+                output << definition.recipe->cycle_minutes / ticks_per_hour << "H";
+            } else {
+                output << definition.recipe->cycle_minutes << "M";
+            }
+            return output.str();
+        }
+        output << " -> ";
+        auto wrote_output = false;
+        for (std::size_t index = 0; index < resource_count; ++index) {
+            const auto amount = definition.recipe->outputs[index];
+            if (amount <= 0) {
+                continue;
+            }
+            output << (wrote_output ? " + " : "")
+                   << amount << " "
+                   << uppercase(resource_name(static_cast<ResourceId>(index)));
+            wrote_output = true;
+        }
+        output << " / ";
+        if (definition.recipe->cycle_minutes % ticks_per_hour == 0) {
+            output << definition.recipe->cycle_minutes / ticks_per_hour << "H";
+        } else {
+            output << definition.recipe->cycle_minutes << "M";
+        }
+        return output.str();
+    }
+    if (definition.consumes_bread) {
+        return "USES 1 BREAD / RESIDENT / DAY";
+    }
+    if (definition.requests_storage_inputs) {
+        return "COLLECTS AND REDISTRIBUTES GOODS";
+    }
+    return "NO PRODUCTION";
+}
+
 std::optional<BuildingKind> build_menu_kind_at(
     const BuildingCatalog& catalog,
     int screen_y,
@@ -274,7 +339,14 @@ BuildMenuMetrics draw_build_menu(
         draw_text(
             renderer,
             entry.x + 8,
-            entry.y + 64,
+            entry.y + 62,
+            fit_text(operation_summary_text(definition), 40),
+            Color{160, 178, 154, 255},
+            1);
+        draw_text(
+            renderer,
+            entry.x + 8,
+            entry.y + 80,
             fit_text(details_text(definition), 40),
             Color{132, 144, 138, 255},
             1);

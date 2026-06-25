@@ -92,7 +92,7 @@ void handle_keydown(GameSession& game, ClientInteractionState& state, SDL_Keycod
 {
     switch (key) {
     case SDLK_ESCAPE:
-        state.quit = true;
+        cancel_interaction(state);
         break;
     case SDLK_SPACE:
         state.running = !state.running;
@@ -136,19 +136,19 @@ void handle_keydown(GameSession& game, ClientInteractionState& state, SDL_Keycod
         break;
     case SDLK_LEFT:
     case SDLK_a:
-        state.camera.offset_x += tile_size * 4;
+        state.camera.offset_x += state.camera.tile_size * 4;
         break;
     case SDLK_RIGHT:
     case SDLK_d:
-        state.camera.offset_x -= tile_size * 4;
+        state.camera.offset_x -= state.camera.tile_size * 4;
         break;
     case SDLK_UP:
     case SDLK_w:
-        state.camera.offset_y += tile_size * 4;
+        state.camera.offset_y += state.camera.tile_size * 4;
         break;
     case SDLK_DOWN:
     case SDLK_s:
-        state.camera.offset_y -= tile_size * 4;
+        state.camera.offset_y -= state.camera.tile_size * 4;
         break;
     default:
         if (key >= SDLK_3 && key <= SDLK_9) {
@@ -241,9 +241,30 @@ void handle_mouse_wheel(ClientInteractionState& state, const SDL_MouseWheelEvent
             state.build_menu_scroll - direction * build_menu_scroll_step,
             0,
             state.build_menu_max_scroll);
+    } else if (point_is_over_world(wheel.windowID, mouse_x, mouse_y)) {
+        zoom_camera_at(state.camera, mouse_x, mouse_y, direction);
+        state.hover_tile = screen_to_map(mouse_x, mouse_y, state.camera);
+        state.status = "zoom " + std::to_string(state.camera.tile_size) + " px";
     }
 }
 
+}
+
+void cancel_interaction(ClientInteractionState& state)
+{
+    state.path_dragging = false;
+    state.last_path_drag_tile = std::nullopt;
+    if (state.mode != ClientMode::Select || state.build_target.has_value()) {
+        state.mode = ClientMode::Select;
+        state.build_target = std::nullopt;
+        state.status = "placement cancelled";
+    } else if (state.selected.has_value()) {
+        state.selected = std::nullopt;
+        state.inspector_scroll = 0;
+        state.status = "selection cleared";
+    } else {
+        state.status = "nothing to cancel";
+    }
 }
 
 void handle_event(GameSession& game, ClientInteractionState& state, const SDL_Event& event)

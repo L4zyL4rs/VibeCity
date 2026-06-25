@@ -164,13 +164,16 @@ if(SDL2_FOUND)
 
     add_executable(vibecity_client_tests
         src/client/BuildMenu.cpp
+        src/client/InputController.cpp
+        src/client/MapView.cpp
+        src/client/Palette.cpp
         src/client/Text.cpp
         tests/client_tests.cpp
     )
 
     target_link_libraries(vibecity_client_tests
         PRIVATE
-            vibecity_core
+            vibecity_game
             PkgConfig::SDL2
     )
 

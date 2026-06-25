@@ -58,23 +58,23 @@ void queue_self_sufficient_village(vibecity::GameSession& game)
 {
     require_building(game, vibecity::PlaceConstructionCommand{
         .target_kind = vibecity::BuildingKind::Woodcutter,
-        .position = vibecity::GridPosition{10, 1}
+        .position = vibecity::GridPosition{10, vibecity::starting_village_building_y}
     });
     require_building(game, vibecity::PlaceConstructionCommand{
         .target_kind = vibecity::BuildingKind::Farm,
-        .position = vibecity::GridPosition{13, 1}
+        .position = vibecity::GridPosition{13, vibecity::starting_village_building_y}
     });
     require_building(game, vibecity::PlaceConstructionCommand{
         .target_kind = vibecity::BuildingKind::Bakery,
-        .position = vibecity::GridPosition{16, 1}
+        .position = vibecity::GridPosition{16, vibecity::starting_village_building_y}
     });
     require_building(game, vibecity::PlaceConstructionCommand{
         .target_kind = vibecity::BuildingKind::House,
-        .position = vibecity::GridPosition{19, 1}
+        .position = vibecity::GridPosition{19, vibecity::starting_village_building_y}
     });
     require_building(game, vibecity::PlaceConstructionCommand{
         .target_kind = vibecity::BuildingKind::House,
-        .position = vibecity::GridPosition{21, 1}
+        .position = vibecity::GridPosition{21, vibecity::starting_village_building_y}
     });
 }
 

@@ -1,6 +1,8 @@
 #include "TestSupport.hpp"
 
 #include "client/BuildMenu.hpp"
+#include "client/InputController.hpp"
+#include "client/MapView.hpp"
 
 #include <algorithm>
 #include <filesystem>
@@ -99,17 +101,23 @@ void build_menu_formats_construction_materials()
 
     VIBECITY_CHECK(vibecity::client::construction_cost_text(
             catalog->definition(vibecity::BuildingKind::House))
-        == "NEEDS 8 TIMBER");
+        == "NEEDS 12 TIMBER");
     VIBECITY_CHECK(vibecity::client::construction_cost_text(
             catalog->definition(vibecity::BuildingKind::Bakery))
-        == "NEEDS 12 TIMBER + 1 TOOLS");
+        == "NEEDS 14 TIMBER + 1 TOOLS");
+    VIBECITY_CHECK(vibecity::client::operation_summary_text(
+            catalog->definition(vibecity::BuildingKind::Bakery))
+        == "6 GRAIN + 2 FIREWOOD -> 4 BREAD / 6H");
+    VIBECITY_CHECK(vibecity::client::operation_summary_text(
+            catalog->definition(vibecity::BuildingKind::Farm))
+        == "PRODUCES 12 GRAIN / 8H");
 }
 
 void build_menu_hit_testing_respects_rows_gaps_and_scroll()
 {
     const auto catalog = vibecity::default_building_catalog();
     constexpr auto first_row_y = 95;
-    constexpr auto first_gap_y = 173;
+    constexpr auto first_gap_y = 191;
     constexpr auto viewport_height = 800;
 
     VIBECITY_CHECK(vibecity::client::build_menu_kind_at(
@@ -132,6 +140,46 @@ void build_menu_hit_testing_respects_rows_gaps_and_scroll()
         == vibecity::BuildingKind::Farm);
 }
 
+void zoom_keeps_the_cursor_over_the_same_tile()
+{
+    auto camera = vibecity::client::Camera{};
+    constexpr auto screen_x = 480;
+    constexpr auto screen_y = 232;
+    const auto before = vibecity::client::screen_to_map(screen_x, screen_y, camera);
+
+    vibecity::client::zoom_camera_at(camera, screen_x, screen_y, 4);
+
+    VIBECITY_CHECK(camera.tile_size == 24);
+    VIBECITY_CHECK(vibecity::client::screen_to_map(screen_x, screen_y, camera) == before);
+    const auto rect = vibecity::client::tile_rect(
+        before,
+        vibecity::Footprint{1, 1},
+        camera);
+    VIBECITY_CHECK(rect.x == screen_x);
+    VIBECITY_CHECK(rect.y == screen_y);
+}
+
+void escape_cancels_before_clearing_selection()
+{
+    auto state = vibecity::client::ClientInteractionState{};
+    state.mode = vibecity::client::ClientMode::Build;
+    state.build_target = vibecity::BuildingKind::House;
+    state.selected = 4;
+    state.path_dragging = true;
+
+    vibecity::client::cancel_interaction(state);
+
+    VIBECITY_CHECK(state.mode == vibecity::client::ClientMode::Select);
+    VIBECITY_CHECK(!state.build_target.has_value());
+    VIBECITY_CHECK(state.selected == 4);
+    VIBECITY_CHECK(!state.path_dragging);
+    VIBECITY_CHECK(!state.quit);
+
+    vibecity::client::cancel_interaction(state);
+    VIBECITY_CHECK(!state.selected.has_value());
+    VIBECITY_CHECK(!state.quit);
+}
+
 }
 
 int main()
@@ -140,6 +188,8 @@ int main()
     build_menu_includes_custom_data_only_building();
     build_menu_formats_construction_materials();
     build_menu_hit_testing_respects_rows_gaps_and_scroll();
+    zoom_keeps_the_cursor_over_the_same_tile();
+    escape_cancels_before_clearing_selection();
 
     std::cout << "client tests passed\n";
     return 0;

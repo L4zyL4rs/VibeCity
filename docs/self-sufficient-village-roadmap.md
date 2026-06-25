@@ -53,17 +53,23 @@ Already implemented:
 - SDL client shows construction queue focus and per-site construction progress.
 - Catalog-driven construction menu shows each building's material and labor
   requirements and supports custom definitions.
+- Cursor-centered map zoom, larger default tiles, and an interior starting
+  settlement improve placement and map orientation.
+- Selected-building production details expose cycle and daily capacity.
+- First playtest balance requires two production chains for 25 residents.
 - First client splits: pixel text helpers, core palette helpers, map-view helpers, HUD helpers, inspector helpers, input handling, and client mode definitions live outside `src/client/main.cpp`.
 - Versioned save/load with objective history, active logistics, reservations, construction progress, paths, and deterministic continuation.
 - Tests for core production, consumption, logistics, reachability, construction, and command-layer flow.
 
 Main gaps:
 
-- Current balance is still provisional, but starting stock is now limited enough that production construction matters.
+- The first playtest balance pass is implemented, but needs a second manual pass.
 - Objective completion now has a HUD banner and headless summary, but there is no richer endpoint stats screen.
 - Non-gating benchmark target exists with CSV output and an initial baseline history.
 - Village playtest checklist exists for the first manual usability/pacing pass.
 - Client responsibilities are now split enough for near-term UI work, but the inspector can still become crowded quickly.
+- Icons and hover tooltips are still absent; current labels must remain
+  self-explanatory without them.
 
 ## Implementation Slices
 
@@ -429,12 +435,45 @@ Done when:
   code changes.
 - The player can see required construction resources before placing a site.
 
+### Slice 11: First Playtest Response
+
+Status: first pass done.
+
+Programming work:
+
+- Changed `Esc` from quit to cancel placement and clear selection.
+- Added cursor-centered map zoom and increased the default tile size.
+- Moved the starting road and buildings away from the map boundary.
+- Reworked inspector labels and hid inactive construction/logistics sections.
+- Added selected-building cycle and daily production details.
+- Reduced default simulation speed from 10 to 2 ticks per rendered frame.
+- Rebalanced startup stock, construction labor, worker counts, and recipes.
+- Made the woodcutter a labor-only bootstrap so timber production cannot
+  deadlock behind missing timber.
+- Tuned one production chain below the 25-resident requirement.
+
+Tests:
+
+- Escape cancellation order and zoom anchoring.
+- Updated recipe and construction expectations.
+- One-chain scenario stalls below the milestone.
+- Two-chain scenario reaches 25 residents and remains fed for five days.
+
+Done when:
+
+- The milestone cannot be completed by placing one of every building.
+- Building throughput and daily demand are visible before shortages occur.
+- The second manual playtest can identify a real economic bottleneck.
+
 ## Suggested Order
 
-1. Finish balancing production and construction around 25 residents.
-2. Prepare a playtest checklist and run the first manual village playtest.
-3. Use benchmark history before further logistics/pathfinding changes.
+1. Run the second manual village playtest against the two-chain balance.
+2. Fix any remaining bottleneck-visibility or pacing failures.
+3. Decide whether the village milestone needs a richer completion summary.
+4. Use benchmark history before further logistics/pathfinding changes.
 
 ## First Concrete Next Task
 
-Run the first manual village playtest from `docs/playtest-checklist.md`. The current prototype has enough settlement-loop visibility to start gathering usability and pacing feedback before adding more systems.
+Run the updated playtest from `docs/playtest-checklist.md` and verify that the
+single-chain bread shortfall is understandable from the inspector before adding
+more systems.

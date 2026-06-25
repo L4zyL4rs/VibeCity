@@ -5,10 +5,10 @@
 namespace vibecity {
 namespace {
 
-constexpr Quantity starting_house_bread = 6;
-constexpr Quantity starting_storehouse_bread = 24;
-constexpr Quantity starting_timber = 28;
-constexpr Quantity starting_tools = 1;
+constexpr Quantity starting_house_bread = 10;
+constexpr Quantity starting_storehouse_bread = 60;
+constexpr Quantity starting_timber = 8;
+constexpr Quantity starting_tools = 2;
 
 CommandResult require(GameSession& game, const GameCommand& command)
 {
@@ -50,24 +50,24 @@ StartingVillageIds create_starting_village(GameSession& game)
 {
     auto ids = StartingVillageIds{};
 
-    add_path_line(game, 0, 1, 30);
+    add_path_line(game, starting_village_road_y, 1, 30);
 
     ids.houses.push_back(require_building(game, PlaceBuildingCommand{
         .kind = BuildingKind::House,
-        .position = GridPosition{1, 1}
+        .position = GridPosition{1, starting_village_building_y}
     }));
     ids.houses.push_back(require_building(game, PlaceBuildingCommand{
         .kind = BuildingKind::House,
-        .position = GridPosition{3, 1}
+        .position = GridPosition{3, starting_village_building_y}
     }));
     ids.houses.push_back(require_building(game, PlaceBuildingCommand{
         .kind = BuildingKind::House,
-        .position = GridPosition{5, 1}
+        .position = GridPosition{5, starting_village_building_y}
     }));
 
     ids.storehouse = require_building(game, PlaceBuildingCommand{
         .kind = BuildingKind::Storehouse,
-        .position = GridPosition{7, 1}
+        .position = GridPosition{7, starting_village_building_y}
     });
 
     for (const auto house : ids.houses) {
