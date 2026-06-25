@@ -3,6 +3,7 @@
 #include "client/Text.hpp"
 
 #include <algorithm>
+#include <array>
 #include <sstream>
 #include <string>
 
@@ -30,6 +31,7 @@ std::string clock_text(const Simulation& simulation)
 void draw_hud(SDL_Renderer* renderer,
     const Simulation& simulation,
     ClientMode mode,
+    std::optional<BuildingKind> build_target,
     bool running,
     int ticks_per_frame)
 {
@@ -44,21 +46,33 @@ void draw_hud(SDL_Renderer* renderer,
     set_color(renderer, Color{60, 64, 64, 255});
     SDL_RenderFillRect(renderer, &separator);
 
-    for (std::size_t index = 0; index < client_modes.size(); ++index) {
+    constexpr std::array modes{ClientMode::Select, ClientMode::PlacePath};
+    constexpr std::array colors{
+        Color{170, 176, 176, 255},
+        Color{82, 86, 86, 255}
+    };
+    for (std::size_t index = 0; index < modes.size(); ++index) {
         auto box = SDL_Rect{
             .x = 12 + static_cast<int>(index) * 38,
             .y = 12,
             .w = 28,
             .h = 28
         };
-        set_color(renderer, mode_color(client_modes[index]));
+        set_color(renderer, colors[index]);
         SDL_RenderFillRect(renderer, &box);
 
-        set_color(renderer, client_modes[index] == mode ? Color{230, 230, 218, 255} : Color{44, 48, 48, 255});
+        set_color(renderer, modes[index] == mode ? Color{230, 230, 218, 255} : Color{44, 48, 48, 255});
         SDL_RenderDrawRect(renderer, &box);
+        draw_text(
+            renderer,
+            box.x + 9,
+            box.y + 7,
+            std::to_string(index + 1),
+            Color{18, 20, 20, 255},
+            2);
     }
 
-    auto speed_x = 304;
+    auto speed_x = 100;
     auto speed_value = ticks_per_frame;
     for (int index = 0; index < 8; ++index) {
         auto bar = SDL_Rect{
@@ -76,10 +90,18 @@ void draw_hud(SDL_Renderer* renderer,
     set_color(renderer, running ? Color{82, 170, 92, 255} : Color{190, 74, 70, 255});
     SDL_RenderFillRect(renderer, &run_indicator);
 
-    draw_text(renderer, 390, 10, std::string{"MODE: "} + mode_name(mode), Color{210, 214, 204, 255}, 2);
-    draw_text(renderer, 390, 30, running ? "SPACE PAUSE   +/- SPEED   WASD PAN" : "SPACE RUN     +/- SPEED   WASD PAN", Color{128, 138, 136, 255}, 2);
+    auto mode_text = std::string{"MODE: "} + mode_name(mode);
+    if (mode == ClientMode::Build && build_target.has_value()) {
+        mode_text += " " + simulation.definition(*build_target).name;
+    }
+    if (mode_text.size() > 40) {
+        mode_text.resize(40);
+        mode_text.back() = '.';
+    }
+    draw_text(renderer, 188, 10, mode_text, Color{210, 214, 204, 255}, 2);
+    draw_text(renderer, 188, 30, running ? "SPACE PAUSE   +/- SPEED   WASD PAN" : "SPACE RUN     +/- SPEED   WASD PAN", Color{128, 138, 136, 255}, 2);
     draw_text(renderer,
-        760,
+        700,
         30,
         clock_text(simulation) + " JOBS: " + std::to_string(simulation.transport_jobs().size()),
         Color{128, 138, 136, 255},
@@ -88,11 +110,12 @@ void draw_hud(SDL_Renderer* renderer,
 
 void draw_status(SDL_Renderer* renderer, std::string_view status)
 {
-    draw_text(renderer, 760, 10, std::string{"STATUS: "} + std::string{status}, Color{202, 204, 176, 255}, 2);
+    draw_text(renderer, 700, 10, std::string{"STATUS: "} + std::string{status}, Color{202, 204, 176, 255}, 2);
 }
 
 void draw_objective_completion_banner(SDL_Renderer* renderer,
     const VillageObjectiveTracker& objectives,
+    int reserved_left_width,
     int reserved_right_width)
 {
     if (!objectives.all_complete()) {
@@ -102,14 +125,16 @@ void draw_objective_completion_banner(SDL_Renderer* renderer,
     int width = 0;
     SDL_GetRendererOutputSize(renderer, &width, nullptr);
 
-    const auto available_width = std::max(0, width - reserved_right_width - 32);
+    const auto available_width = std::max(
+        0,
+        width - reserved_left_width - reserved_right_width - 32);
     if (available_width < 320) {
         return;
     }
     const auto banner_width = std::min(520, available_width);
 
     const auto banner = SDL_Rect{
-        .x = 16,
+        .x = reserved_left_width + 16,
         .y = hud_height + 16,
         .w = banner_width,
         .h = 58

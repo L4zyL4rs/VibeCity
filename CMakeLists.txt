@@ -130,6 +130,7 @@ endif()
 
 if(SDL2_FOUND)
     add_executable(vibecity_client
+        src/client/BuildMenu.cpp
         src/client/ClientMode.cpp
         src/client/Hud.cpp
         src/client/Inspector.cpp
@@ -160,6 +161,29 @@ if(SDL2_FOUND)
         PROPERTIES
             ENVIRONMENT "SDL_VIDEODRIVER=dummy"
     )
+
+    add_executable(vibecity_client_tests
+        src/client/BuildMenu.cpp
+        src/client/Text.cpp
+        tests/client_tests.cpp
+    )
+
+    target_link_libraries(vibecity_client_tests
+        PRIVATE
+            vibecity_core
+            PkgConfig::SDL2
+    )
+
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        target_compile_options(vibecity_client_tests
+            PRIVATE
+                -Wall
+                -Wextra
+                -Wpedantic
+        )
+    endif()
+
+    add_test(NAME vibecity_client_tests COMMAND vibecity_client_tests)
 else()
     message(STATUS "SDL2 not found; skipping vibecity_client target")
 endif()

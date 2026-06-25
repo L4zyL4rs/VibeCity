@@ -1,3 +1,4 @@
+#include "client/BuildMenu.hpp"
 #include "client/ClientMode.hpp"
 #include "client/Hud.hpp"
 #include "client/Inspector.hpp"
@@ -17,11 +18,13 @@ namespace {
 
 using vibecity::client::Color;
 using vibecity::client::Camera;
+using vibecity::client::BuildMenuMetrics;
 using vibecity::client::ClientMode;
 using vibecity::client::can_place_building_preview;
 using vibecity::client::can_place_path_preview;
 using vibecity::client::ClientInteractionState;
 using vibecity::client::draw_hud;
+using vibecity::client::draw_build_menu;
 using vibecity::client::draw_inspector;
 using vibecity::client::draw_objective_completion_banner;
 using vibecity::client::draw_placement_preview;
@@ -33,34 +36,38 @@ using vibecity::client::InspectorScrollMetrics;
 using vibecity::client::mode_name;
 using vibecity::client::selected_summary;
 using vibecity::client::set_color;
-using vibecity::client::target_kind_for_mode;
 
 constexpr int initial_window_width = 1280;
 constexpr int initial_window_height = 800;
 
 std::optional<vibecity::Footprint> preview_footprint_for_mode(
     const vibecity::Simulation& simulation,
-    ClientMode mode)
+    ClientMode mode,
+    std::optional<vibecity::BuildingKind> build_target)
 {
     if (mode == ClientMode::PlacePath) {
         return vibecity::Footprint{1, 1};
     }
 
-    if (const auto target = target_kind_for_mode(mode)) {
-        return simulation.definition(*target).footprint;
+    if (mode == ClientMode::Build && build_target.has_value()) {
+        return simulation.definition(*build_target).footprint;
     }
 
     return std::nullopt;
 }
 
-bool can_place_preview(const vibecity::Simulation& simulation, ClientMode mode, vibecity::GridPosition tile)
+bool can_place_preview(
+    const vibecity::Simulation& simulation,
+    ClientMode mode,
+    std::optional<vibecity::BuildingKind> build_target,
+    vibecity::GridPosition tile)
 {
     if (mode == ClientMode::PlacePath) {
         return can_place_path_preview(simulation, tile);
     }
 
-    if (const auto target = target_kind_for_mode(mode)) {
-        return can_place_building_preview(simulation, *target, tile);
+    if (mode == ClientMode::Build && build_target.has_value()) {
+        return can_place_building_preview(simulation, *build_target, tile);
     }
 
     return false;
@@ -70,16 +77,19 @@ void draw_mode_placement_preview(SDL_Renderer* renderer,
     const vibecity::Simulation& simulation,
     Camera camera,
     ClientMode mode,
+    std::optional<vibecity::BuildingKind> build_target,
     std::optional<vibecity::GridPosition> hover_tile)
 {
-    const auto footprint = preview_footprint_for_mode(simulation, mode);
-    const auto valid = hover_tile.has_value() && can_place_preview(simulation, mode, *hover_tile);
+    const auto footprint = preview_footprint_for_mode(simulation, mode, build_target);
+    const auto valid = hover_tile.has_value()
+        && can_place_preview(simulation, mode, build_target, *hover_tile);
     draw_placement_preview(renderer, camera, hover_tile, footprint, valid);
 }
 
 void update_title(SDL_Window* window,
     const vibecity::Simulation& simulation,
     ClientMode mode,
+    std::optional<vibecity::BuildingKind> build_target,
     bool running,
     int ticks_per_frame,
     std::optional<vibecity::BuildingId> selected)
@@ -89,21 +99,32 @@ void update_title(SDL_Window* window,
           << " | day " << simulation.current_day()
           << " | " << (running ? "running" : "paused")
           << " | speed " << ticks_per_frame
-          << " | mode " << mode_name(mode)
+          << " | mode " << mode_name(mode);
+    if (mode == ClientMode::Build && build_target.has_value()) {
+        title << " " << simulation.definition(*build_target).name;
+    }
+    title
           << " | selected " << selected_summary(simulation, selected);
     SDL_SetWindowTitle(window, title.str().c_str());
 }
 
-InspectorScrollMetrics draw_map(SDL_Renderer* renderer,
+struct ClientPanelMetrics {
+    InspectorScrollMetrics inspector;
+    BuildMenuMetrics build_menu;
+};
+
+ClientPanelMetrics draw_map(SDL_Renderer* renderer,
     const vibecity::Simulation& simulation,
     const vibecity::VillageObjectiveTracker& objectives,
     Camera camera,
     std::optional<vibecity::BuildingId> selected,
     std::optional<vibecity::GridPosition> hover_tile,
     ClientMode mode,
+    std::optional<vibecity::BuildingKind> build_target,
     bool running,
     int ticks_per_frame,
     int inspector_scroll,
+    int build_menu_scroll,
     std::string_view status)
 {
     set_color(renderer, Color{24, 28, 28, 255});
@@ -111,18 +132,30 @@ InspectorScrollMetrics draw_map(SDL_Renderer* renderer,
 
     draw_world(renderer, simulation, camera, selected);
     draw_transport_jobs(renderer, simulation, camera);
-    draw_mode_placement_preview(renderer, simulation, camera, mode, hover_tile);
+    draw_mode_placement_preview(renderer, simulation, camera, mode, build_target, hover_tile);
+    const auto build_menu_metrics = draw_build_menu(
+        renderer,
+        simulation,
+        build_target,
+        build_menu_scroll);
     const auto inspector_metrics = draw_inspector(
         renderer,
         simulation,
         objectives,
         selected,
         inspector_scroll);
-    draw_hud(renderer, simulation, mode, running, ticks_per_frame);
+    draw_hud(renderer, simulation, mode, build_target, running, ticks_per_frame);
     draw_status(renderer, status);
-    draw_objective_completion_banner(renderer, objectives, vibecity::client::inspector_width);
+    draw_objective_completion_banner(
+        renderer,
+        objectives,
+        vibecity::client::build_menu_width,
+        vibecity::client::inspector_width);
     SDL_RenderPresent(renderer);
-    return inspector_metrics;
+    return ClientPanelMetrics{
+        .inspector = inspector_metrics,
+        .build_menu = build_menu_metrics
+    };
 }
 
 bool is_smoke_test(int argc, char** argv)
@@ -187,20 +220,31 @@ int main(int argc, char** argv)
             }
         }
 
-        const auto inspector_metrics = draw_map(renderer,
+        const auto panel_metrics = draw_map(renderer,
             game.simulation(),
             game.objectives(),
             state.camera,
             state.selected,
             state.hover_tile,
             state.mode,
+            state.build_target,
             state.running,
             state.ticks_per_frame,
             state.inspector_scroll,
+            state.build_menu_scroll,
             state.status);
-        state.inspector_scroll = inspector_metrics.offset;
-        state.inspector_max_scroll = inspector_metrics.max_offset;
-        update_title(window, game.simulation(), state.mode, state.running, state.ticks_per_frame, state.selected);
+        state.inspector_scroll = panel_metrics.inspector.offset;
+        state.inspector_max_scroll = panel_metrics.inspector.max_offset;
+        state.build_menu_scroll = panel_metrics.build_menu.offset;
+        state.build_menu_max_scroll = panel_metrics.build_menu.max_offset;
+        update_title(
+            window,
+            game.simulation(),
+            state.mode,
+            state.build_target,
+            state.running,
+            state.ticks_per_frame,
+            state.selected);
 
         if (smoke_test && frame_count == 0) {
             state.inspector_scroll = state.inspector_max_scroll;

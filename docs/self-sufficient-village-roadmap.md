@@ -51,6 +51,8 @@ Already implemented:
 - Command-layer scenario test that constructs a woodcutter, farm, bakery, and houses, then reaches 25 residents and stays fed for several days.
 - SDL client with placement, inspector, economy summary, logistics reservation summary, objective summary, transport overlay, and drag path placement.
 - SDL client shows construction queue focus and per-site construction progress.
+- Catalog-driven construction menu shows each building's material and labor
+  requirements and supports custom definitions.
 - First client splits: pixel text helpers, core palette helpers, map-view helpers, HUD helpers, inspector helpers, input handling, and client mode definitions live outside `src/client/main.cpp`.
 - Versioned save/load with objective history, active logistics, reservations, construction progress, paths, and deterministic continuation.
 - Tests for core production, consumption, logistics, reachability, construction, and command-layer flow.
@@ -397,6 +399,35 @@ Done when:
 
 - An ordinary recipe building can be added without changing C++ simulation code.
 - Invalid data cannot enter a running simulation.
+
+### Slice 10: Catalog-Driven Construction Menu
+
+Status: first pass done.
+
+Programming work:
+
+- Replaced building-specific client modes with one build mode and a selected
+  catalog kind.
+- Added a scrollable construction panel generated from all non-internal
+  definitions.
+- Display construction materials, footprint, jobs or housing, and builder labor.
+- Route mouse selection and dynamic `3` through `9` shortcuts through catalog
+  order.
+- Keep menu, map, inspector, and milestone-banner input and rendering regions
+  separate.
+
+Tests:
+
+- Menu order excludes internal definitions.
+- Material-cost text matches catalog construction costs.
+- Row hit testing respects gaps and scroll position.
+- Existing SDL smoke rendering remains active.
+
+Done when:
+
+- A newly added data-only building can be selected and placed without client
+  code changes.
+- The player can see required construction resources before placing a site.
 
 ## Suggested Order
 

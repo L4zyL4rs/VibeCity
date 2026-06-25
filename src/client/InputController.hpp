@@ -13,6 +13,7 @@ namespace vibecity::client {
 
 struct ClientInteractionState {
     ClientMode mode = ClientMode::Select;
+    std::optional<BuildingKind> build_target;
     bool running = false;
     int ticks_per_frame = 10;
     std::optional<BuildingId> selected;
@@ -21,6 +22,8 @@ struct ClientInteractionState {
     std::optional<GridPosition> last_path_drag_tile;
     int inspector_scroll = 0;
     int inspector_max_scroll = 0;
+    int build_menu_scroll = 0;
+    int build_menu_max_scroll = 0;
     std::string status = "ready";
     Camera camera;
     bool quit = false;

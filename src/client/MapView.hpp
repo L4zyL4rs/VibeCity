@@ -13,7 +13,7 @@ namespace vibecity::client {
 inline constexpr int tile_size = 10;
 
 struct Camera {
-    int offset_x = 80;
+    int offset_x = 320;
     int offset_y = 76;
 };
 

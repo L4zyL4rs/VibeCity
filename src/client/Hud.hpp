@@ -6,6 +6,7 @@
 
 #include <SDL.h>
 
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -18,12 +19,14 @@ inline constexpr int hud_height = 52;
 void draw_hud(SDL_Renderer* renderer,
     const Simulation& simulation,
     ClientMode mode,
+    std::optional<BuildingKind> build_target,
     bool running,
     int ticks_per_frame);
 
 void draw_status(SDL_Renderer* renderer, std::string_view status);
 void draw_objective_completion_banner(SDL_Renderer* renderer,
     const VillageObjectiveTracker& objectives,
+    int reserved_left_width,
     int reserved_right_width);
 
 }
