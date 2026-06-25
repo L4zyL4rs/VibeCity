@@ -213,6 +213,14 @@ int draw_economy_summary(SDL_Renderer* renderer,
         muted, 2);
     y += 20;
 
+    if (simulation.free_housing_capacity() > 0) {
+        draw_text(renderer, x, y,
+            std::string{"GROWTH BREAD: "} + std::to_string(simulation.stored_bread())
+                + " / " + std::to_string(simulation.bread_required_for_population_growth()),
+            muted, 2);
+        y += 20;
+    }
+
     draw_text(renderer, x, y,
         std::string{"GROWTH: "}
             + std::string{population_growth_blocker_text(simulation.population_growth_blocker())},

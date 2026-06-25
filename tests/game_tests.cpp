@@ -463,7 +463,12 @@ void single_production_chain_cannot_reach_25_residents()
 
     require(game, vibecity::AdvanceTimeCommand{.ticks = 20 * vibecity::ticks_per_day});
 
-    VIBECITY_CHECK(game.simulation().total_residents() < 25);
+    VIBECITY_CHECK(game.simulation().total_residents() == 16);
+    VIBECITY_CHECK(game.simulation().stored_bread() == 16);
+    VIBECITY_CHECK(game.simulation().bread_required_for_population_growth() == 17);
+    VIBECITY_CHECK(
+        game.simulation().population_growth_blocker()
+        == vibecity::PopulationGrowthBlocker::NotEnoughBread);
     VIBECITY_CHECK(!objective_status(
         game,
         vibecity::VillageObjectiveId::Stable25Residents).complete);

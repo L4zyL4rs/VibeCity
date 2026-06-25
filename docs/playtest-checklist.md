@@ -91,6 +91,10 @@ When I ask for detailed input, please report these points:
 - First confusion: what did you expect, what did you click, and what did the UI show?
 - Bottlenecks: could you tell whether the problem was food, materials, workers, builders, paths, or haulers?
 - Logistics: could you understand what goods were reserved, moving, or already stored?
+- Transport visibility: could you follow a cargo marker along the road from its
+  source building to its destination, including short trips?
+- Growth ceiling: when one bakery settles at 16 residents, does the displayed
+  bread reserve make the missing surplus clear?
 - Construction: could you tell which site was next and whether builders were working?
 - Pacing: which speed did you use, and where did waiting feel too slow or too fast?
 - Controls: any accidental mode switches, placement mistakes, camera issues, or unclear buttons.

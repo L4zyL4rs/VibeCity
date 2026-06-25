@@ -180,6 +180,45 @@ void escape_cancels_before_clearing_selection()
     VIBECITY_CHECK(!state.quit);
 }
 
+void transport_overlay_retains_completed_jobs_for_readability()
+{
+    auto simulation = vibecity::Simulation{};
+    for (int x = 1; x <= 8; ++x) {
+        VIBECITY_CHECK(simulation.add_path(vibecity::GridPosition{x, 1}));
+    }
+
+    const auto house = simulation.add_building_at(
+        vibecity::BuildingKind::House,
+        vibecity::GridPosition{1, 2});
+    const auto storehouse = simulation.add_building_at(
+        vibecity::BuildingKind::Storehouse,
+        vibecity::GridPosition{5, 2});
+    simulation.set_residents(house, 1);
+    VIBECITY_CHECK(
+        simulation.building(storehouse).inventory.add(vibecity::ResourceId::Bread, 5));
+
+    simulation.tick();
+    VIBECITY_CHECK(!simulation.transport_jobs().empty());
+
+    auto overlay = vibecity::client::TransportOverlay{};
+    overlay.update(simulation);
+    VIBECITY_CHECK(overlay.visual_count() == 1);
+
+    for (int attempt = 0;
+         attempt < 100 && !simulation.transport_jobs().empty();
+         ++attempt) {
+        simulation.tick();
+    }
+    VIBECITY_CHECK(simulation.transport_jobs().empty());
+
+    overlay.update(simulation);
+    VIBECITY_CHECK(overlay.visual_count() == 1);
+    for (int frame = 0; frame < 100; ++frame) {
+        overlay.update(simulation);
+    }
+    VIBECITY_CHECK(overlay.visual_count() == 0);
+}
+
 }
 
 int main()
@@ -190,6 +229,7 @@ int main()
     build_menu_hit_testing_respects_rows_gaps_and_scroll();
     zoom_keeps_the_cursor_over_the_same_tile();
     escape_cancels_before_clearing_selection();
+    transport_overlay_retains_completed_jobs_for_readability();
 
     std::cout << "client tests passed\n";
     return 0;

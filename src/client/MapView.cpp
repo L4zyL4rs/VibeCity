@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 namespace vibecity::client {
 namespace {
@@ -20,6 +21,9 @@ struct TileBounds {
     int end_x = 0;
     int end_y = 0;
 };
+
+constexpr int transport_arrival_frames = 36;
+constexpr float transport_progress_per_frame = 0.08F;
 
 int floor_divide(int numerator, int denominator)
 {
@@ -62,21 +66,55 @@ bool contains(GridPosition position, Footprint footprint, GridPosition point)
         && point.y < position.y + footprint.height;
 }
 
-std::optional<ScreenPoint> building_center_screen(const Simulation& simulation, BuildingId building_id, Camera camera)
+ScreenPoint building_center_screen(GridPosition position, Footprint footprint, Camera camera)
 {
-    const auto& building = simulation.building(building_id);
-    if (!building.position.has_value()) {
-        return std::nullopt;
-    }
-
-    const auto footprint = footprint_for(simulation, building);
     return ScreenPoint{
         .x = static_cast<float>(camera.offset_x)
-            + (static_cast<float>(building.position->x) + static_cast<float>(footprint.width) * 0.5F)
+            + (static_cast<float>(position.x) + static_cast<float>(footprint.width) * 0.5F)
                 * static_cast<float>(camera.tile_size),
         .y = static_cast<float>(camera.offset_y)
-            + (static_cast<float>(building.position->y) + static_cast<float>(footprint.height) * 0.5F)
+            + (static_cast<float>(position.y) + static_cast<float>(footprint.height) * 0.5F)
                 * static_cast<float>(camera.tile_size)
+    };
+}
+
+ScreenPoint tile_center_screen(GridPosition position, Camera camera)
+{
+    return ScreenPoint{
+        .x = static_cast<float>(camera.offset_x)
+            + (static_cast<float>(position.x) + 0.5F) * static_cast<float>(camera.tile_size),
+        .y = static_cast<float>(camera.offset_y)
+            + (static_cast<float>(position.y) + 0.5F) * static_cast<float>(camera.tile_size)
+    };
+}
+
+void draw_thick_line(SDL_Renderer* renderer, ScreenPoint start, ScreenPoint end)
+{
+    const auto start_x = static_cast<int>(std::lround(start.x));
+    const auto start_y = static_cast<int>(std::lround(start.y));
+    const auto end_x = static_cast<int>(std::lround(end.x));
+    const auto end_y = static_cast<int>(std::lround(end.y));
+
+    SDL_RenderDrawLine(renderer, start_x, start_y, end_x, end_y);
+    if (std::abs(end_x - start_x) >= std::abs(end_y - start_y)) {
+        SDL_RenderDrawLine(renderer, start_x, start_y - 1, end_x, end_y - 1);
+        SDL_RenderDrawLine(renderer, start_x, start_y + 1, end_x, end_y + 1);
+    } else {
+        SDL_RenderDrawLine(renderer, start_x - 1, start_y, end_x - 1, end_y);
+        SDL_RenderDrawLine(renderer, start_x + 1, start_y, end_x + 1, end_y);
+    }
+}
+
+float distance(ScreenPoint start, ScreenPoint end)
+{
+    return std::hypot(end.x - start.x, end.y - start.y);
+}
+
+ScreenPoint interpolate(ScreenPoint start, ScreenPoint end, float progress)
+{
+    return ScreenPoint{
+        .x = start.x + (end.x - start.x) * progress,
+        .y = start.y + (end.y - start.y) * progress
     };
 }
 
@@ -294,45 +332,187 @@ void draw_world(SDL_Renderer* renderer,
     }
 }
 
-void draw_transport_jobs(SDL_Renderer* renderer, const Simulation& simulation, Camera camera)
+void TransportOverlay::update(const Simulation& simulation)
 {
+    for (auto& visual : visuals_) {
+        visual.active = false;
+    }
+
     for (const auto& job : simulation.transport_jobs()) {
-        const auto source = building_center_screen(simulation, job.source, camera);
-        const auto destination = building_center_screen(simulation, job.destination, camera);
-        if (!source.has_value() || !destination.has_value()) {
+        const auto& source = simulation.building(job.source);
+        const auto& destination = simulation.building(job.destination);
+        if (!source.position.has_value() || !destination.position.has_value()) {
             continue;
         }
 
-        auto color = resource_color(job.resource);
-        set_color(renderer, Color{color.r, color.g, color.b, 72});
-        SDL_RenderDrawLine(renderer,
-            static_cast<int>(source->x),
-            static_cast<int>(source->y),
-            static_cast<int>(destination->x),
-            static_cast<int>(destination->y));
+        const auto source_footprint = footprint_for(simulation, source);
+        const auto destination_footprint = footprint_for(simulation, destination);
+        auto visual = std::find_if(visuals_.begin(), visuals_.end(), [&job](const Visual& candidate) {
+            return candidate.id == job.id;
+        });
+        const auto make_visual = [&]() {
+            return Visual{
+                .id = job.id,
+                .resource = job.resource,
+                .quantity = job.quantity,
+                .source = job.source,
+                .destination = job.destination,
+                .source_position = *source.position,
+                .source_footprint = source_footprint,
+                .destination_position = *destination.position,
+                .destination_footprint = destination_footprint,
+                .route = simulation.map().path_between_buildings(
+                    *source.position,
+                    source_footprint,
+                    *destination.position,
+                    destination_footprint),
+                .arrival_frames_remaining = transport_arrival_frames
+            };
+        };
+        if (visual == visuals_.end()) {
+            visuals_.push_back(make_visual());
+            visual = std::prev(visuals_.end());
+        } else if (visual->source != job.source
+            || visual->destination != job.destination
+            || visual->resource != job.resource
+            || visual->source_position != *source.position
+            || visual->destination_position != *destination.position) {
+            *visual = make_visual();
+        }
 
-        auto marker = *source;
+        visual->active = true;
+        visual->quantity = job.quantity;
         if (job.state == TransportJobState::CarryingGoods) {
+            visual->carrying_goods = true;
             const auto total_ticks = std::max<Tick>(1, job.leg_ticks_total);
             const auto remaining = std::clamp(job.ticks_remaining, Tick{0}, total_ticks);
             const auto progress = 1.0F - static_cast<float>(remaining) / static_cast<float>(total_ticks);
-            marker.x = source->x + (destination->x - source->x) * progress;
-            marker.y = source->y + (destination->y - source->y) * progress;
+            visual->target_progress = std::max(visual->target_progress, progress);
+        }
+    }
+
+    for (auto& visual : visuals_) {
+        if (!visual.active) {
+            visual.carrying_goods = true;
+            visual.completing = true;
+            visual.target_progress = 1.0F;
         }
 
-        const auto marker_size = job.state == TransportJobState::GoingToPickup ? 5 : 7;
+        if (visual.carrying_goods) {
+            visual.displayed_progress = std::min(
+                visual.target_progress,
+                visual.displayed_progress + transport_progress_per_frame);
+        }
+
+        if (visual.completing && visual.displayed_progress >= 1.0F) {
+            --visual.arrival_frames_remaining;
+        }
+    }
+
+    std::erase_if(visuals_, [](const Visual& visual) {
+        return visual.completing
+            && visual.displayed_progress >= 1.0F
+            && visual.arrival_frames_remaining <= 0;
+    });
+}
+
+void TransportOverlay::draw(SDL_Renderer* renderer, Camera camera) const
+{
+    for (const auto& visual : visuals_) {
+        const auto source = building_center_screen(
+            visual.source_position,
+            visual.source_footprint,
+            camera);
+        const auto destination = building_center_screen(
+            visual.destination_position,
+            visual.destination_footprint,
+            camera);
+
+        const auto fade = visual.completing && visual.displayed_progress >= 1.0F
+            ? std::clamp(
+                static_cast<float>(visual.arrival_frames_remaining)
+                    / static_cast<float>(transport_arrival_frames),
+                0.0F,
+                1.0F)
+            : 1.0F;
+        const auto color = resource_color(visual.resource);
+        set_color(renderer, Color{
+            color.r,
+            color.g,
+            color.b,
+            static_cast<std::uint8_t>(96.0F * fade)
+        });
+
+        auto previous = source;
+        for (const auto route_tile : visual.route) {
+            const auto current = tile_center_screen(route_tile, camera);
+            draw_thick_line(renderer, previous, current);
+            previous = current;
+        }
+        draw_thick_line(renderer, previous, destination);
+
+        auto total_distance = 0.0F;
+        previous = source;
+        for (const auto route_tile : visual.route) {
+            const auto current = tile_center_screen(route_tile, camera);
+            total_distance += distance(previous, current);
+            previous = current;
+        }
+        total_distance += distance(previous, destination);
+
+        const auto target_distance = total_distance * visual.displayed_progress;
+        auto traversed = 0.0F;
+        auto marker = source;
+        previous = source;
+        auto consider_segment = [&](ScreenPoint current) {
+            const auto segment_distance = distance(previous, current);
+            if (traversed + segment_distance >= target_distance && segment_distance > 0.0F) {
+                marker = interpolate(
+                    previous,
+                    current,
+                    (target_distance - traversed) / segment_distance);
+                return true;
+            }
+            traversed += segment_distance;
+            marker = current;
+            previous = current;
+            return false;
+        };
+
+        auto marker_found = false;
+        for (const auto route_tile : visual.route) {
+            if (consider_segment(tile_center_screen(route_tile, camera))) {
+                marker_found = true;
+                break;
+            }
+        }
+        if (!marker_found) {
+            consider_segment(destination);
+        }
+
+        const auto marker_size = visual.carrying_goods ? 8 : 5;
         auto marker_rect = SDL_Rect{
-            .x = static_cast<int>(marker.x) - marker_size / 2,
-            .y = static_cast<int>(marker.y) - marker_size / 2,
+            .x = static_cast<int>(std::lround(marker.x)) - marker_size / 2,
+            .y = static_cast<int>(std::lround(marker.y)) - marker_size / 2,
             .w = marker_size,
             .h = marker_size
         };
 
-        set_color(renderer, color);
+        set_color(renderer, Color{
+            color.r,
+            color.g,
+            color.b,
+            static_cast<std::uint8_t>(255.0F * fade)
+        });
         SDL_RenderFillRect(renderer, &marker_rect);
-        set_color(renderer, Color{18, 20, 20, 255});
+        set_color(renderer, Color{18, 20, 20, static_cast<std::uint8_t>(255.0F * fade)});
         SDL_RenderDrawRect(renderer, &marker_rect);
     }
+}
+
+std::size_t TransportOverlay::visual_count() const
+{
+    return visuals_.size();
 }
 
 void draw_placement_preview(SDL_Renderer* renderer,

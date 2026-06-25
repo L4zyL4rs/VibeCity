@@ -29,13 +29,13 @@ using vibecity::client::draw_inspector;
 using vibecity::client::draw_objective_completion_banner;
 using vibecity::client::draw_placement_preview;
 using vibecity::client::draw_status;
-using vibecity::client::draw_transport_jobs;
 using vibecity::client::draw_world;
 using vibecity::client::handle_event;
 using vibecity::client::InspectorScrollMetrics;
 using vibecity::client::mode_name;
 using vibecity::client::selected_summary;
 using vibecity::client::set_color;
+using vibecity::client::TransportOverlay;
 
 constexpr int initial_window_width = 1280;
 constexpr int initial_window_height = 800;
@@ -116,6 +116,7 @@ struct ClientPanelMetrics {
 ClientPanelMetrics draw_map(SDL_Renderer* renderer,
     const vibecity::Simulation& simulation,
     const vibecity::VillageObjectiveTracker& objectives,
+    const TransportOverlay& transport_overlay,
     Camera camera,
     std::optional<vibecity::BuildingId> selected,
     std::optional<vibecity::GridPosition> hover_tile,
@@ -131,7 +132,7 @@ ClientPanelMetrics draw_map(SDL_Renderer* renderer,
     SDL_RenderClear(renderer);
 
     draw_world(renderer, simulation, camera, selected);
-    draw_transport_jobs(renderer, simulation, camera);
+    transport_overlay.draw(renderer, camera);
     draw_mode_placement_preview(renderer, simulation, camera, mode, build_target, hover_tile);
     const auto build_menu_metrics = draw_build_menu(
         renderer,
@@ -203,6 +204,7 @@ int main(int argc, char** argv)
     auto state = ClientInteractionState{};
     auto game = vibecity::GameSession{};
     const auto scenario = vibecity::create_starting_village(game);
+    auto transport_overlay = TransportOverlay{};
     state.selected = scenario.storehouse;
     auto frame_count = 0;
 
@@ -220,9 +222,11 @@ int main(int argc, char** argv)
             }
         }
 
+        transport_overlay.update(game.simulation());
         const auto panel_metrics = draw_map(renderer,
             game.simulation(),
             game.objectives(),
+            transport_overlay,
             state.camera,
             state.selected,
             state.hover_tile,

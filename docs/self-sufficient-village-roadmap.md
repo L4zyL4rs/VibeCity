@@ -465,15 +465,43 @@ Done when:
 - Building throughput and daily demand are visible before shortages occur.
 - The second manual playtest can identify a real economic bottleneck.
 
+### Slice 12: Second Playtest Response
+
+Status: done.
+
+Programming work:
+
+- Added deterministic road-route reconstruction for connected buildings.
+- Replaced direct building-to-building transport lines with road-following
+  polylines.
+- Added client-owned animation state so short deliveries remain readable after
+  the authoritative transport job completes.
+- Added a brief arrival linger and fade.
+- Exposed and displayed the bread reserve required for the next citizen.
+
+Tests:
+
+- Reconstructed routes contain only contiguous road tiles and match the
+  simulation's path distance.
+- Completed transport jobs remain in the visual overlay long enough to read and
+  are eventually removed.
+- Population facts expose the next-citizen bread requirement.
+
+Done when:
+
+- Goods visibly follow the road from their source building to their destination.
+- A one-chain village stopping at 16 residents is explained by visible bread
+  supply and growth demand.
+
 ## Suggested Order
 
-1. Run the second manual village playtest against the two-chain balance.
-2. Fix any remaining bottleneck-visibility or pacing failures.
+1. Run the third manual village playtest against road-following transport.
+2. Verify that overlapping transport jobs remain readable.
 3. Decide whether the village milestone needs a richer completion summary.
 4. Use benchmark history before further logistics/pathfinding changes.
 
 ## First Concrete Next Task
 
-Run the updated playtest from `docs/playtest-checklist.md` and verify that the
-single-chain bread shortfall is understandable from the inspector before adding
-more systems.
+Run the updated playtest from `docs/playtest-checklist.md` and verify that cargo
+can be followed along roads and that the `16 / 17` growth reserve explains the
+single-chain population ceiling.

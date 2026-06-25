@@ -360,6 +360,77 @@ std::optional<int> TileMap::path_distance_between_buildings(GridPosition source_
     return std::nullopt;
 }
 
+std::vector<GridPosition> TileMap::path_between_buildings(
+    GridPosition source_position,
+    Footprint source_footprint,
+    GridPosition destination_position,
+    Footprint destination_footprint) const
+{
+    const auto starts = path_access_tiles(source_position, source_footprint);
+    const auto goals = path_access_tiles(destination_position, destination_footprint);
+    if (starts.empty() || goals.empty()) {
+        return {};
+    }
+
+    auto goal_tiles = std::vector<bool>(tiles_.size(), false);
+    for (const auto goal : goals) {
+        goal_tiles[static_cast<std::size_t>(index(goal))] = true;
+    }
+
+    auto predecessors = std::vector<int>(tiles_.size(), -1);
+    auto queue = std::queue<GridPosition>{};
+    for (const auto start : starts) {
+        const auto start_index = index(start);
+        if (predecessors[static_cast<std::size_t>(start_index)] != -1) {
+            continue;
+        }
+
+        predecessors[static_cast<std::size_t>(start_index)] = start_index;
+        queue.push(start);
+    }
+
+    while (!queue.empty()) {
+        const auto current = queue.front();
+        queue.pop();
+
+        const auto current_index = index(current);
+        if (goal_tiles[static_cast<std::size_t>(current_index)]) {
+            auto route = std::vector<GridPosition>{};
+            auto route_index = current_index;
+            while (true) {
+                route.push_back(GridPosition{
+                    .x = route_index % width_,
+                    .y = route_index / width_
+                });
+                const auto predecessor = predecessors[static_cast<std::size_t>(route_index)];
+                if (predecessor == route_index) {
+                    break;
+                }
+                route_index = predecessor;
+            }
+            std::reverse(route.begin(), route.end());
+            return route;
+        }
+
+        for (const auto offset : neighbor_offsets) {
+            const auto neighbor = GridPosition{current.x + offset.x, current.y + offset.y};
+            if (!has_path(neighbor)) {
+                continue;
+            }
+
+            const auto neighbor_index = index(neighbor);
+            if (predecessors[static_cast<std::size_t>(neighbor_index)] != -1) {
+                continue;
+            }
+
+            predecessors[static_cast<std::size_t>(neighbor_index)] = current_index;
+            queue.push(neighbor);
+        }
+    }
+
+    return {};
+}
+
 bool TileMap::add_path(GridPosition position)
 {
     if (!in_bounds(position)) {

@@ -2,6 +2,7 @@
 
 #include "core/Simulation.hpp"
 
+#include <cstdlib>
 #include <iostream>
 #include <optional>
 
@@ -68,6 +69,51 @@ void path_distance_field_can_be_reused_without_stale_distances()
     map.populate_path_distances_from_building(field, second_source, footprint);
     VIBECITY_CHECK(!field.distance_to_building(first_destination, footprint).has_value());
     VIBECITY_CHECK(field.distance_to_building(second_destination, footprint).has_value());
+}
+
+void path_route_follows_connected_road_tiles()
+{
+    vibecity::TileMap map{20, 10};
+    for (int x = 1; x <= 15; ++x) {
+        VIBECITY_CHECK(map.add_path(vibecity::GridPosition{x, 2}));
+    }
+    for (int y = 3; y <= 6; ++y) {
+        VIBECITY_CHECK(map.add_path(vibecity::GridPosition{8, y}));
+    }
+
+    constexpr auto source_position = vibecity::GridPosition{1, 3};
+    constexpr auto source_footprint = vibecity::Footprint{2, 2};
+    constexpr auto destination_position = vibecity::GridPosition{7, 7};
+    constexpr auto destination_footprint = vibecity::Footprint{2, 1};
+
+    const auto route = map.path_between_buildings(
+        source_position,
+        source_footprint,
+        destination_position,
+        destination_footprint);
+    const auto distance = map.path_distance_between_buildings(
+        source_position,
+        source_footprint,
+        destination_position,
+        destination_footprint);
+
+    VIBECITY_CHECK(distance.has_value());
+    VIBECITY_CHECK(route.size() == static_cast<std::size_t>(*distance + 1));
+    for (std::size_t index = 0; index < route.size(); ++index) {
+        VIBECITY_CHECK(map.has_path(route[index]));
+        if (index > 0) {
+            const auto step = std::abs(route[index].x - route[index - 1].x)
+                + std::abs(route[index].y - route[index - 1].y);
+            VIBECITY_CHECK(step == 1);
+        }
+    }
+
+    VIBECITY_CHECK(map.path_between_buildings(
+            source_position,
+            source_footprint,
+            vibecity::GridPosition{17, 3},
+            vibecity::Footprint{1, 1})
+        .empty());
 }
 
 void path_connectivity_labels_building_access_components()
@@ -188,6 +234,7 @@ void settlement_population_facts_track_housing_and_food_need()
     VIBECITY_CHECK(simulation.total_housing_capacity() == 10);
     VIBECITY_CHECK(simulation.free_housing_capacity() == 2);
     VIBECITY_CHECK(simulation.daily_bread_need() == 8);
+    VIBECITY_CHECK(simulation.bread_required_for_population_growth() == 9);
     VIBECITY_CHECK(simulation.stored_bread() == 0);
     VIBECITY_CHECK(simulation.bread_days_remaining() == 0);
     VIBECITY_CHECK(simulation.population_growth_blocker() == vibecity::PopulationGrowthBlocker::NotEnoughBread);
@@ -632,6 +679,7 @@ int main()
 {
     path_distance_field_matches_pairwise_pathfinding();
     path_distance_field_can_be_reused_without_stale_distances();
+    path_route_follows_connected_road_tiles();
     path_connectivity_labels_building_access_components();
     farm_produces_grain_when_staffed();
     bakery_consumes_inputs_and_produces_bread();

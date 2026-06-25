@@ -85,6 +85,11 @@ public:
         Footprint source_footprint,
         GridPosition destination_position,
         Footprint destination_footprint) const;
+    [[nodiscard]] std::vector<GridPosition> path_between_buildings(
+        GridPosition source_position,
+        Footprint source_footprint,
+        GridPosition destination_position,
+        Footprint destination_footprint) const;
 
     bool add_path(GridPosition position);
     bool place_building(MapOccupantId id, GridPosition position, Footprint footprint);

@@ -6,7 +6,9 @@
 
 #include <SDL.h>
 
+#include <cstddef>
 #include <optional>
+#include <vector>
 
 namespace vibecity::client {
 
@@ -33,7 +35,35 @@ void draw_world(SDL_Renderer* renderer,
     Camera camera,
     std::optional<BuildingId> selected);
 
-void draw_transport_jobs(SDL_Renderer* renderer, const Simulation& simulation, Camera camera);
+class TransportOverlay {
+public:
+    void update(const Simulation& simulation);
+    void draw(SDL_Renderer* renderer, Camera camera) const;
+
+    [[nodiscard]] std::size_t visual_count() const;
+
+private:
+    struct Visual {
+        TransportJobId id = 0;
+        ResourceId resource = ResourceId::Grain;
+        Quantity quantity = 0;
+        BuildingId source = 0;
+        BuildingId destination = 0;
+        GridPosition source_position{};
+        Footprint source_footprint{};
+        GridPosition destination_position{};
+        Footprint destination_footprint{};
+        std::vector<GridPosition> route;
+        float displayed_progress = 0.0F;
+        float target_progress = 0.0F;
+        int arrival_frames_remaining = 0;
+        bool active = false;
+        bool carrying_goods = false;
+        bool completing = false;
+    };
+
+    std::vector<Visual> visuals_;
+};
 
 void draw_placement_preview(SDL_Renderer* renderer,
     Camera camera,

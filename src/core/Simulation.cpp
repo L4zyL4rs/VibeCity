@@ -360,6 +360,11 @@ Quantity Simulation::daily_bread_need() const
     return need;
 }
 
+Quantity Simulation::bread_required_for_population_growth() const
+{
+    return daily_bread_need() + prototype_immigrants_per_day;
+}
+
 Quantity Simulation::stored_bread() const
 {
     auto bread = Quantity{0};
@@ -390,7 +395,7 @@ PopulationGrowthBlocker Simulation::population_growth_blocker() const
         }
     }
 
-    if (stored_bread() < daily_bread_need() + prototype_immigrants_per_day) {
+    if (stored_bread() < bread_required_for_population_growth()) {
         return PopulationGrowthBlocker::NotEnoughBread;
     }
 
