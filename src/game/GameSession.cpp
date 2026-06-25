@@ -34,7 +34,8 @@ CommandResult failed(std::string message)
 
 }
 
-GameSession::GameSession()
+GameSession::GameSession(std::shared_ptr<const BuildingCatalog> catalog)
+    : simulation_(std::move(catalog))
 {
     objectives_.update(simulation_);
 }

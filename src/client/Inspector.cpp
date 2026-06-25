@@ -211,7 +211,7 @@ int draw_economy_summary(SDL_Renderer* renderer,
             x,
             y,
             std::string{"NEXT: #"} + std::to_string(*construction.next_site)
-                + " " + std::string{building_kind_name(*construction.next_target)},
+                + " " + simulation.definition(*construction.next_target).name,
             muted,
             2);
         y += 20;
@@ -327,7 +327,7 @@ int draw_inspector_content(SDL_Renderer* renderer,
 
     const auto& building = simulation.building(*selected);
     auto title = std::ostringstream{};
-    title << "#" << building.id << " " << building_kind_name(building.kind);
+    title << "#" << building.id << " " << simulation.definition(building.kind).name;
     draw_text(renderer, x, y, title.str(), text, 2);
     y += 24;
 
@@ -346,9 +346,10 @@ int draw_inspector_content(SDL_Renderer* renderer,
     draw_text(renderer, x, y, residents.str(), muted, 2);
     y += 28;
 
-    if (building.kind == BuildingKind::ConstructionSite && building.construction_target.has_value()) {
+    if (simulation.definition(building.kind).internal_construction_site
+        && building.construction_target.has_value()) {
         auto target = std::ostringstream{};
-        target << "TARGET: " << building_kind_name(*building.construction_target);
+        target << "TARGET: " << simulation.definition(*building.construction_target).name;
         draw_text(renderer, x, y, target.str(), muted, 2);
         y += 20;
 
@@ -432,7 +433,7 @@ std::string selected_summary(const Simulation& simulation, std::optional<Buildin
 
     const auto& building = simulation.building(*selected);
     auto output = std::ostringstream{};
-    output << "#" << building.id << " " << building_kind_name(building.kind)
+    output << "#" << building.id << " " << simulation.definition(building.kind).name
            << " block=" << blocking_reason_text(building.blocking_reason);
 
     const auto bread = building.inventory.quantity(ResourceId::Bread);

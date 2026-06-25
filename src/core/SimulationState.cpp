@@ -43,8 +43,13 @@ SimulationState Simulation::state() const
     };
 }
 
-Simulation Simulation::from_state(SimulationState state)
+Simulation Simulation::from_state(
+    SimulationState state,
+    std::shared_ptr<const BuildingCatalog> catalog)
 {
+    if (catalog == nullptr) {
+        throw std::invalid_argument("saved simulation requires a building catalog");
+    }
     constexpr auto max_map_dimension = 4'096;
     constexpr auto max_map_tiles = 4'194'304;
     if (state.map_width <= 0
@@ -83,8 +88,7 @@ Simulation Simulation::from_state(SimulationState state)
         if (building.id != expected_id || !building.position.has_value()) {
             throw std::invalid_argument("saved building IDs must be dense and positioned");
         }
-        if (!enum_less_than(building.kind, BuildingKind::Count)
-            || !enum_at_most(building.blocking_reason, BlockingReason::WaitingForBuilderLabor)) {
+        if (!enum_at_most(building.blocking_reason, BlockingReason::WaitingForBuilderLabor)) {
             throw std::invalid_argument("invalid saved building enum");
         }
         if (building.residents < 0
@@ -97,30 +101,30 @@ Simulation Simulation::from_state(SimulationState state)
             throw std::invalid_argument("invalid saved building counters");
         }
 
-        const auto& definition = building_definition(building.kind);
+        const auto& definition = catalog->definition(building.kind);
+        building.source_mask = definition.source_mask;
         if (building.residents > definition.resident_capacity
             || building.assigned_workers > definition.worker_slots) {
             throw std::invalid_argument("saved building occupancy exceeds capacity");
         }
-        if ((building.kind == BuildingKind::ConstructionSite) != building.construction_target.has_value()) {
+        if (definition.internal_construction_site != building.construction_target.has_value()) {
             throw std::invalid_argument("invalid saved construction target");
         }
         if (building.construction_target.has_value()
-            && (!enum_less_than(*building.construction_target, BuildingKind::Count)
-                || *building.construction_target == BuildingKind::ConstructionSite)) {
-            throw std::invalid_argument("invalid saved construction target kind");
+            && catalog->definition(*building.construction_target).internal_construction_site) {
+            throw std::invalid_argument("invalid saved construction target");
         }
 
-        const auto& state_definition = building.kind == BuildingKind::ConstructionSite
-            ? building_definition(*building.construction_target)
+        const auto& state_definition = definition.internal_construction_site
+            ? catalog->definition(*building.construction_target)
             : definition;
-        const auto expected_storage = building.kind == BuildingKind::ConstructionSite
+        const auto expected_storage = definition.internal_construction_site
             ? state_definition.construction_materials
             : state_definition.storage;
         if (building.inventory.capacities() != expected_storage) {
             throw std::invalid_argument("saved inventory capacities do not match building definition");
         }
-        if (building.kind == BuildingKind::ConstructionSite) {
+        if (definition.internal_construction_site) {
             if (building.assigned_builders > prototype_builders_per_site
                 || building.construction_labor_required != state_definition.construction_labor_minutes
                 || building.construction_labor_completed > building.construction_labor_required
@@ -204,7 +208,7 @@ Simulation Simulation::from_state(SimulationState state)
         }
     }
 
-    auto simulation = Simulation{};
+    auto simulation = Simulation{std::move(catalog)};
     simulation.buildings_ = std::move(state.buildings);
     simulation.transport_jobs_ = std::move(state.transport_jobs);
     simulation.map_ = std::move(restored_map);

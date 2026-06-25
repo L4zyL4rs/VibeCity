@@ -2,28 +2,10 @@
 
 namespace vibecity::client {
 
-Color building_color(const BuildingInstance& building)
+Color building_color(const Simulation& simulation, const BuildingInstance& building)
 {
-    if (building.kind == BuildingKind::ConstructionSite) {
-        return Color{178, 140, 64, 255};
-    }
-
-    switch (building.kind) {
-    case BuildingKind::House:
-        return Color{92, 142, 210, 255};
-    case BuildingKind::Farm:
-        return Color{78, 156, 86, 255};
-    case BuildingKind::Bakery:
-        return Color{196, 126, 54, 255};
-    case BuildingKind::Woodcutter:
-        return Color{93, 128, 62, 255};
-    case BuildingKind::Storehouse:
-        return Color{132, 118, 151, 255};
-    case BuildingKind::ConstructionSite:
-    case BuildingKind::Count:
-        return Color{160, 160, 160, 255};
-    }
-    return Color{160, 160, 160, 255};
+    const auto color = simulation.definition(building.kind).map_color;
+    return Color{color[0], color[1], color[2], 255};
 }
 
 Color resource_color(ResourceId resource)

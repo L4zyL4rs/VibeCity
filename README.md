@@ -23,6 +23,9 @@ engineering quality bar and review metrics.
 See [docs/save-format.md](docs/save-format.md) for persistence behavior and
 save-version policy.
 
+See [docs/building-definitions.md](docs/building-definitions.md) for the external
+building schema and extension boundary.
+
 ## Build
 
 ```bash

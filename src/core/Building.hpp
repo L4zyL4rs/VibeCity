@@ -5,8 +5,15 @@
 
 #include <array>
 #include <cstdint>
+#include <filesystem>
+#include <memory>
+#include <limits>
 #include <optional>
+#include <stdexcept>
+#include <string>
 #include <string_view>
+#include <unordered_map>
+#include <vector>
 
 namespace vibecity {
 
@@ -20,6 +27,8 @@ enum class BuildingKind : std::uint8_t {
     Count
 };
 
+inline constexpr std::uint8_t first_custom_building_kind = 64;
+
 enum class BlockingReason : std::uint8_t {
     None,
     NotEnoughWorkers,
@@ -32,6 +41,12 @@ enum class BlockingReason : std::uint8_t {
     WaitingForBuilderLabor
 };
 
+enum class ResourceSourcePolicy : std::uint8_t {
+    None,
+    RecipeOutputs,
+    AllStored
+};
+
 struct Recipe {
     ResourceArray inputs{};
     ResourceArray outputs{};
@@ -40,7 +55,8 @@ struct Recipe {
 
 struct BuildingDefinition {
     BuildingKind kind;
-    std::string_view name;
+    std::string stable_id;
+    std::string name;
     Footprint footprint{1, 1};
     int worker_slots = 0;
     int resident_capacity = 0;
@@ -50,6 +66,38 @@ struct BuildingDefinition {
     Tick construction_labor_minutes = 0;
     ResourceArray storage{};
     std::optional<Recipe> recipe;
+    ResourceSourcePolicy source_policy = ResourceSourcePolicy::None;
+    bool requests_storage_inputs = false;
+    bool internal_construction_site = false;
+    std::array<std::uint8_t, 3> map_color{128, 128, 128};
+    std::uint8_t source_mask = 0;
+};
+
+class BuildingCatalog {
+public:
+    BuildingCatalog();
+
+    [[nodiscard]] static BuildingCatalog load_directory(const std::filesystem::path& directory);
+
+    [[nodiscard]] const BuildingDefinition& definition(BuildingKind kind) const
+    {
+        const auto index = indices_by_kind_[static_cast<std::uint8_t>(kind)];
+        if (index < 0) {
+            throw std::out_of_range("building kind is not present in catalog");
+        }
+        return definitions_[static_cast<std::size_t>(index)];
+    }
+    [[nodiscard]] const BuildingDefinition& definition(std::string_view stable_id) const;
+    [[nodiscard]] std::optional<BuildingKind> find_kind(std::string_view stable_id) const;
+    [[nodiscard]] std::string_view stable_id(BuildingKind kind) const;
+    [[nodiscard]] const std::vector<BuildingDefinition>& definitions() const;
+    [[nodiscard]] std::uint64_t fingerprint() const;
+
+private:
+    std::vector<BuildingDefinition> definitions_;
+    std::unordered_map<std::string, BuildingKind> kinds_by_stable_id_;
+    std::array<int, std::numeric_limits<std::uint8_t>::max() + 1> indices_by_kind_;
+    std::uint64_t fingerprint_ = 0;
 };
 
 using BuildingId = std::uint32_t;
@@ -68,12 +116,17 @@ struct BuildingInstance {
     Tick construction_labor_required = 0;
     Tick construction_labor_completed = 0;
     BlockingReason blocking_reason = BlockingReason::None;
+    std::uint8_t source_mask = 0;
 };
 
 [[nodiscard]] const BuildingDefinition& building_definition(BuildingKind kind);
 [[nodiscard]] std::string_view building_kind_name(BuildingKind kind);
+[[nodiscard]] std::shared_ptr<const BuildingCatalog> default_building_catalog();
 [[nodiscard]] std::string_view blocking_reason_text(BlockingReason reason);
-[[nodiscard]] BuildingInstance make_building(BuildingId id, BuildingKind kind);
-[[nodiscard]] BuildingInstance make_construction_site(BuildingId id, BuildingKind target_kind);
+[[nodiscard]] BuildingInstance make_building(BuildingId id, const BuildingDefinition& definition);
+[[nodiscard]] BuildingInstance make_construction_site(
+    BuildingId id,
+    const BuildingDefinition& construction_site,
+    const BuildingDefinition& target);
 
 }

@@ -370,6 +370,34 @@ Done when:
 - A village can be stopped and resumed without changing its deterministic outcome.
 - Persistence failures produce a useful status and do not damage the running game.
 
+### Slice 9: External Building Definitions
+
+Status: first pass done.
+
+Programming work:
+
+- Moved built-in building costs, capacities, recipes, footprints, names, and map
+  colors into strict `.vbd` files.
+- Added a runtime catalog with stable string IDs and constant-time kind lookup.
+- Routed simulation, placement, renderer, inspector, and save/load behavior
+  through the active catalog.
+- Added save catalog fingerprints so changed economic definitions fail loudly.
+- Kept the compact resource enum and resource arrays for the current hot
+  simulation paths.
+
+Tests:
+
+- A data-only custom production building runs through worker assignment and
+  production.
+- The custom building survives save/load through its stable ID.
+- An edited catalog is rejected by save compatibility checks.
+- Malformed resource IDs are rejected while loading definitions.
+
+Done when:
+
+- An ordinary recipe building can be added without changing C++ simulation code.
+- Invalid data cannot enter a running simulation.
+
 ## Suggested Order
 
 1. Finish balancing production and construction around 25 residents.

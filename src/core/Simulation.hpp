@@ -98,6 +98,8 @@ struct SimulationState {
 
 class Simulation {
 public:
+    explicit Simulation(std::shared_ptr<const BuildingCatalog> catalog = default_building_catalog());
+
     BuildingId add_building(BuildingKind kind);
     BuildingId add_building_at(BuildingKind kind, GridPosition position);
     BuildingId place_construction(BuildingKind target_kind);
@@ -108,6 +110,12 @@ public:
     [[nodiscard]] const std::vector<BuildingInstance>& buildings() const;
     [[nodiscard]] const std::vector<TransportJob>& transport_jobs() const;
     [[nodiscard]] const TileMap& map() const;
+    [[nodiscard]] const BuildingCatalog& building_catalog() const;
+    [[nodiscard]] std::shared_ptr<const BuildingCatalog> building_catalog_ptr() const;
+    [[nodiscard]] const BuildingDefinition& definition(BuildingKind kind) const
+    {
+        return catalog_->definition(kind);
+    }
 
     bool add_path(GridPosition position);
     void set_residents(BuildingId id, int residents);
@@ -134,7 +142,9 @@ public:
     [[nodiscard]] ResourceArray total_inventory() const;
     [[nodiscard]] const ResourceStats& stats() const;
     [[nodiscard]] SimulationState state() const;
-    [[nodiscard]] static Simulation from_state(SimulationState state);
+    [[nodiscard]] static Simulation from_state(
+        SimulationState state,
+        std::shared_ptr<const BuildingCatalog> catalog = default_building_catalog());
 
 private:
     struct SourceSelection {
@@ -180,6 +190,7 @@ private:
     std::vector<TransportJob> transport_jobs_;
     TileMap map_{128, 128};
     PathDistanceField logistics_distance_field_;
+    std::shared_ptr<const BuildingCatalog> catalog_;
     BuildingId next_building_id_ = 1;
     TransportJobId next_transport_job_id_ = 1;
     int next_auto_building_x_ = 1;

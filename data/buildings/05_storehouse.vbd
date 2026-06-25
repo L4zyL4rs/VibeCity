@@ -1,0 +1,24 @@
+[building]
+id = storehouse
+name = Storehouse
+footprint = 2, 2
+worker_slots = 0
+resident_capacity = 0
+worker_supply = 0
+consumes_bread = false
+requests_storage_inputs = true
+internal_construction_site = false
+source_policy = all_stored
+map_color = 126, 112, 92
+construction_labor_minutes = 5760
+
+[construction]
+timber = 20
+tools = 2
+
+[storage]
+grain = 100
+bread = 100
+timber = 100
+firewood = 100
+tools = 20

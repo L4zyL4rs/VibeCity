@@ -124,3 +124,26 @@ Notes:
 - Compared with the original 13,441.72 ms baseline, the large case is roughly 40x faster.
 - `perf` confirmed that worker assignment no longer contributes pairwise path searches in the large scenario.
 - Small scenario timings remain within their prior run-to-run range, and all sanity fields are unchanged.
+
+### 2026-06-25 External Building Catalog
+
+Building definitions now load from strict data files. Runtime kinds use a
+constant-time catalog lookup, while each building instance caches a derived
+five-bit source eligibility mask for the logistics candidate hot path.
+
+Representative default-build samples:
+
+| Case | Ticks | Milliseconds | Ticks/s | Buildings | Active Jobs | Transported | Constructed |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| starting village 30d | 43,200 | 11.66 | 3,706,029 | 4 | 0 | 24 | 0 |
+| construction village 30d | 43,200 | 50.10 | 862,222 | 9 | 0 | 2,121 | 5 |
+| 100 buildings 10d | 14,400 | 316.18 | 45,543 | 100 | 40 | 72,458 | 0 |
+
+Notes:
+
+- A second large-case sample measured 305.06 ms.
+- An initial implementation repeatedly inspected catalog policy and recipes
+  during source selection and measured roughly 380-394 ms.
+- Caching only the derived source mask removed that regression without placing
+  definition ownership or behavior back into hardcoded building switches.
+- Scenario sanity fields remain unchanged.

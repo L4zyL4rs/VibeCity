@@ -7,16 +7,35 @@ project(VibeCity
 
 find_package(PkgConfig)
 
+file(GLOB BUILDING_DEFINITION_FILES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/data/buildings/*.vbd"
+)
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/data/buildings")
+foreach(BUILDING_DEFINITION_FILE IN LISTS BUILDING_DEFINITION_FILES)
+    get_filename_component(BUILDING_DEFINITION_NAME "${BUILDING_DEFINITION_FILE}" NAME)
+    configure_file(
+        "${BUILDING_DEFINITION_FILE}"
+        "${CMAKE_CURRENT_BINARY_DIR}/data/buildings/${BUILDING_DEFINITION_NAME}"
+        COPYONLY
+    )
+endforeach()
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_library(vibecity_core
     src/core/Building.cpp
+    src/core/BuildingCatalog.cpp
     src/core/Inventory.cpp
     src/core/Map.cpp
     src/core/Simulation.cpp
     src/core/SimulationState.cpp
+)
+
+target_compile_definitions(vibecity_core
+    PRIVATE
+        VIBECITY_BUILDING_DATA_DIR="${CMAKE_CURRENT_BINARY_DIR}/data/buildings"
 )
 
 target_include_directories(vibecity_core

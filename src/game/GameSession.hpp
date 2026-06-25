@@ -60,7 +60,7 @@ struct SessionIoResult {
 
 class GameSession {
 public:
-    GameSession();
+    explicit GameSession(std::shared_ptr<const BuildingCatalog> catalog = default_building_catalog());
 
     [[nodiscard]] Simulation& simulation();
     [[nodiscard]] const Simulation& simulation() const;

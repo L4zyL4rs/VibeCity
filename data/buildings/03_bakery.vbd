@@ -1,0 +1,32 @@
+[building]
+id = bakery
+name = Bakery
+footprint = 2, 2
+worker_slots = 2
+resident_capacity = 0
+worker_supply = 0
+consumes_bread = false
+requests_storage_inputs = false
+internal_construction_site = false
+source_policy = recipe_outputs
+map_color = 204, 154, 92
+construction_labor_minutes = 4320
+
+[construction]
+timber = 12
+tools = 1
+
+[storage]
+grain = 18
+firewood = 6
+bread = 24
+
+[recipe]
+cycle_minutes = 180
+
+[inputs]
+grain = 6
+firewood = 1
+
+[outputs]
+bread = 12

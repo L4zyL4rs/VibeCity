@@ -90,13 +90,16 @@ void print_objectives(const vibecity::VillageObjectiveTracker& objectives)
     }
 }
 
-void print_construction_details(const vibecity::BuildingInstance& building)
+void print_construction_details(
+    const vibecity::Simulation& simulation,
+    const vibecity::BuildingInstance& building)
 {
-    if (building.kind != vibecity::BuildingKind::ConstructionSite || !building.construction_target.has_value()) {
+    if (!simulation.definition(building.kind).internal_construction_site
+        || !building.construction_target.has_value()) {
         return;
     }
 
-    std::cout << " target=" << vibecity::building_kind_name(*building.construction_target)
+    std::cout << " target=" << simulation.definition(*building.construction_target).name
               << " builders=" << building.assigned_builders
               << " labor=" << building.construction_labor_completed
               << "/" << building.construction_labor_required;
@@ -134,12 +137,12 @@ int main()
     std::cout << "day=" << simulation.current_day() << ", tick=" << simulation.current_tick() << "\n\n";
 
     for (const auto& building : simulation.buildings()) {
-        std::cout << "#" << building.id << " " << building_kind_name(building.kind)
+        std::cout << "#" << building.id << " " << simulation.definition(building.kind).name
                   << " workers=" << building.assigned_workers
                   << " residents=" << building.residents
                   << " block=" << blocking_reason_text(building.blocking_reason);
         print_position(building);
-        print_construction_details(building);
+        print_construction_details(simulation, building);
         std::cout << " inventory=[";
         print_inventory(building);
         std::cout << "]\n";

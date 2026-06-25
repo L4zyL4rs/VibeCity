@@ -59,7 +59,7 @@ std::optional<ScreenPoint> building_center_screen(const Simulation& simulation, 
         return std::nullopt;
     }
 
-    const auto footprint = footprint_for(building);
+    const auto footprint = footprint_for(simulation, building);
     return ScreenPoint{
         .x = static_cast<float>(camera.offset_x)
             + (static_cast<float>(building.position->x) + static_cast<float>(footprint.width) * 0.5F)
@@ -72,7 +72,7 @@ std::optional<ScreenPoint> building_center_screen(const Simulation& simulation, 
 
 void draw_construction_progress(SDL_Renderer* renderer, const BuildingInstance& building, const SDL_Rect& rect)
 {
-    if (building.kind != BuildingKind::ConstructionSite || building.construction_labor_required <= 0) {
+    if (!building.construction_target.has_value() || building.construction_labor_required <= 0) {
         return;
     }
 
@@ -122,12 +122,13 @@ SDL_Rect tile_rect(GridPosition position, Footprint footprint, Camera camera)
     };
 }
 
-Footprint footprint_for(const BuildingInstance& building)
+Footprint footprint_for(const Simulation& simulation, const BuildingInstance& building)
 {
-    if (building.kind == BuildingKind::ConstructionSite && building.construction_target.has_value()) {
-        return building_definition(*building.construction_target).footprint;
+    if (simulation.definition(building.kind).internal_construction_site
+        && building.construction_target.has_value()) {
+        return simulation.definition(*building.construction_target).footprint;
     }
-    return building_definition(building.kind).footprint;
+    return simulation.definition(building.kind).footprint;
 }
 
 std::optional<BuildingId> building_at(const Simulation& simulation, GridPosition tile)
@@ -137,7 +138,7 @@ std::optional<BuildingId> building_at(const Simulation& simulation, GridPosition
             continue;
         }
 
-        if (contains(*building.position, footprint_for(building), tile)) {
+        if (contains(*building.position, footprint_for(simulation, building), tile)) {
             return building.id;
         }
     }
@@ -153,7 +154,7 @@ bool can_place_path_preview(const Simulation& simulation, GridPosition tile)
 
 bool can_place_building_preview(const Simulation& simulation, BuildingKind target, GridPosition tile)
 {
-    return simulation.map().can_place_building(tile, building_definition(target).footprint);
+    return simulation.map().can_place_building(tile, simulation.definition(target).footprint);
 }
 
 void draw_world(SDL_Renderer* renderer,
@@ -186,13 +187,13 @@ void draw_world(SDL_Renderer* renderer,
             continue;
         }
 
-        const auto footprint = footprint_for(building);
+        const auto footprint = footprint_for(simulation, building);
         auto rect = tile_rect(*building.position, footprint, camera);
         if (SDL_HasIntersection(&rect, &viewport) == SDL_FALSE) {
             continue;
         }
 
-        set_color(renderer, building_color(building));
+        set_color(renderer, building_color(simulation, building));
         SDL_RenderFillRect(renderer, &rect);
 
         if (building.blocking_reason != BlockingReason::None) {

@@ -24,12 +24,13 @@ The save contains all authoritative gameplay state required for deterministic co
 - active transport jobs and selected route durations
 - accumulated production, consumption, transport, and construction statistics
 - village objective history
+- the simulation-relevant building-definition catalog fingerprint
 
 Saving writes a temporary file and then replaces the previous save. Loading parses and validates a complete replacement session before changing the live game. A failed load leaves the current session untouched.
 
 ## Binary Layout
 
-Version 1 is an explicitly little-endian binary format:
+Version 2 is an explicitly little-endian binary format:
 
 1. Eight-byte `VIBECITY` magic.
 2. Unsigned 32-bit format version.
@@ -38,6 +39,11 @@ Version 1 is an explicitly little-endian binary format:
 5. Versioned payload.
 
 The checksum detects accidental corruption; it is not a security or authenticity mechanism.
+
+Buildings and transport-job resources use stable string IDs in the payload.
+Fixed-size resource arrays remain in the documented core resource order. The
+payload also stores a deterministic fingerprint of every simulation-relevant
+building field.
 
 ## Validation
 
@@ -51,9 +57,14 @@ The loader rejects:
 - inventory quantities or reservations outside capacity
 - transport jobs whose reservations do not match inventories
 - building state that does not match the current building definitions
+- a building-definition catalog fingerprint that differs from the current data
 
 ## Version Policy
 
-There is no migration layer yet. Any incompatible payload or building-definition change must increment the save version and either add an explicit migration or reject older saves with a clear error.
+There is no migration layer yet. Version 1 saves are rejected. Any incompatible
+payload change must increment the save version and either add an explicit
+migration or reject older saves with a clear error. Simulation-relevant building
+definition changes are detected by the catalog fingerprint without silently
+reinterpreting the old economy.
 
 This is intentional for the prototype: silent reinterpretation of economic state would be worse than an explicit incompatibility.

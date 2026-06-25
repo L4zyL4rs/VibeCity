@@ -19,7 +19,7 @@ struct Camera {
 
 [[nodiscard]] GridPosition screen_to_map(int screen_x, int screen_y, Camera camera);
 [[nodiscard]] SDL_Rect tile_rect(GridPosition position, Footprint footprint, Camera camera);
-[[nodiscard]] Footprint footprint_for(const BuildingInstance& building);
+[[nodiscard]] Footprint footprint_for(const Simulation& simulation, const BuildingInstance& building);
 [[nodiscard]] std::optional<BuildingId> building_at(const Simulation& simulation, GridPosition tile);
 [[nodiscard]] bool can_place_path_preview(const Simulation& simulation, GridPosition tile);
 [[nodiscard]] bool can_place_building_preview(const Simulation& simulation, BuildingKind target, GridPosition tile);

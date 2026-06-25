@@ -3,6 +3,8 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
+#include <string>
 #include <string_view>
 
 namespace vibecity {
@@ -45,6 +47,8 @@ constexpr std::string_view resource_name(ResourceId resource)
 {
     return resource_names[resource_index(resource)];
 }
+
+[[nodiscard]] std::optional<ResourceId> resource_id_from_string(std::string_view id);
 
 constexpr ResourceArray empty_resources()
 {

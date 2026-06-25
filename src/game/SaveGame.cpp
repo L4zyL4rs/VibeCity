@@ -7,6 +7,7 @@
 #include <fstream>
 #include <limits>
 #include <stdexcept>
+#include <string>
 #include <system_error>
 #include <type_traits>
 #include <utility>
@@ -18,7 +19,7 @@ namespace {
 constexpr std::array<std::uint8_t, 8> save_magic{
     'V', 'I', 'B', 'E', 'C', 'I', 'T', 'Y'
 };
-constexpr std::uint32_t save_version = 1;
+constexpr std::uint32_t save_version = 2;
 constexpr std::size_t save_header_size = save_magic.size() + sizeof(std::uint32_t)
     + sizeof(std::uint64_t) + sizeof(std::uint64_t);
 constexpr std::uint64_t max_save_bytes = 64 * 1024 * 1024;
@@ -26,6 +27,7 @@ constexpr std::uint32_t max_saved_buildings = 100'000;
 constexpr std::uint32_t max_saved_jobs = 1'000'000;
 constexpr std::int32_t max_map_dimension = 4'096;
 constexpr std::int64_t max_map_tiles = 4'194'304;
+constexpr std::uint32_t max_stable_id_bytes = 128;
 
 class ByteWriter {
 public:
@@ -62,6 +64,15 @@ public:
     void append(const std::vector<std::uint8_t>& bytes)
     {
         bytes_.insert(bytes_.end(), bytes.begin(), bytes.end());
+    }
+
+    void string(std::string_view value)
+    {
+        if (value.size() > max_stable_id_bytes) {
+            throw std::runtime_error("stable ID is too long to save");
+        }
+        u32(static_cast<std::uint32_t>(value.size()));
+        bytes_.insert(bytes_.end(), value.begin(), value.end());
     }
 
     [[nodiscard]] const std::vector<std::uint8_t>& bytes() const
@@ -124,6 +135,21 @@ public:
     [[nodiscard]] std::int64_t i64()
     {
         return std::bit_cast<std::int64_t>(u64());
+    }
+
+    [[nodiscard]] std::string string()
+    {
+        const auto size = u32();
+        if (size > max_stable_id_bytes) {
+            throw std::runtime_error("stable ID is too long in save");
+        }
+        require(size);
+        auto result = std::string{
+            reinterpret_cast<const char*>(bytes_.data() + offset_),
+            size
+        };
+        offset_ += size;
+        return result;
     }
 
     [[nodiscard]] std::size_t offset() const
@@ -230,10 +256,13 @@ Inventory read_inventory(ByteReader& reader)
     });
 }
 
-void write_building(ByteWriter& writer, const BuildingInstance& building)
+void write_building(
+    ByteWriter& writer,
+    const BuildingInstance& building,
+    const BuildingCatalog& catalog)
 {
     writer.u32(building.id);
-    writer.u8(enum_value(building.kind));
+    writer.string(catalog.stable_id(building.kind));
     writer.boolean(building.position.has_value());
     if (building.position.has_value()) {
         writer.i32(building.position->x);
@@ -247,21 +276,22 @@ void write_building(ByteWriter& writer, const BuildingInstance& building)
     writer.i32(building.hunger_days);
     writer.boolean(building.construction_target.has_value());
     if (building.construction_target.has_value()) {
-        writer.u8(enum_value(*building.construction_target));
+        writer.string(catalog.stable_id(*building.construction_target));
     }
     writer.i64(building.construction_labor_required);
     writer.i64(building.construction_labor_completed);
     writer.u8(enum_value(building.blocking_reason));
 }
 
-BuildingInstance read_building(ByteReader& reader)
+BuildingInstance read_building(ByteReader& reader, const BuildingCatalog& catalog)
 {
     auto building = BuildingInstance{};
     building.id = reader.u32();
-    building.kind = read_enum<BuildingKind>(
-        reader,
-        enum_value(BuildingKind::Count),
-        "invalid building kind in save");
+    const auto kind = catalog.find_kind(reader.string());
+    if (!kind.has_value()) {
+        throw std::runtime_error("unknown building stable ID in save");
+    }
+    building.kind = *kind;
     if (reader.boolean()) {
         building.position = GridPosition{
             .x = reader.i32(),
@@ -275,10 +305,11 @@ BuildingInstance read_building(ByteReader& reader)
     building.recipe_progress = reader.i64();
     building.hunger_days = reader.i32();
     if (reader.boolean()) {
-        building.construction_target = read_enum<BuildingKind>(
-            reader,
-            enum_value(BuildingKind::Count),
-            "invalid construction target in save");
+        const auto target = catalog.find_kind(reader.string());
+        if (!target.has_value()) {
+            throw std::runtime_error("unknown construction target stable ID in save");
+        }
+        building.construction_target = *target;
     }
     building.construction_labor_required = reader.i64();
     building.construction_labor_completed = reader.i64();
@@ -292,7 +323,7 @@ BuildingInstance read_building(ByteReader& reader)
 void write_transport_job(ByteWriter& writer, const TransportJob& job)
 {
     writer.u32(job.id);
-    writer.u8(enum_value(job.resource));
+    writer.string(resource_name(job.resource));
     writer.i64(job.quantity);
     writer.u32(job.source);
     writer.u32(job.destination);
@@ -304,12 +335,14 @@ void write_transport_job(ByteWriter& writer, const TransportJob& job)
 
 TransportJob read_transport_job(ByteReader& reader)
 {
+    const auto id = reader.u32();
+    const auto resource = resource_id_from_string(reader.string());
+    if (!resource.has_value()) {
+        throw std::runtime_error("unknown resource stable ID in save");
+    }
     return TransportJob{
-        .id = reader.u32(),
-        .resource = read_enum<ResourceId>(
-            reader,
-            enum_value(ResourceId::Count),
-            "invalid resource in save"),
+        .id = id,
+        .resource = *resource,
         .quantity = reader.i64(),
         .source = reader.u32(),
         .destination = reader.u32(),
@@ -323,8 +356,10 @@ TransportJob read_transport_job(ByteReader& reader)
     };
 }
 
-void write_simulation(ByteWriter& writer, const SimulationState& state)
+void write_simulation(ByteWriter& writer, const Simulation& simulation)
 {
+    const auto state = simulation.state();
+    const auto& catalog = simulation.building_catalog();
     writer.i32(state.map_width);
     writer.i32(state.map_height);
     writer.i64(state.current_tick);
@@ -352,7 +387,7 @@ void write_simulation(ByteWriter& writer, const SimulationState& state)
 
     writer.u32(static_cast<std::uint32_t>(state.buildings.size()));
     for (const auto& building : state.buildings) {
-        write_building(writer, building);
+        write_building(writer, building, catalog);
     }
 
     writer.u32(static_cast<std::uint32_t>(state.transport_jobs.size()));
@@ -361,7 +396,7 @@ void write_simulation(ByteWriter& writer, const SimulationState& state)
     }
 }
 
-SimulationState read_simulation(ByteReader& reader)
+SimulationState read_simulation(ByteReader& reader, const BuildingCatalog& catalog)
 {
     auto state = SimulationState{};
     state.map_width = reader.i32();
@@ -401,7 +436,7 @@ SimulationState read_simulation(ByteReader& reader)
     }
     state.buildings.reserve(building_count);
     for (auto index = std::uint32_t{0}; index < building_count; ++index) {
-        state.buildings.push_back(read_building(reader));
+        state.buildings.push_back(read_building(reader, catalog));
     }
 
     const auto job_count = reader.u32();
@@ -438,7 +473,8 @@ std::vector<std::uint8_t> encode_game(
     const VillageObjectiveTracker& objectives)
 {
     auto payload = ByteWriter{};
-    write_simulation(payload, simulation.state());
+    payload.u64(simulation.building_catalog().fingerprint());
+    write_simulation(payload, simulation);
     write_objectives(payload, objectives.state());
 
     auto file = ByteWriter{};
@@ -455,8 +491,13 @@ std::vector<std::uint8_t> encode_game(
     return file.bytes();
 }
 
-std::pair<Simulation, VillageObjectiveTracker> decode_game(const std::vector<std::uint8_t>& bytes)
+std::pair<Simulation, VillageObjectiveTracker> decode_game(
+    const std::vector<std::uint8_t>& bytes,
+    std::shared_ptr<const BuildingCatalog> catalog)
 {
+    if (catalog == nullptr) {
+        throw std::runtime_error("cannot load without a building catalog");
+    }
     if (bytes.size() < save_header_size || bytes.size() > max_save_bytes) {
         throw std::runtime_error("invalid save file size");
     }
@@ -481,7 +522,10 @@ std::pair<Simulation, VillageObjectiveTracker> decode_game(const std::vector<std
     }
 
     auto payload = ByteReader{bytes, save_header_size};
-    auto simulation = Simulation::from_state(read_simulation(payload));
+    if (payload.u64() != catalog->fingerprint()) {
+        throw std::runtime_error("save uses incompatible building definitions");
+    }
+    auto simulation = Simulation::from_state(read_simulation(payload, *catalog), catalog);
     const auto objective_state = read_objectives(payload);
     payload.require_finished();
 
@@ -566,7 +610,9 @@ SessionIoResult GameSession::save_to_file(const std::filesystem::path& path) con
 SessionIoResult GameSession::load_from_file(const std::filesystem::path& path)
 {
     try {
-        auto [simulation, objectives] = decode_game(read_file(path));
+        auto [simulation, objectives] = decode_game(
+            read_file(path),
+            simulation_.building_catalog_ptr());
         simulation_ = std::move(simulation);
         objectives_ = std::move(objectives);
         return SessionIoResult{

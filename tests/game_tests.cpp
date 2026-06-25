@@ -7,6 +7,8 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <memory>
+#include <string_view>
 #include <vector>
 
 namespace {
@@ -62,6 +64,60 @@ void write_bytes(const std::filesystem::path& path, const std::vector<std::uint8
         reinterpret_cast<const char*>(bytes.data()),
         static_cast<std::streamsize>(bytes.size()));
     VIBECITY_CHECK(output.good());
+}
+
+void write_text(const std::filesystem::path& path, std::string_view text)
+{
+    auto output = std::ofstream{path, std::ios::trunc};
+    VIBECITY_CHECK(output.good());
+    output << text;
+    VIBECITY_CHECK(output.good());
+}
+
+void copy_default_building_definitions(const std::filesystem::path& destination)
+{
+    std::filesystem::create_directories(destination);
+    for (const auto& entry : std::filesystem::directory_iterator("data/buildings")) {
+        if (entry.is_regular_file()) {
+            std::filesystem::copy_file(
+                entry.path(),
+                destination / entry.path().filename(),
+                std::filesystem::copy_options::overwrite_existing);
+        }
+    }
+}
+
+std::string charcoal_kiln_definition(int firewood_output)
+{
+    return std::string{R"([building]
+id = charcoal_kiln
+name = Charcoal Kiln
+footprint = 2, 2
+worker_slots = 1
+resident_capacity = 0
+worker_supply = 0
+consumes_bread = false
+requests_storage_inputs = false
+internal_construction_site = false
+source_policy = recipe_outputs
+map_color = 92, 104, 76
+construction_labor_minutes = 1440
+
+[construction]
+timber = 4
+
+[storage]
+timber = 10
+firewood = 20
+
+[recipe]
+cycle_minutes = 120
+
+[inputs]
+timber = 2
+
+[outputs]
+firewood = )"} + std::to_string(firewood_output) + "\n";
 }
 
 void command_layer_places_path_and_building()
@@ -273,7 +329,7 @@ void invalid_save_is_rejected_without_replacing_session()
 
     auto version = read_bytes(valid_path);
     VIBECITY_CHECK(version.size() > 12);
-    version[8] = 2;
+    version[8] = 3;
     write_bytes(version_path, version);
 
     vibecity::GameSession target;
@@ -299,6 +355,78 @@ void invalid_save_is_rejected_without_replacing_session()
     std::filesystem::remove(valid_path);
     std::filesystem::remove(corrupt_path);
     std::filesystem::remove(version_path);
+}
+
+void external_building_definition_runs_and_persists()
+{
+    const auto root = std::filesystem::temp_directory_path() / "vibecity-building-catalog-test";
+    const auto definitions = root / "definitions";
+    const auto changed_definitions = root / "changed-definitions";
+    const auto malformed_definitions = root / "malformed-definitions";
+    const auto save_path = root / "custom-building.vcs";
+    std::filesystem::remove_all(root);
+
+    copy_default_building_definitions(definitions);
+    write_text(definitions / "06_charcoal_kiln.vbd", charcoal_kiln_definition(4));
+    auto catalog = std::make_shared<const vibecity::BuildingCatalog>(
+        vibecity::BuildingCatalog::load_directory(definitions));
+    const auto kiln_kind = catalog->find_kind("charcoal_kiln");
+    VIBECITY_CHECK(kiln_kind.has_value());
+    VIBECITY_CHECK(static_cast<std::uint8_t>(*kiln_kind) >= vibecity::first_custom_building_kind);
+    VIBECITY_CHECK(catalog->definition(*kiln_kind).name == "Charcoal Kiln");
+
+    vibecity::GameSession game{catalog};
+    const auto house = require_building(game, vibecity::PlaceBuildingCommand{
+        .kind = vibecity::BuildingKind::House,
+        .position = vibecity::GridPosition{1, 1}
+    });
+    const auto kiln = require_building(game, vibecity::PlaceBuildingCommand{
+        .kind = *kiln_kind,
+        .position = vibecity::GridPosition{4, 1}
+    });
+    for (int x = 1; x <= 5; ++x) {
+        require(game, vibecity::PlacePathCommand{
+            .position = vibecity::GridPosition{x, 0}
+        });
+    }
+    require(game, vibecity::SetResidentsCommand{.building = house, .residents = 1});
+    require(game, vibecity::AddInventoryCommand{
+        .building = kiln,
+        .resource = vibecity::ResourceId::Timber,
+        .quantity = 2
+    });
+    require(game, vibecity::AdvanceTimeCommand{.ticks = 120});
+    VIBECITY_CHECK(game.simulation().building(kiln).inventory.quantity(vibecity::ResourceId::Firewood) == 4);
+    VIBECITY_CHECK(game.save_to_file(save_path).success);
+
+    vibecity::GameSession loaded{catalog};
+    VIBECITY_CHECK(loaded.load_from_file(save_path).success);
+    VIBECITY_CHECK(loaded.simulation().building_catalog().stable_id(
+            loaded.simulation().building(kiln).kind)
+        == "charcoal_kiln");
+    VIBECITY_CHECK(loaded.simulation().building(kiln).inventory.quantity(vibecity::ResourceId::Firewood) == 4);
+
+    copy_default_building_definitions(changed_definitions);
+    write_text(changed_definitions / "06_charcoal_kiln.vbd", charcoal_kiln_definition(5));
+    auto changed_catalog = std::make_shared<const vibecity::BuildingCatalog>(
+        vibecity::BuildingCatalog::load_directory(changed_definitions));
+    vibecity::GameSession incompatible{changed_catalog};
+    VIBECITY_CHECK(!incompatible.load_from_file(save_path).success);
+
+    copy_default_building_definitions(malformed_definitions);
+    write_text(
+        malformed_definitions / "06_invalid.vbd",
+        charcoal_kiln_definition(4) + "\n[storage]\nunobtainium = 1\n");
+    auto rejected = false;
+    try {
+        [[maybe_unused]] const auto malformed =
+            vibecity::BuildingCatalog::load_directory(malformed_definitions);
+    } catch (const std::exception&) {
+        rejected = true;
+    }
+    VIBECITY_CHECK(rejected);
+
+    std::filesystem::remove_all(root);
 }
 
 void self_sufficient_village_reaches_25_residents()
@@ -366,6 +494,7 @@ int main()
     save_load_round_trip_preserves_deterministic_session();
     save_load_preserves_objective_history();
     invalid_save_is_rejected_without_replacing_session();
+    external_building_definition_runs_and_persists();
     self_sufficient_village_reaches_25_residents();
 
     std::cout << "game tests passed\n";

@@ -1,0 +1,13 @@
+[building]
+id = construction_site
+name = Construction Site
+footprint = 1, 1
+worker_slots = 0
+resident_capacity = 0
+worker_supply = 0
+consumes_bread = false
+requests_storage_inputs = false
+internal_construction_site = true
+source_policy = none
+map_color = 180, 150, 76
+construction_labor_minutes = 0

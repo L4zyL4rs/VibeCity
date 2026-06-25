@@ -1,0 +1,19 @@
+[building]
+id = house
+name = House
+footprint = 1, 1
+worker_slots = 0
+resident_capacity = 5
+worker_supply = 3
+consumes_bread = true
+requests_storage_inputs = false
+internal_construction_site = false
+source_policy = none
+map_color = 116, 148, 176
+construction_labor_minutes = 1440
+
+[construction]
+timber = 8
+
+[storage]
+bread = 10

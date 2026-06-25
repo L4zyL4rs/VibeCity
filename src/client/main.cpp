@@ -38,14 +38,16 @@ using vibecity::client::target_kind_for_mode;
 constexpr int initial_window_width = 1280;
 constexpr int initial_window_height = 800;
 
-std::optional<vibecity::Footprint> preview_footprint_for_mode(ClientMode mode)
+std::optional<vibecity::Footprint> preview_footprint_for_mode(
+    const vibecity::Simulation& simulation,
+    ClientMode mode)
 {
     if (mode == ClientMode::PlacePath) {
         return vibecity::Footprint{1, 1};
     }
 
     if (const auto target = target_kind_for_mode(mode)) {
-        return vibecity::building_definition(*target).footprint;
+        return simulation.definition(*target).footprint;
     }
 
     return std::nullopt;
@@ -70,7 +72,7 @@ void draw_mode_placement_preview(SDL_Renderer* renderer,
     ClientMode mode,
     std::optional<vibecity::GridPosition> hover_tile)
 {
-    const auto footprint = preview_footprint_for_mode(mode);
+    const auto footprint = preview_footprint_for_mode(simulation, mode);
     const auto valid = hover_tile.has_value() && can_place_preview(simulation, mode, *hover_tile);
     draw_placement_preview(renderer, camera, hover_tile, footprint, valid);
 }

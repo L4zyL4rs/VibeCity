@@ -22,11 +22,6 @@ bool has_any(const ResourceArray& amounts)
     });
 }
 
-bool recipe_outputs_resource(const BuildingDefinition& definition, ResourceId resource)
-{
-    return definition.recipe.has_value() && definition.recipe->outputs[resource_index(resource)] > 0;
-}
-
 bool request_order(const ResourceRequest& left, const ResourceRequest& right)
 {
     return std::tuple{-left.priority, left.destination, resource_index(left.resource)}
@@ -42,11 +37,23 @@ bool shares_component(const std::vector<int>& left, const std::vector<int>& righ
 
 }
 
+Simulation::Simulation(std::shared_ptr<const BuildingCatalog> catalog)
+    : catalog_(std::move(catalog))
+{
+    if (catalog_ == nullptr) {
+        throw std::invalid_argument("simulation requires a building catalog");
+    }
+}
+
 BuildingId Simulation::add_building(BuildingKind kind)
 {
+    const auto& building = definition(kind);
+    if (building.internal_construction_site) {
+        throw std::invalid_argument("construction site cannot be placed as a completed building");
+    }
     const auto id = next_building_id_++;
-    auto instance = make_building(id, kind);
-    instance.position = auto_place_building(id, building_definition(kind).footprint);
+    auto instance = make_building(id, building);
+    instance.position = auto_place_building(id, building.footprint);
     buildings_.push_back(instance);
     worker_assignment_dirty_ = true;
     return id;
@@ -54,14 +61,18 @@ BuildingId Simulation::add_building(BuildingKind kind)
 
 BuildingId Simulation::add_building_at(BuildingKind kind, GridPosition position)
 {
-    const auto footprint = building_definition(kind).footprint;
+    const auto& building = definition(kind);
+    if (building.internal_construction_site) {
+        throw std::invalid_argument("construction site cannot be placed as a completed building");
+    }
+    const auto footprint = building.footprint;
     if (!map_.can_place_building(position, footprint)) {
         throw std::invalid_argument("building cannot be placed at requested position");
     }
 
     const auto id = next_building_id_++;
     map_.place_building(id, position, footprint);
-    auto instance = make_building(id, kind);
+    auto instance = make_building(id, building);
     instance.position = position;
     buildings_.push_back(instance);
     worker_assignment_dirty_ = true;
@@ -70,31 +81,39 @@ BuildingId Simulation::add_building_at(BuildingKind kind, GridPosition position)
 
 BuildingId Simulation::place_construction(BuildingKind target_kind)
 {
-    if (target_kind == BuildingKind::ConstructionSite) {
+    const auto& target = definition(target_kind);
+    if (target.internal_construction_site) {
         throw std::invalid_argument("construction site cannot target another construction site");
     }
 
     const auto id = next_building_id_++;
-    auto site = make_construction_site(id, target_kind);
-    site.position = auto_place_building(id, building_definition(target_kind).footprint);
+    auto site = make_construction_site(
+        id,
+        definition(BuildingKind::ConstructionSite),
+        target);
+    site.position = auto_place_building(id, target.footprint);
     buildings_.push_back(site);
     return id;
 }
 
 BuildingId Simulation::place_construction_at(BuildingKind target_kind, GridPosition position)
 {
-    if (target_kind == BuildingKind::ConstructionSite) {
+    const auto& target = definition(target_kind);
+    if (target.internal_construction_site) {
         throw std::invalid_argument("construction site cannot target another construction site");
     }
 
-    const auto footprint = building_definition(target_kind).footprint;
+    const auto footprint = target.footprint;
     if (!map_.can_place_building(position, footprint)) {
         throw std::invalid_argument("construction site cannot be placed at requested position");
     }
 
     const auto id = next_building_id_++;
     map_.place_building(id, position, footprint);
-    auto site = make_construction_site(id, target_kind);
+    auto site = make_construction_site(
+        id,
+        definition(BuildingKind::ConstructionSite),
+        target);
     site.position = position;
     buildings_.push_back(site);
     return id;
@@ -133,6 +152,16 @@ const TileMap& Simulation::map() const
     return map_;
 }
 
+const BuildingCatalog& Simulation::building_catalog() const
+{
+    return *catalog_;
+}
+
+std::shared_ptr<const BuildingCatalog> Simulation::building_catalog_ptr() const
+{
+    return catalog_;
+}
+
 bool Simulation::add_path(GridPosition position)
 {
     const auto added = map_.add_path(position);
@@ -145,8 +174,8 @@ bool Simulation::add_path(GridPosition position)
 void Simulation::set_residents(BuildingId id, int residents)
 {
     auto& instance = building(id);
-    const auto& definition = building_definition(instance.kind);
-    instance.residents = std::clamp(residents, 0, definition.resident_capacity);
+    const auto& building = definition(instance.kind);
+    instance.residents = std::clamp(residents, 0, building.resident_capacity);
     worker_assignment_dirty_ = true;
 }
 
@@ -170,8 +199,8 @@ void Simulation::assign_workers()
     auto worker_pools = std::vector<WorkerPool>{};
     auto workplace_count = std::size_t{0};
     for (const auto& instance : buildings_) {
-        const auto& definition = building_definition(instance.kind);
-        const auto available_workers = std::min(definition.worker_supply, instance.residents);
+        const auto& building = definition(instance.kind);
+        const auto available_workers = std::min(building.worker_supply, instance.residents);
         if (available_workers > 0) {
             worker_pools.push_back(WorkerPool{
                 .house = &instance,
@@ -179,7 +208,7 @@ void Simulation::assign_workers()
                 .path_components = {}
             });
         }
-        if (definition.worker_slots > 0) {
+        if (building.worker_slots > 0) {
             ++workplace_count;
         }
     }
@@ -199,12 +228,12 @@ void Simulation::assign_workers()
     }
 
     for (auto& instance : buildings_) {
-        const auto& definition = building_definition(instance.kind);
-        if (definition.worker_slots <= 0) {
+        const auto& building = definition(instance.kind);
+        if (building.worker_slots <= 0) {
             continue;
         }
 
-        auto remaining_slots = definition.worker_slots;
+        auto remaining_slots = building.worker_slots;
         const auto workplace_components = use_path_connectivity && instance.position.has_value()
             ? path_connectivity->components_touching_building(
                 *instance.position,
@@ -309,7 +338,7 @@ int Simulation::total_housing_capacity() const
 {
     auto capacity = 0;
     for (const auto& instance : buildings_) {
-        capacity += building_definition(instance.kind).resident_capacity;
+        capacity += definition(instance.kind).resident_capacity;
     }
     return capacity;
 }
@@ -323,8 +352,8 @@ Quantity Simulation::daily_bread_need() const
 {
     auto need = Quantity{0};
     for (const auto& instance : buildings_) {
-        const auto& definition = building_definition(instance.kind);
-        if (definition.consumes_bread) {
+        const auto& building = definition(instance.kind);
+        if (building.consumes_bread) {
             need += static_cast<Quantity>(instance.residents);
         }
     }
@@ -372,7 +401,7 @@ ConstructionSummary Simulation::construction_summary() const
 {
     auto summary = ConstructionSummary{};
     for (const auto& instance : buildings_) {
-        if (instance.kind != BuildingKind::ConstructionSite) {
+        if (!definition(instance.kind).internal_construction_site) {
             continue;
         }
 
@@ -502,11 +531,11 @@ GridPosition Simulation::auto_place_building(BuildingId id, Footprint footprint)
 
 Footprint Simulation::footprint_for(const BuildingInstance& building) const
 {
-    if (building.kind == BuildingKind::ConstructionSite && building.construction_target.has_value()) {
-        return building_definition(*building.construction_target).footprint;
+    if (definition(building.kind).internal_construction_site && building.construction_target.has_value()) {
+        return definition(*building.construction_target).footprint;
     }
 
-    return building_definition(building.kind).footprint;
+    return definition(building.kind).footprint;
 }
 
 std::optional<Tick> Simulation::transport_minutes_if_connected(const BuildingInstance& source,
@@ -532,13 +561,13 @@ std::optional<Tick> Simulation::transport_minutes_if_connected(const BuildingIns
 void Simulation::run_production()
 {
     for (auto& instance : buildings_) {
-        const auto& definition = building_definition(instance.kind);
-        if (!definition.recipe.has_value()) {
+        const auto& building = definition(instance.kind);
+        if (!building.recipe.has_value()) {
             continue;
         }
 
-        const auto& recipe = *definition.recipe;
-        if (definition.worker_slots > 0 && instance.assigned_workers < definition.worker_slots) {
+        const auto& recipe = *building.recipe;
+        if (building.worker_slots > 0 && instance.assigned_workers < building.worker_slots) {
             instance.blocking_reason = BlockingReason::NotEnoughWorkers;
             continue;
         }
@@ -685,7 +714,7 @@ void Simulation::run_construction()
 
     for (auto& site : buildings_) {
         site.assigned_builders = 0;
-        if (site.kind != BuildingKind::ConstructionSite) {
+        if (!definition(site.kind).internal_construction_site) {
             continue;
         }
 
@@ -722,8 +751,8 @@ void Simulation::run_construction()
 void Simulation::consume_daily_bread()
 {
     for (auto& instance : buildings_) {
-        const auto& definition = building_definition(instance.kind);
-        if (!definition.consumes_bread || instance.residents <= 0) {
+        const auto& building = definition(instance.kind);
+        if (!building.consumes_bread || instance.residents <= 0) {
             continue;
         }
 
@@ -755,12 +784,12 @@ void Simulation::grow_population()
             break;
         }
 
-        const auto& definition = building_definition(instance.kind);
-        if (!definition.consumes_bread || instance.residents >= definition.resident_capacity) {
+        const auto& building = definition(instance.kind);
+        if (!building.consumes_bread || instance.residents >= building.resident_capacity) {
             continue;
         }
 
-        const auto added = std::min(immigrants_remaining, definition.resident_capacity - instance.residents);
+        const auto added = std::min(immigrants_remaining, building.resident_capacity - instance.residents);
         instance.residents += added;
         immigrants_remaining -= added;
         worker_assignment_dirty_ = true;
@@ -772,10 +801,10 @@ std::vector<ResourceRequest> Simulation::collect_resource_requests() const
     auto requests = std::vector<ResourceRequest>{};
 
     for (const auto& instance : buildings_) {
-        const auto& definition = building_definition(instance.kind);
+        const auto& building = definition(instance.kind);
 
-        if (instance.kind == BuildingKind::ConstructionSite && instance.construction_target.has_value()) {
-            const auto& target = building_definition(*instance.construction_target);
+        if (building.internal_construction_site && instance.construction_target.has_value()) {
+            const auto& target = definition(*instance.construction_target);
             for (std::size_t index = 0; index < resource_count; ++index) {
                 const auto required = target.construction_materials[index];
                 if (required <= 0) {
@@ -796,7 +825,7 @@ std::vector<ResourceRequest> Simulation::collect_resource_requests() const
             continue;
         }
 
-        if (definition.consumes_bread && instance.residents > 0) {
+        if (building.consumes_bread && instance.residents > 0) {
             const auto projected_bread = projected_quantity(instance, ResourceId::Bread);
             if (projected_bread < house_bread_target) {
                 requests.push_back(ResourceRequest{
@@ -808,8 +837,8 @@ std::vector<ResourceRequest> Simulation::collect_resource_requests() const
             }
         }
 
-        if (definition.recipe.has_value()) {
-            const auto& recipe = *definition.recipe;
+        if (building.recipe.has_value()) {
+            const auto& recipe = *building.recipe;
             for (std::size_t index = 0; index < resource_count; ++index) {
                 const auto resource = static_cast<ResourceId>(index);
                 if (recipe.inputs[index] <= 0) {
@@ -829,7 +858,7 @@ std::vector<ResourceRequest> Simulation::collect_resource_requests() const
             }
         }
 
-        if (instance.kind == BuildingKind::Storehouse) {
+        if (building.requests_storage_inputs) {
             for (std::size_t index = 0; index < resource_count; ++index) {
                 const auto resource = static_cast<ResourceId>(index);
                 const auto target = instance.inventory.capacity(resource);
@@ -915,19 +944,7 @@ std::optional<Simulation::SourceSelection> Simulation::find_source_for_request(
 
 bool Simulation::can_source_resource(const BuildingInstance& source, ResourceId resource) const
 {
-    if (source.kind == BuildingKind::House) {
-        return false;
-    }
-
-    if (source.kind == BuildingKind::ConstructionSite) {
-        return false;
-    }
-
-    if (source.kind == BuildingKind::Storehouse) {
-        return true;
-    }
-
-    return recipe_outputs_resource(building_definition(source.kind), resource);
+    return (source.source_mask & (std::uint8_t{1} << resource_index(resource))) != 0;
 }
 
 Quantity Simulation::projected_quantity(const BuildingInstance& building, ResourceId resource) const
@@ -937,11 +954,11 @@ Quantity Simulation::projected_quantity(const BuildingInstance& building, Resour
 
 bool Simulation::construction_materials_delivered(const BuildingInstance& site) const
 {
-    if (site.kind != BuildingKind::ConstructionSite || !site.construction_target.has_value()) {
+    if (!definition(site.kind).internal_construction_site || !site.construction_target.has_value()) {
         return false;
     }
 
-    const auto& target = building_definition(*site.construction_target);
+    const auto& target = definition(*site.construction_target);
     for (std::size_t index = 0; index < resource_count; ++index) {
         const auto required = target.construction_materials[index];
         if (required > 0 && site.inventory.quantity(static_cast<ResourceId>(index)) < required) {
@@ -984,14 +1001,14 @@ bool Simulation::create_transport_job(
 
 void Simulation::complete_construction(BuildingInstance& site)
 {
-    if (site.kind != BuildingKind::ConstructionSite || !site.construction_target.has_value()) {
+    if (!definition(site.kind).internal_construction_site || !site.construction_target.has_value()) {
         return;
     }
 
     const auto target = *site.construction_target;
     const auto id = site.id;
     const auto position = site.position;
-    site = make_building(id, target);
+    site = make_building(id, definition(target));
     site.position = position;
     ++stats_.constructed_buildings;
     worker_assignment_dirty_ = true;
