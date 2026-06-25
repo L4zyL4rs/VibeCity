@@ -85,6 +85,7 @@ struct SimulationState {
     int map_width = 128;
     int map_height = 128;
     std::vector<GridPosition> paths;
+    std::vector<MapResourceDeposit> map_resources;
     std::vector<BuildingInstance> buildings;
     std::vector<TransportJob> transport_jobs;
     BuildingId next_building_id = 1;
@@ -118,6 +119,7 @@ public:
     }
 
     bool add_path(GridPosition position);
+    bool set_map_resource(GridPosition position, MapResourceId resource, Quantity quantity);
     void set_residents(BuildingId id, int residents);
     void mark_worker_assignment_dirty();
     void assign_workers();

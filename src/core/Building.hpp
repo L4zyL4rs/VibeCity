@@ -38,7 +38,8 @@ enum class BlockingReason : std::uint8_t {
     WaitingForHauler,
     NoReachableSource,
     MissingConstructionMaterial,
-    WaitingForBuilderLabor
+    WaitingForBuilderLabor,
+    NoNearbyMapResource
 };
 
 enum class ResourceSourcePolicy : std::uint8_t {
@@ -51,6 +52,12 @@ struct Recipe {
     ResourceArray inputs{};
     ResourceArray outputs{};
     Tick cycle_minutes = 0;
+};
+
+struct GatheringRule {
+    MapResourceId resource = MapResourceId::Forest;
+    int radius = 0;
+    Quantity units_per_cycle = 0;
 };
 
 struct BuildingDefinition {
@@ -66,6 +73,7 @@ struct BuildingDefinition {
     Tick construction_labor_minutes = 0;
     ResourceArray storage{};
     std::optional<Recipe> recipe;
+    std::optional<GatheringRule> gathering;
     ResourceSourcePolicy source_policy = ResourceSourcePolicy::None;
     bool requests_storage_inputs = false;
     bool internal_construction_site = false;

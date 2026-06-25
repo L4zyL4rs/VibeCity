@@ -90,6 +90,8 @@ std::string_view blocking_reason_text(BlockingReason reason)
         return "missing construction material";
     case BlockingReason::WaitingForBuilderLabor:
         return "waiting for builder labor";
+    case BlockingReason::NoNearbyMapResource:
+        return "no nearby map resource";
     }
     return "unknown";
 }

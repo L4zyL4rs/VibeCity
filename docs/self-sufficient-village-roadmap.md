@@ -505,3 +505,10 @@ Done when:
 Run the updated playtest from `docs/playtest-checklist.md` and verify that cargo
 can be followed along roads and that the `16 / 17` growth reserve explains the
 single-chain population ceiling.
+
+## Follow-On Milestone
+
+The self-sufficient village is now feeding into
+`docs/physical-resource-roadmap.md`. Forests are the first finite map resource:
+woodcutters require nearby trees, selection shows their collection area, and
+depletion persists through save/load.

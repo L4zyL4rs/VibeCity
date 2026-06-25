@@ -152,6 +152,11 @@ std::string operation_summary_text(const BuildingDefinition& definition)
     if (definition.recipe.has_value()) {
         auto output = std::ostringstream{};
         auto wrote_input = false;
+        if (definition.gathering.has_value()) {
+            output << "HARVESTS "
+                   << uppercase(map_resource_name(definition.gathering->resource));
+            wrote_input = true;
+        }
         for (std::size_t index = 0; index < resource_count; ++index) {
             const auto amount = definition.recipe->inputs[index];
             if (amount <= 0) {

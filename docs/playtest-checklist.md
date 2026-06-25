@@ -95,6 +95,10 @@ When I ask for detailed input, please report these points:
   source building to its destination, including short trips?
 - Growth ceiling: when one bakery settles at 16 residents, does the displayed
   bread reserve make the missing surplus clear?
+- Forests: when selecting a woodcutter, is its collection radius and remaining
+  local forest supply understandable?
+- Depletion: after several production cycles, can you identify which nearby
+  forest tiles were consumed?
 - Construction: could you tell which site was next and whether builders were working?
 - Pacing: which speed did you use, and where did waiting feel too slow or too fast?
 - Controls: any accidental mode switches, placement mistakes, camera issues, or unclear buttons.

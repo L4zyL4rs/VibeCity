@@ -14,6 +14,9 @@ playable simulation target.
 See [docs/self-sufficient-village-roadmap.md](docs/self-sufficient-village-roadmap.md)
 for the next implementation roadmap.
 
+See [docs/physical-resource-roadmap.md](docs/physical-resource-roadmap.md) for
+the current map-resource milestone.
+
 See [docs/playtest-checklist.md](docs/playtest-checklist.md) for the current
 village playtest script and feedback checklist.
 

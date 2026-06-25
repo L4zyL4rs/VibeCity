@@ -19,7 +19,7 @@ namespace {
 constexpr std::array<std::uint8_t, 8> save_magic{
     'V', 'I', 'B', 'E', 'C', 'I', 'T', 'Y'
 };
-constexpr std::uint32_t save_version = 2;
+constexpr std::uint32_t save_version = 3;
 constexpr std::size_t save_header_size = save_magic.size() + sizeof(std::uint32_t)
     + sizeof(std::uint64_t) + sizeof(std::uint64_t);
 constexpr std::uint64_t max_save_bytes = 64 * 1024 * 1024;
@@ -315,7 +315,7 @@ BuildingInstance read_building(ByteReader& reader, const BuildingCatalog& catalo
     building.construction_labor_completed = reader.i64();
     building.blocking_reason = read_enum<BlockingReason>(
         reader,
-        enum_value(BlockingReason::WaitingForBuilderLabor) + 1,
+        enum_value(BlockingReason::NoNearbyMapResource) + 1,
         "invalid blocking reason in save");
     return building;
 }
@@ -374,6 +374,7 @@ void write_simulation(ByteWriter& writer, const Simulation& simulation)
     writer.i32(state.stats.constructed_buildings);
 
     if (state.paths.size() > std::numeric_limits<std::uint32_t>::max()
+        || state.map_resources.size() > std::numeric_limits<std::uint32_t>::max()
         || state.buildings.size() > max_saved_buildings
         || state.transport_jobs.size() > max_saved_jobs) {
         throw std::runtime_error("game state is too large to save");
@@ -383,6 +384,14 @@ void write_simulation(ByteWriter& writer, const Simulation& simulation)
     for (const auto path : state.paths) {
         writer.i32(path.x);
         writer.i32(path.y);
+    }
+
+    writer.u32(static_cast<std::uint32_t>(state.map_resources.size()));
+    for (const auto& deposit : state.map_resources) {
+        writer.i32(deposit.position.x);
+        writer.i32(deposit.position.y);
+        writer.string(map_resource_name(deposit.resource));
+        writer.i64(deposit.quantity);
     }
 
     writer.u32(static_cast<std::uint32_t>(state.buildings.size()));
@@ -427,6 +436,27 @@ SimulationState read_simulation(ByteReader& reader, const BuildingCatalog& catal
         state.paths.push_back(GridPosition{
             .x = reader.i32(),
             .y = reader.i32()
+        });
+    }
+
+    const auto map_resource_count = reader.u32();
+    if (map_resource_count > static_cast<std::uint64_t>(map_tiles)) {
+        throw std::runtime_error("invalid map resource count in save");
+    }
+    state.map_resources.reserve(map_resource_count);
+    for (auto index = std::uint32_t{0}; index < map_resource_count; ++index) {
+        const auto position = GridPosition{
+            .x = reader.i32(),
+            .y = reader.i32()
+        };
+        const auto resource = map_resource_id_from_string(reader.string());
+        if (!resource.has_value()) {
+            throw std::runtime_error("unknown map resource stable ID in save");
+        }
+        state.map_resources.push_back(MapResourceDeposit{
+            .position = position,
+            .resource = *resource,
+            .quantity = reader.i64()
         });
     }
 

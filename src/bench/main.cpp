@@ -6,6 +6,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <string_view>
+#include <vector>
 
 namespace {
 
@@ -17,6 +18,8 @@ struct BenchmarkResult {
     std::size_t buildings = 0;
     std::size_t active_transport_jobs = 0;
     vibecity::Quantity transported = 0;
+    std::size_t map_resource_tiles = 0;
+    vibecity::Quantity map_resource_quantity = 0;
     int constructed = 0;
 };
 
@@ -50,6 +53,16 @@ vibecity::Quantity total_transported(const vibecity::ResourceStats& stats)
     auto total = vibecity::Quantity{0};
     for (const auto quantity : stats.transported) {
         total += quantity;
+    }
+    return total;
+}
+
+vibecity::Quantity total_map_resource_quantity(
+    const std::vector<vibecity::MapResourceDeposit>& deposits)
+{
+    auto total = vibecity::Quantity{0};
+    for (const auto& deposit : deposits) {
+        total += deposit.quantity;
     }
     return total;
 }
@@ -156,6 +169,7 @@ BenchmarkResult run_case(std::string_view name, vibecity::Tick ticks, Setup setu
 
     const auto elapsed = std::chrono::duration<double, std::milli>(ended - started).count();
     const auto& simulation = game.simulation();
+    const auto map_resources = simulation.map().map_resource_deposits();
     return BenchmarkResult{
         .name = name,
         .ticks = ticks,
@@ -164,6 +178,8 @@ BenchmarkResult run_case(std::string_view name, vibecity::Tick ticks, Setup setu
         .buildings = simulation.buildings().size(),
         .active_transport_jobs = simulation.transport_jobs().size(),
         .transported = total_transported(simulation.stats()),
+        .map_resource_tiles = map_resources.size(),
+        .map_resource_quantity = total_map_resource_quantity(map_resources),
         .constructed = simulation.stats().constructed_buildings
     };
 }
@@ -177,13 +193,15 @@ void print_result(const BenchmarkResult& result)
               << " buildings=" << std::setw(4) << result.buildings
               << " jobs=" << std::setw(3) << result.active_transport_jobs
               << " transported=" << std::setw(6) << result.transported
+              << " resource_tiles=" << std::setw(5) << result.map_resource_tiles
+              << " resources=" << std::setw(6) << result.map_resource_quantity
               << " constructed=" << std::setw(3) << result.constructed
               << "\n";
 }
 
 void print_csv_header()
 {
-    std::cout << "case,ticks,milliseconds,ticks_per_second,buildings,active_transport_jobs,transported,constructed\n";
+    std::cout << "case,ticks,milliseconds,ticks_per_second,buildings,active_transport_jobs,transported,map_resource_tiles,map_resource_quantity,constructed\n";
 }
 
 void print_csv_result(const BenchmarkResult& result)
@@ -195,6 +213,8 @@ void print_csv_result(const BenchmarkResult& result)
               << "," << result.buildings
               << "," << result.active_transport_jobs
               << "," << result.transported
+              << "," << result.map_resource_tiles
+              << "," << result.map_resource_quantity
               << "," << result.constructed
               << "\n";
 }

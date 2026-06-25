@@ -16,6 +16,24 @@ constexpr std::array<GridPosition, 4> neighbor_offsets{{
     GridPosition{0, -1}
 }};
 
+std::uint32_t tile_hash(GridPosition position)
+{
+    auto value = static_cast<std::uint32_t>(position.x) * 0x9e3779b9U;
+    value ^= static_cast<std::uint32_t>(position.y) * 0x85ebca6bU;
+    value ^= value >> 16U;
+    value *= 0x7feb352dU;
+    value ^= value >> 15U;
+    return value;
+}
+
+}
+
+std::optional<MapResourceId> map_resource_id_from_string(std::string_view id)
+{
+    if (id == map_resource_name(MapResourceId::Forest)) {
+        return MapResourceId::Forest;
+    }
+    return std::nullopt;
 }
 
 std::optional<int> PathDistanceField::distance_to_building(GridPosition position, Footprint footprint) const
@@ -152,6 +170,7 @@ TileMap::TileMap(int width, int height)
     width_ = width;
     height_ = height;
     tiles_.resize(static_cast<std::size_t>(width_ * height_));
+    map_resource_tiles_.resize(tiles_.size());
 }
 
 int TileMap::width() const
@@ -186,6 +205,102 @@ std::vector<GridPosition> TileMap::path_positions() const
         }
     }
     return result;
+}
+
+std::optional<MapResourceId> TileMap::map_resource_at(GridPosition position) const
+{
+    if (!in_bounds(position)) {
+        return std::nullopt;
+    }
+    const auto resource = map_resource_tile(position).resource;
+    return resource == MapResourceId::Count
+        ? std::nullopt
+        : std::optional<MapResourceId>{resource};
+}
+
+Quantity TileMap::map_resource_quantity(GridPosition position) const
+{
+    if (!in_bounds(position)) {
+        return 0;
+    }
+    return map_resource_tile(position).resource_quantity;
+}
+
+std::vector<MapResourceDeposit> TileMap::map_resource_deposits() const
+{
+    auto result = std::vector<MapResourceDeposit>{};
+    for (int y = 0; y < height_; ++y) {
+        for (int x = 0; x < width_; ++x) {
+            const auto position = GridPosition{x, y};
+            const auto& current = map_resource_tile(position);
+            if (current.resource != MapResourceId::Count && current.resource_quantity > 0) {
+                result.push_back(MapResourceDeposit{
+                    .position = position,
+                    .resource = current.resource,
+                    .quantity = current.resource_quantity
+                });
+            }
+        }
+    }
+    return result;
+}
+
+std::vector<GridPosition> TileMap::tiles_within_radius(
+    GridPosition position,
+    Footprint footprint,
+    int radius) const
+{
+    auto result = std::vector<GridPosition>{};
+    if (footprint.width <= 0 || footprint.height <= 0 || radius < 0) {
+        return result;
+    }
+
+    const auto first_x = std::clamp(position.x - radius, 0, width_);
+    const auto first_y = std::clamp(position.y - radius, 0, height_);
+    const auto end_x = std::clamp(position.x + footprint.width + radius, 0, width_);
+    const auto end_y = std::clamp(position.y + footprint.height + radius, 0, height_);
+    if (first_x >= end_x || first_y >= end_y) {
+        return result;
+    }
+    result.reserve(static_cast<std::size_t>((end_x - first_x) * (end_y - first_y)));
+    for (int y = first_y; y < end_y; ++y) {
+        for (int x = first_x; x < end_x; ++x) {
+            const auto current = GridPosition{x, y};
+            if (distance_to_footprint(current, position, footprint) <= radius) {
+                result.push_back(current);
+            }
+        }
+    }
+    return result;
+}
+
+Quantity TileMap::map_resource_quantity_within_radius(
+    GridPosition position,
+    Footprint footprint,
+    MapResourceId resource,
+    int radius) const
+{
+    auto quantity = Quantity{0};
+    for (const auto current : tiles_within_radius(position, footprint, radius)) {
+        const auto& current_tile = map_resource_tile(current);
+        if (current_tile.resource == resource) {
+            quantity += current_tile.resource_quantity;
+        }
+    }
+    return quantity;
+}
+
+bool TileMap::footprint_has_map_resource(GridPosition position, Footprint footprint) const
+{
+    for (int y = position.y; y < position.y + footprint.height; ++y) {
+        for (int x = position.x; x < position.x + footprint.width; ++x) {
+            const auto current = GridPosition{x, y};
+            if (in_bounds(current) && map_resource_tile(current).resource_quantity > 0) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 bool TileMap::can_place_building(GridPosition position, Footprint footprint) const
@@ -431,6 +546,110 @@ std::vector<GridPosition> TileMap::path_between_buildings(
     return {};
 }
 
+void TileMap::generate_default_map_resources()
+{
+    constexpr auto grove_spacing = 16;
+    constexpr auto grove_offset = 8;
+    constexpr auto grove_radius = 5;
+    constexpr auto grove_radius_squared = grove_radius * grove_radius;
+
+    for (int center_y = grove_offset; center_y < height_; center_y += grove_spacing) {
+        for (int center_x = grove_offset; center_x < width_; center_x += grove_spacing) {
+            for (int y = center_y - grove_radius; y <= center_y + grove_radius; ++y) {
+                for (int x = center_x - grove_radius; x <= center_x + grove_radius; ++x) {
+                    const auto position = GridPosition{x, y};
+                    const auto dx = x - center_x;
+                    const auto dy = y - center_y;
+                    if (!in_bounds(position)
+                        || dx * dx + dy * dy > grove_radius_squared
+                        || tile_hash(position) % 11U == 0U) {
+                        continue;
+                    }
+                    set_map_resource(
+                        position,
+                        MapResourceId::Forest,
+                        forest_tile_capacity);
+                }
+            }
+        }
+    }
+}
+
+bool TileMap::set_map_resource(
+    GridPosition position,
+    MapResourceId resource,
+    Quantity quantity)
+{
+    if (!in_bounds(position)
+        || resource == MapResourceId::Count
+        || quantity < 0
+        || quantity > map_resource_capacity(resource)) {
+        return false;
+    }
+
+    const auto& map_tile = tile(position);
+    if (map_tile.path || map_tile.occupant.has_value()) {
+        return false;
+    }
+    auto& current = map_resource_tile(position);
+    if (quantity == 0) {
+        current.resource = MapResourceId::Count;
+        current.resource_quantity = 0;
+        return true;
+    }
+
+    current.resource = resource;
+    current.resource_quantity = static_cast<std::uint8_t>(quantity);
+    return true;
+}
+
+bool TileMap::harvest_map_resource_within_radius(
+    GridPosition position,
+    Footprint footprint,
+    MapResourceId resource,
+    int radius,
+    Quantity quantity)
+{
+    if (quantity <= 0
+        || map_resource_quantity_within_radius(position, footprint, resource, radius) < quantity) {
+        return false;
+    }
+
+    auto candidates = tiles_within_radius(position, footprint, radius);
+    std::sort(candidates.begin(), candidates.end(), [&](GridPosition left, GridPosition right) {
+        return std::tuple{
+            distance_to_footprint(left, position, footprint),
+            left.y,
+            left.x
+        } < std::tuple{
+            distance_to_footprint(right, position, footprint),
+            right.y,
+            right.x
+        };
+    });
+
+    auto remaining = quantity;
+    for (const auto candidate : candidates) {
+        auto& current = map_resource_tile(candidate);
+        if (current.resource != resource || current.resource_quantity <= 0) {
+            continue;
+        }
+
+        const auto harvested = std::min(
+            remaining,
+            static_cast<Quantity>(current.resource_quantity));
+        current.resource_quantity -= static_cast<std::uint8_t>(harvested);
+        remaining -= harvested;
+        if (current.resource_quantity == 0) {
+            current.resource = MapResourceId::Count;
+        }
+        if (remaining == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool TileMap::add_path(GridPosition position)
 {
     if (!in_bounds(position)) {
@@ -443,6 +662,9 @@ bool TileMap::add_path(GridPosition position)
     }
 
     path_tile.path = true;
+    auto& resource_tile = map_resource_tile(position);
+    resource_tile.resource = MapResourceId::Count;
+    resource_tile.resource_quantity = 0;
     return true;
 }
 
@@ -454,7 +676,11 @@ bool TileMap::place_building(MapOccupantId id, GridPosition position, Footprint 
 
     for (int y = position.y; y < position.y + footprint.height; ++y) {
         for (int x = position.x; x < position.x + footprint.width; ++x) {
-            tile(GridPosition{x, y}).occupant = id;
+            auto& current = tile(GridPosition{x, y});
+            current.occupant = id;
+            auto& resource_tile = map_resource_tile(GridPosition{x, y});
+            resource_tile.resource = MapResourceId::Count;
+            resource_tile.resource_quantity = 0;
         }
     }
 
@@ -474,6 +700,32 @@ const TileMap::Tile& TileMap::tile(GridPosition position) const
 TileMap::Tile& TileMap::tile(GridPosition position)
 {
     return tiles_[static_cast<std::size_t>(index(position))];
+}
+
+const TileMap::MapResourceTile& TileMap::map_resource_tile(GridPosition position) const
+{
+    return map_resource_tiles_[static_cast<std::size_t>(index(position))];
+}
+
+TileMap::MapResourceTile& TileMap::map_resource_tile(GridPosition position)
+{
+    return map_resource_tiles_[static_cast<std::size_t>(index(position))];
+}
+
+int TileMap::distance_to_footprint(
+    GridPosition tile_position,
+    GridPosition position,
+    Footprint footprint)
+{
+    const auto end_x = position.x + footprint.width - 1;
+    const auto end_y = position.y + footprint.height - 1;
+    const auto dx = tile_position.x < position.x
+        ? position.x - tile_position.x
+        : std::max(0, tile_position.x - end_x);
+    const auto dy = tile_position.y < position.y
+        ? position.y - tile_position.y
+        : std::max(0, tile_position.y - end_y);
+    return dx + dy;
 }
 
 std::vector<GridPosition> TileMap::path_access_tiles(GridPosition position, Footprint footprint) const

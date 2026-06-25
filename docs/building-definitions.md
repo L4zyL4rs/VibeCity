@@ -84,6 +84,27 @@ Recipe inputs and outputs must fit their corresponding storage capacities.
 `source_policy = recipe_outputs` makes only declared outputs available to other
 buildings. `all_stored` makes every stored resource available.
 
+## Map Gathering
+
+An optional `[gathering]` section makes a recipe consume a finite resource from
+map tiles when each cycle starts:
+
+```ini
+[gathering]
+map_resource = forest
+radius = 6
+units_per_cycle = 1
+```
+
+- `map_resource`: Stable map-resource ID. Currently only `forest`.
+- `radius`: Manhattan collection radius measured from the building footprint.
+- `units_per_cycle`: Quantity removed from the nearest in-range tiles.
+
+The nearest deposits are consumed deterministically, breaking ties by map row
+and column. Production stops with a visible blocker when the required quantity
+is no longer available. The selected-building inspector shows the collection
+radius and remaining in-range quantity.
+
 ## Current Boundary
 
 Definitions can compose existing simulation behavior. A building that needs a
@@ -95,6 +116,6 @@ definitions automatically receive a selectable row with their name, color,
 construction materials, footprint, worker or housing capacity, and labor cost.
 The first seven listed buildings receive numeric shortcuts.
 
-Save format version 2 records stable IDs and a catalog fingerprint. Changing a
+Save format version 3 records stable IDs and a catalog fingerprint. Changing a
 simulation-relevant definition intentionally makes existing saves incompatible
 until a migration is implemented.

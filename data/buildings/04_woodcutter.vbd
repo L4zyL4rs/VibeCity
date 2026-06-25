@@ -19,6 +19,11 @@ firewood = 20
 [recipe]
 cycle_minutes = 360
 
+[gathering]
+map_resource = forest
+radius = 6
+units_per_cycle = 1
+
 [outputs]
 timber = 1
 firewood = 3

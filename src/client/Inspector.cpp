@@ -31,6 +31,17 @@ std::string_view resource_display_name(ResourceId resource)
     return "UNK";
 }
 
+std::string_view map_resource_display_name(MapResourceId resource)
+{
+    switch (resource) {
+    case MapResourceId::Forest:
+        return "FOREST";
+    case MapResourceId::Count:
+        return "UNKNOWN";
+    }
+    return "UNKNOWN";
+}
+
 int total_assigned_workers(const Simulation& simulation)
 {
     auto workers = 0;
@@ -448,6 +459,34 @@ int draw_inspector_content(SDL_Renderer* renderer,
             std::string{"CURRENT DAILY NEED: "} + std::to_string(building.residents) + " BREAD",
             muted,
             1);
+        y += 24;
+    }
+
+    if (operating_definition->gathering.has_value()
+        && building.position.has_value()) {
+        const auto& gathering = *operating_definition->gathering;
+        const auto available = simulation.map().map_resource_quantity_within_radius(
+            *building.position,
+            operating_definition->footprint,
+            gathering.resource,
+            gathering.radius);
+        draw_text(renderer, x, y, "MAP RESOURCE", text, 2);
+        y += 24;
+        draw_text(renderer, x, y,
+            std::string{"USES: "} + std::to_string(gathering.units_per_cycle)
+                + " " + std::string{map_resource_display_name(gathering.resource)}
+                + " EACH CYCLE",
+            muted, 1);
+        y += 16;
+        draw_text(renderer, x, y,
+            std::string{"COLLECTION RADIUS: "} + std::to_string(gathering.radius)
+                + " TILES",
+            muted, 1);
+        y += 16;
+        draw_text(renderer, x, y,
+            std::string{map_resource_display_name(gathering.resource)}
+                + " IN RANGE: " + std::to_string(available),
+            muted, 1);
         y += 24;
     }
 

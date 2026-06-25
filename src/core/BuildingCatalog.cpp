@@ -14,11 +14,12 @@ namespace vibecity {
 namespace {
 
 using Sections = std::map<std::string, std::map<std::string, std::string>>;
-constexpr std::array<std::string_view, 6> allowed_sections{
+constexpr std::array<std::string_view, 7> allowed_sections{
     "building",
     "construction",
     "storage",
     "recipe",
+    "gathering",
     "inputs",
     "outputs"
 };
@@ -354,6 +355,36 @@ BuildingDefinition parse_definition(const std::filesystem::path& path)
         };
     }
 
+    const auto gathering_resource = take_optional(sections, "gathering", "map_resource");
+    const auto gathering_radius = take_optional(sections, "gathering", "radius");
+    const auto gathering_units = take_optional(sections, "gathering", "units_per_cycle");
+    const auto has_any_gathering_field = gathering_resource.has_value()
+        || gathering_radius.has_value()
+        || gathering_units.has_value();
+    if (has_any_gathering_field) {
+        if (!gathering_resource.has_value()
+            || !gathering_radius.has_value()
+            || !gathering_units.has_value()) {
+            throw std::runtime_error(
+                path.string()
+                + ": gathering requires map_resource, radius, and units_per_cycle");
+        }
+        const auto resource = map_resource_id_from_string(*gathering_resource);
+        if (!resource.has_value()) {
+            throw std::runtime_error(path.string() + ": unknown map resource ID");
+        }
+        const auto radius = parse_integer(*gathering_radius, path);
+        const auto units = parse_integer(*gathering_units, path);
+        if (radius <= 0 || radius > 64 || units <= 0 || units > 1'000'000) {
+            throw std::runtime_error(path.string() + ": invalid gathering rule");
+        }
+        definition.gathering = GatheringRule{
+            .resource = *resource,
+            .radius = static_cast<int>(radius),
+            .units_per_cycle = units
+        };
+    }
+
     for (const auto& [section_name, values] : sections) {
         if (!values.empty()) {
             throw std::runtime_error(
@@ -393,6 +424,9 @@ BuildingDefinition parse_definition(const std::filesystem::path& path)
                 throw std::runtime_error(path.string() + ": recipe amount exceeds storage capacity");
             }
         }
+    }
+    if (definition.gathering.has_value() && !definition.recipe.has_value()) {
+        throw std::runtime_error(path.string() + ": gathering requires a recipe");
     }
     if (definition.source_policy == ResourceSourcePolicy::AllStored) {
         definition.source_mask =
@@ -470,6 +504,12 @@ std::uint64_t catalog_fingerprint(const std::vector<BuildingDefinition>& definit
             hash_resource_array(hash, definition->recipe->inputs);
             hash_resource_array(hash, definition->recipe->outputs);
             hash_integer(hash, definition->recipe->cycle_minutes);
+        }
+        hash_integer(hash, static_cast<std::uint8_t>(definition->gathering.has_value()));
+        if (definition->gathering.has_value()) {
+            hash_integer(hash, static_cast<std::uint8_t>(definition->gathering->resource));
+            hash_integer(hash, definition->gathering->radius);
+            hash_integer(hash, definition->gathering->units_per_cycle);
         }
         hash_integer(hash, static_cast<std::uint8_t>(definition->source_policy));
         hash_integer(hash, static_cast<std::uint8_t>(definition->requests_storage_inputs));

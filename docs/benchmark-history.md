@@ -15,7 +15,10 @@ The human output is for quick inspection. The CSV output is for pasting into thi
 
 - `milliseconds` is wall-clock time for the scenario on the current machine.
 - `ticks_per_second` is useful for rough comparisons across scenarios on the same machine.
-- `buildings`, `active_transport_jobs`, `transported`, and `constructed` are sanity checks. If these change unexpectedly, the benchmark may be measuring a gameplay change instead of a pure performance change.
+- `buildings`, `active_transport_jobs`, `transported`, `map_resource_tiles`,
+  `map_resource_quantity`, and `constructed` are sanity checks. Older baselines
+  predate the map-resource columns. If these change unexpectedly, the benchmark
+  may be measuring a gameplay change instead of a pure performance change.
 - Local timings are noisy. Compare repeated runs or medians before treating a small difference as meaningful.
 
 ## Baselines
@@ -171,3 +174,29 @@ Notes:
   increasing the amount of logistics work performed per simulated day.
 - Future performance comparisons should use these counters as the baseline
   unless the generated scenario is deliberately frozen independently of balance.
+
+### 2026-06-25 Finite Forest Resources
+
+New simulations now contain deterministic finite forest deposits. Woodcutters
+query and consume nearby forest at recipe boundaries. Map resources are stored
+in a parallel compact tile array so pathfinding retains its previous hot tile
+layout.
+
+Representative Release-build sample:
+
+| Case | Ticks | Milliseconds | Ticks/s | Buildings | Active Jobs | Transported | Resource Tiles | Resource Quantity | Constructed |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| starting village 30d | 43,200 | 0.96 | 44,838,069 | 4 | 0 | 60 | 4,669 | 28,014 | 0 |
+| construction village 30d | 43,200 | 2.51 | 17,227,814 | 9 | 0 | 1,759 | 4,647 | 27,881 | 5 |
+| 100 buildings 10d | 14,400 | 57.39 | 250,898 | 100 | 76 | 100,685 | 4,385 | 26,278 | 0 |
+
+Notes:
+
+- Repeated large-case samples measured roughly 57-63 ms.
+- Transport and active-job counters changed because woodcutters now depend on
+  finite local supply; this is a new gameplay baseline.
+- The benchmark now records remaining map-resource tiles and quantity as sanity
+  counters.
+- An initial combined gameplay/resource tile expanded the pathfinding working
+  set and measured roughly 61-70 ms. Separating resource state restored the hot
+  path layout.

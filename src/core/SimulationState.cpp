@@ -31,6 +31,7 @@ SimulationState Simulation::state() const
         .map_width = map_.width(),
         .map_height = map_.height(),
         .paths = map_.path_positions(),
+        .map_resources = map_.map_resource_deposits(),
         .buildings = buildings_,
         .transport_jobs = transport_jobs_,
         .next_building_id = next_building_id_,
@@ -81,6 +82,18 @@ Simulation Simulation::from_state(
             throw std::invalid_argument("invalid or duplicate saved path");
         }
     }
+    for (const auto& deposit : state.map_resources) {
+        if (!enum_less_than(deposit.resource, MapResourceId::Count)
+            || deposit.quantity <= 0
+            || deposit.quantity > map_resource_capacity(deposit.resource)
+            || restored_map.map_resource_quantity(deposit.position) > 0
+            || !restored_map.set_map_resource(
+                deposit.position,
+                deposit.resource,
+                deposit.quantity)) {
+            throw std::invalid_argument("invalid or duplicate saved map resource");
+        }
+    }
 
     for (std::size_t index = 0; index < state.buildings.size(); ++index) {
         auto& building = state.buildings[index];
@@ -88,7 +101,7 @@ Simulation Simulation::from_state(
         if (building.id != expected_id || !building.position.has_value()) {
             throw std::invalid_argument("saved building IDs must be dense and positioned");
         }
-        if (!enum_at_most(building.blocking_reason, BlockingReason::WaitingForBuilderLabor)) {
+        if (!enum_at_most(building.blocking_reason, BlockingReason::NoNearbyMapResource)) {
             throw std::invalid_argument("invalid saved building enum");
         }
         if (building.residents < 0
@@ -118,6 +131,11 @@ Simulation Simulation::from_state(
         const auto& state_definition = definition.internal_construction_site
             ? catalog->definition(*building.construction_target)
             : definition;
+        if (restored_map.footprint_has_map_resource(
+                *building.position,
+                state_definition.footprint)) {
+            throw std::invalid_argument("saved building overlaps map resource");
+        }
         const auto expected_storage = definition.internal_construction_site
             ? state_definition.construction_materials
             : state_definition.storage;

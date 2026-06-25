@@ -43,6 +43,7 @@ Simulation::Simulation(std::shared_ptr<const BuildingCatalog> catalog)
     if (catalog_ == nullptr) {
         throw std::invalid_argument("simulation requires a building catalog");
     }
+    map_.generate_default_map_resources();
 }
 
 BuildingId Simulation::add_building(BuildingKind kind)
@@ -169,6 +170,14 @@ bool Simulation::add_path(GridPosition position)
         worker_assignment_dirty_ = true;
     }
     return added;
+}
+
+bool Simulation::set_map_resource(
+    GridPosition position,
+    MapResourceId resource,
+    Quantity quantity)
+{
+    return map_.set_map_resource(position, resource, quantity);
 }
 
 void Simulation::set_residents(BuildingId id, int residents)
@@ -437,6 +446,7 @@ ConstructionSummary Simulation::construction_summary() const
         case BlockingReason::MissingInput:
         case BlockingReason::OutputStorageFull:
         case BlockingReason::MissingBread:
+        case BlockingReason::NoNearbyMapResource:
             break;
         }
     }
@@ -1021,14 +1031,42 @@ void Simulation::complete_construction(BuildingInstance& site)
 
 bool Simulation::start_recipe(BuildingInstance& building, const Recipe& recipe)
 {
+    const auto& definition = this->definition(building.kind);
     if (!has_recipe_inputs(building, recipe)) {
         building.blocking_reason = BlockingReason::MissingInput;
         return false;
     }
 
+    if (definition.gathering.has_value()) {
+        const auto& gathering = *definition.gathering;
+        if (!building.position.has_value()
+            || map_.map_resource_quantity_within_radius(
+                   *building.position,
+                   definition.footprint,
+                   gathering.resource,
+                   gathering.radius)
+                < gathering.units_per_cycle) {
+            building.blocking_reason = BlockingReason::NoNearbyMapResource;
+            return false;
+        }
+    }
+
     if (!has_recipe_output_capacity(building, recipe)) {
         building.blocking_reason = BlockingReason::OutputStorageFull;
         return false;
+    }
+
+    if (definition.gathering.has_value()) {
+        const auto& gathering = *definition.gathering;
+        if (!map_.harvest_map_resource_within_radius(
+                *building.position,
+                definition.footprint,
+                gathering.resource,
+                gathering.radius,
+                gathering.units_per_cycle)) {
+            building.blocking_reason = BlockingReason::NoNearbyMapResource;
+            return false;
+        }
     }
 
     for (std::size_t index = 0; index < resource_count; ++index) {

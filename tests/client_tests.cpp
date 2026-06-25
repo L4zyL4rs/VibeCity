@@ -111,6 +111,9 @@ void build_menu_formats_construction_materials()
     VIBECITY_CHECK(vibecity::client::operation_summary_text(
             catalog->definition(vibecity::BuildingKind::Farm))
         == "PRODUCES 12 GRAIN / 8H");
+    VIBECITY_CHECK(vibecity::client::operation_summary_text(
+            catalog->definition(vibecity::BuildingKind::Woodcutter))
+        == "HARVESTS FOREST -> 1 TIMBER + 3 FIREWOOD / 6H");
 }
 
 void build_menu_hit_testing_respects_rows_gaps_and_scroll()

@@ -8,6 +8,81 @@
 
 namespace {
 
+void clear_map_resources(vibecity::Simulation& simulation)
+{
+    const auto deposits = simulation.map().map_resource_deposits();
+    for (const auto& deposit : deposits) {
+        VIBECITY_CHECK(simulation.set_map_resource(
+            deposit.position,
+            deposit.resource,
+            0));
+    }
+}
+
+void default_map_resources_are_deterministic()
+{
+    const auto first = vibecity::Simulation{};
+    const auto second = vibecity::Simulation{};
+
+    VIBECITY_CHECK(!first.map().map_resource_deposits().empty());
+    VIBECITY_CHECK(
+        first.map().map_resource_deposits()
+        == second.map().map_resource_deposits());
+}
+
+void paths_and_buildings_clear_map_resources()
+{
+    auto map = vibecity::TileMap{12, 12};
+    VIBECITY_CHECK(map.set_map_resource(
+        vibecity::GridPosition{2, 2},
+        vibecity::MapResourceId::Forest,
+        vibecity::forest_tile_capacity));
+    VIBECITY_CHECK(map.add_path(vibecity::GridPosition{2, 2}));
+    VIBECITY_CHECK(map.map_resource_quantity(vibecity::GridPosition{2, 2}) == 0);
+
+    VIBECITY_CHECK(map.set_map_resource(
+        vibecity::GridPosition{5, 5},
+        vibecity::MapResourceId::Forest,
+        vibecity::forest_tile_capacity));
+    VIBECITY_CHECK(map.place_building(
+        1,
+        vibecity::GridPosition{5, 5},
+        vibecity::Footprint{2, 2}));
+    VIBECITY_CHECK(map.map_resource_quantity(vibecity::GridPosition{5, 5}) == 0);
+}
+
+void harvesting_prefers_nearest_then_topmost_resource()
+{
+    auto map = vibecity::TileMap{12, 12};
+    VIBECITY_CHECK(map.tiles_within_radius(
+            vibecity::GridPosition{100, 100},
+            vibecity::Footprint{1, 1},
+            3)
+        .empty());
+    constexpr auto building_position = vibecity::GridPosition{5, 5};
+    constexpr auto footprint = vibecity::Footprint{1, 1};
+    constexpr auto top_resource = vibecity::GridPosition{5, 3};
+    constexpr auto left_resource = vibecity::GridPosition{3, 5};
+
+    VIBECITY_CHECK(map.set_map_resource(
+        top_resource,
+        vibecity::MapResourceId::Forest,
+        1));
+    VIBECITY_CHECK(map.set_map_resource(
+        left_resource,
+        vibecity::MapResourceId::Forest,
+        1));
+    VIBECITY_CHECK(map.harvest_map_resource_within_radius(
+        building_position,
+        footprint,
+        vibecity::MapResourceId::Forest,
+        3,
+        1));
+
+    VIBECITY_CHECK(map.map_resource_quantity(top_resource) == 0);
+    VIBECITY_CHECK(map.map_resource_quantity(left_resource) == 1);
+}
+
 void path_distance_field_matches_pairwise_pathfinding()
 {
     vibecity::TileMap map{20, 10};
@@ -577,6 +652,64 @@ void farm_and_woodcutter_supply_bakery_chain()
     VIBECITY_CHECK(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Firewood)] >= 2);
 }
 
+void woodcutter_harvests_finite_nearby_forest()
+{
+    vibecity::Simulation simulation;
+    clear_map_resources(simulation);
+
+    const auto house = simulation.add_building_at(
+        vibecity::BuildingKind::House,
+        vibecity::GridPosition{1, 1});
+    const auto woodcutter = simulation.add_building_at(
+        vibecity::BuildingKind::Woodcutter,
+        vibecity::GridPosition{3, 1});
+    for (int x = 1; x <= 5; ++x) {
+        VIBECITY_CHECK(simulation.add_path(vibecity::GridPosition{x, 0}));
+    }
+    VIBECITY_CHECK(simulation.set_map_resource(
+        vibecity::GridPosition{5, 2},
+        vibecity::MapResourceId::Forest,
+        2));
+    simulation.set_residents(house, 1);
+
+    simulation.run_for(720);
+
+    const auto& instance = simulation.building(woodcutter);
+    VIBECITY_CHECK(simulation.map().map_resource_quantity(vibecity::GridPosition{5, 2}) == 0);
+    VIBECITY_CHECK(instance.inventory.quantity(vibecity::ResourceId::Timber) == 2);
+    VIBECITY_CHECK(instance.inventory.quantity(vibecity::ResourceId::Firewood) == 6);
+
+    simulation.tick();
+    VIBECITY_CHECK(instance.blocking_reason == vibecity::BlockingReason::NoNearbyMapResource);
+}
+
+void woodcutter_ignores_forest_outside_collection_radius()
+{
+    vibecity::Simulation simulation;
+    clear_map_resources(simulation);
+
+    const auto house = simulation.add_building_at(
+        vibecity::BuildingKind::House,
+        vibecity::GridPosition{1, 1});
+    const auto woodcutter = simulation.add_building_at(
+        vibecity::BuildingKind::Woodcutter,
+        vibecity::GridPosition{3, 1});
+    for (int x = 1; x <= 5; ++x) {
+        VIBECITY_CHECK(simulation.add_path(vibecity::GridPosition{x, 0}));
+    }
+    VIBECITY_CHECK(simulation.set_map_resource(
+        vibecity::GridPosition{20, 20},
+        vibecity::MapResourceId::Forest,
+        vibecity::forest_tile_capacity));
+    simulation.set_residents(house, 1);
+
+    simulation.tick();
+
+    const auto& instance = simulation.building(woodcutter);
+    VIBECITY_CHECK(instance.inventory.quantity(vibecity::ResourceId::Timber) == 0);
+    VIBECITY_CHECK(instance.blocking_reason == vibecity::BlockingReason::NoNearbyMapResource);
+}
+
 void construction_site_fetches_materials_and_completes()
 {
     vibecity::Simulation simulation;
@@ -677,6 +810,9 @@ void output_storage_full_blocks_production()
 
 int main()
 {
+    default_map_resources_are_deterministic();
+    paths_and_buildings_clear_map_resources();
+    harvesting_prefers_nearest_then_topmost_resource();
     path_distance_field_matches_pairwise_pathfinding();
     path_distance_field_can_be_reused_without_stale_distances();
     path_route_follows_connected_road_tiles();
@@ -700,6 +836,8 @@ int main()
     disconnected_workers_do_not_staff_workplaces();
     bakery_fetches_inputs_before_producing();
     farm_and_woodcutter_supply_bakery_chain();
+    woodcutter_harvests_finite_nearby_forest();
+    woodcutter_ignores_forest_outside_collection_radius();
     construction_site_fetches_materials_and_completes();
     construction_summary_reports_queue_focus();
     construction_site_reports_missing_materials();

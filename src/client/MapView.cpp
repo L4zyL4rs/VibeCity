@@ -118,6 +118,89 @@ ScreenPoint interpolate(ScreenPoint start, ScreenPoint end, float progress)
     };
 }
 
+void draw_map_resources(
+    SDL_Renderer* renderer,
+    const TileMap& map,
+    Camera camera,
+    TileBounds visible)
+{
+    for (int y = visible.first_y; y < visible.end_y; ++y) {
+        for (int x = visible.first_x; x < visible.end_x; ++x) {
+            const auto position = GridPosition{x, y};
+            if (map.map_resource_at(position) != MapResourceId::Forest) {
+                continue;
+            }
+
+            const auto quantity = map.map_resource_quantity(position);
+            const auto density = static_cast<int>(
+                40 * quantity / std::max<Quantity>(1, forest_tile_capacity));
+            auto rect = tile_rect(position, Footprint{1, 1}, camera);
+            set_color(renderer, Color{
+                static_cast<std::uint8_t>(42 + density / 4),
+                static_cast<std::uint8_t>(72 + density),
+                static_cast<std::uint8_t>(48 + density / 3),
+                255
+            });
+            SDL_RenderFillRect(renderer, &rect);
+
+            const auto maximum_crown = std::max(2, camera.tile_size - 4);
+            const auto crown_size = std::max(
+                2,
+                static_cast<int>(
+                    maximum_crown * quantity / std::max<Quantity>(1, forest_tile_capacity)));
+            auto crown = SDL_Rect{
+                .x = rect.x + (rect.w - crown_size) / 2,
+                .y = rect.y + (rect.h - crown_size) / 2,
+                .w = crown_size,
+                .h = crown_size
+            };
+            set_color(renderer, Color{70, 122, 64, 255});
+            SDL_RenderFillRect(renderer, &crown);
+        }
+    }
+}
+
+void draw_gathering_overlay(
+    SDL_Renderer* renderer,
+    const Simulation& simulation,
+    Camera camera,
+    std::optional<BuildingId> selected)
+{
+    if (!selected.has_value()) {
+        return;
+    }
+
+    const auto& building = simulation.building(*selected);
+    const auto& instance_definition = simulation.definition(building.kind);
+    const auto* operating_definition = &instance_definition;
+    if (instance_definition.internal_construction_site
+        && building.construction_target.has_value()) {
+        operating_definition = &simulation.definition(*building.construction_target);
+    }
+    if (!building.position.has_value() || !operating_definition->gathering.has_value()) {
+        return;
+    }
+
+    const auto& gathering = *operating_definition->gathering;
+    for (const auto position : simulation.map().tiles_within_radius(
+             *building.position,
+             operating_definition->footprint,
+             gathering.radius)) {
+        auto rect = tile_rect(position, Footprint{1, 1}, camera);
+        set_color(renderer, Color{118, 180, 116, 28});
+        SDL_RenderFillRect(renderer, &rect);
+
+        if (simulation.map().map_resource_at(position) == gathering.resource) {
+            rect.x += 1;
+            rect.y += 1;
+            rect.w = std::max(1, rect.w - 2);
+            rect.h = std::max(1, rect.h - 2);
+            set_color(renderer, Color{170, 224, 132, 210});
+            SDL_RenderDrawRect(renderer, &rect);
+        }
+    }
+}
+
 void draw_construction_progress(SDL_Renderer* renderer, const BuildingInstance& building, const SDL_Rect& rect)
 {
     if (!building.construction_target.has_value() || building.construction_labor_required <= 0) {
@@ -271,6 +354,8 @@ void draw_world(SDL_Renderer* renderer,
         }
     }
 
+    draw_map_resources(renderer, map, camera, visible);
+
     set_color(renderer, Color{48, 52, 52, 255});
     for (int y = visible.first_y; y < visible.end_y; ++y) {
         for (int x = visible.first_x; x < visible.end_x; ++x) {
@@ -283,6 +368,8 @@ void draw_world(SDL_Renderer* renderer,
             SDL_RenderFillRect(renderer, &rect);
         }
     }
+
+    draw_gathering_overlay(renderer, simulation, camera, selected);
 
     for (const auto& building : simulation.buildings()) {
         if (!building.position.has_value()) {

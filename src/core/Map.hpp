@@ -1,7 +1,10 @@
 #pragma once
 
+#include "core/Resource.hpp"
+
 #include <cstdint>
 #include <optional>
+#include <string_view>
 #include <vector>
 
 namespace vibecity {
@@ -19,6 +22,47 @@ struct Footprint {
     int width = 1;
     int height = 1;
 };
+
+enum class MapResourceId : std::uint8_t {
+    Forest,
+    Count
+};
+
+inline constexpr Quantity forest_tile_capacity = 6;
+static_assert(forest_tile_capacity <= 255);
+
+struct MapResourceDeposit {
+    GridPosition position;
+    MapResourceId resource = MapResourceId::Forest;
+    Quantity quantity = 0;
+
+    friend constexpr bool operator==(
+        const MapResourceDeposit& left,
+        const MapResourceDeposit& right) = default;
+};
+
+[[nodiscard]] constexpr std::string_view map_resource_name(MapResourceId resource)
+{
+    switch (resource) {
+    case MapResourceId::Forest:
+        return "forest";
+    case MapResourceId::Count:
+        return "unknown";
+    }
+    return "unknown";
+}
+
+[[nodiscard]] std::optional<MapResourceId> map_resource_id_from_string(std::string_view id);
+[[nodiscard]] constexpr Quantity map_resource_capacity(MapResourceId resource)
+{
+    switch (resource) {
+    case MapResourceId::Forest:
+        return forest_tile_capacity;
+    case MapResourceId::Count:
+        return 0;
+    }
+    return 0;
+}
 
 class PathDistanceField {
 public:
@@ -67,6 +111,21 @@ public:
     [[nodiscard]] bool in_bounds(GridPosition position) const;
     [[nodiscard]] bool has_path(GridPosition position) const;
     [[nodiscard]] std::vector<GridPosition> path_positions() const;
+    [[nodiscard]] std::optional<MapResourceId> map_resource_at(GridPosition position) const;
+    [[nodiscard]] Quantity map_resource_quantity(GridPosition position) const;
+    [[nodiscard]] std::vector<MapResourceDeposit> map_resource_deposits() const;
+    [[nodiscard]] std::vector<GridPosition> tiles_within_radius(
+        GridPosition position,
+        Footprint footprint,
+        int radius) const;
+    [[nodiscard]] Quantity map_resource_quantity_within_radius(
+        GridPosition position,
+        Footprint footprint,
+        MapResourceId resource,
+        int radius) const;
+    [[nodiscard]] bool footprint_has_map_resource(
+        GridPosition position,
+        Footprint footprint) const;
     [[nodiscard]] bool can_place_building(GridPosition position, Footprint footprint) const;
     [[nodiscard]] bool has_path_access(GridPosition position, Footprint footprint) const;
     [[nodiscard]] bool buildings_connected(GridPosition source_position,
@@ -91,6 +150,14 @@ public:
         GridPosition destination_position,
         Footprint destination_footprint) const;
 
+    void generate_default_map_resources();
+    bool set_map_resource(GridPosition position, MapResourceId resource, Quantity quantity);
+    bool harvest_map_resource_within_radius(
+        GridPosition position,
+        Footprint footprint,
+        MapResourceId resource,
+        int radius,
+        Quantity quantity);
     bool add_path(GridPosition position);
     bool place_building(MapOccupantId id, GridPosition position, Footprint footprint);
 
@@ -100,14 +167,26 @@ private:
         std::optional<MapOccupantId> occupant;
     };
 
+    struct MapResourceTile {
+        std::uint8_t resource_quantity = 0;
+        MapResourceId resource = MapResourceId::Count;
+    };
+
     [[nodiscard]] int index(GridPosition position) const;
     [[nodiscard]] const Tile& tile(GridPosition position) const;
     [[nodiscard]] Tile& tile(GridPosition position);
+    [[nodiscard]] const MapResourceTile& map_resource_tile(GridPosition position) const;
+    [[nodiscard]] MapResourceTile& map_resource_tile(GridPosition position);
+    [[nodiscard]] static int distance_to_footprint(
+        GridPosition tile,
+        GridPosition position,
+        Footprint footprint);
     [[nodiscard]] std::vector<GridPosition> path_access_tiles(GridPosition position, Footprint footprint) const;
 
     int width_ = 0;
     int height_ = 0;
     std::vector<Tile> tiles_;
+    std::vector<MapResourceTile> map_resource_tiles_;
 };
 
 }
