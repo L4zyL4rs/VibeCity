@@ -29,6 +29,10 @@ void zoom_camera_at(Camera& camera, int screen_x, int screen_y, int steps);
 [[nodiscard]] std::optional<BuildingId> building_at(const Simulation& simulation, GridPosition tile);
 [[nodiscard]] bool can_place_path_preview(const Simulation& simulation, GridPosition tile);
 [[nodiscard]] bool can_place_building_preview(const Simulation& simulation, BuildingKind target, GridPosition tile);
+[[nodiscard]] Quantity gathering_resource_quantity_for_placement(
+    const Simulation& simulation,
+    BuildingKind target,
+    GridPosition tile);
 
 void draw_world(SDL_Renderer* renderer,
     const Simulation& simulation,
@@ -69,6 +73,13 @@ void draw_placement_preview(SDL_Renderer* renderer,
     Camera camera,
     std::optional<GridPosition> hover_tile,
     std::optional<Footprint> footprint,
+    bool valid);
+
+void draw_building_placement_preview(SDL_Renderer* renderer,
+    const Simulation& simulation,
+    Camera camera,
+    std::optional<GridPosition> hover_tile,
+    BuildingKind target,
     bool valid);
 
 }

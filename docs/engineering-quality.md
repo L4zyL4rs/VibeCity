@@ -14,6 +14,13 @@ SDL_VIDEODRIVER=dummy ./build/vibecity_client --smoke-test
 
 If SDL2 is unavailable, document that the client smoke check could not run.
 
+For client UI changes, capture a smoke-render screenshot and inspect it for
+text overlap, missing markers, and unreadable contrast:
+
+```bash
+SDL_VIDEODRIVER=dummy SDL_RENDER_DRIVER=software ./build/vibecity_client --screenshot /tmp/vibecity-ui-smoke.bmp
+```
+
 For performance-sensitive changes, also run the non-gating benchmark:
 
 ```bash

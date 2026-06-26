@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <string>
 
 namespace vibecity::client {
 namespace {
@@ -201,6 +202,105 @@ void draw_gathering_overlay(
     }
 }
 
+void draw_gathering_placement_overlay(SDL_Renderer* renderer,
+    const Simulation& simulation,
+    Camera camera,
+    GridPosition tile,
+    const BuildingDefinition& definition,
+    bool valid)
+{
+    if (!definition.gathering.has_value()) {
+        return;
+    }
+
+    const auto& gathering = *definition.gathering;
+    for (const auto position : simulation.map().tiles_within_radius(
+             tile,
+             definition.footprint,
+             gathering.radius)) {
+        const auto inside_footprint = contains(tile, definition.footprint, position);
+        auto rect = tile_rect(position, Footprint{1, 1}, camera);
+        set_color(renderer, valid ? Color{118, 180, 116, 24} : Color{190, 96, 86, 20});
+        SDL_RenderFillRect(renderer, &rect);
+
+        const auto resource = simulation.map().map_resource_at(position);
+        if (!resource.has_value() || *resource != gathering.resource) {
+            continue;
+        }
+
+        rect.x += 1;
+        rect.y += 1;
+        rect.w = std::max(1, rect.w - 2);
+        rect.h = std::max(1, rect.h - 2);
+
+        if (inside_footprint) {
+            set_color(renderer, Color{236, 154, 70, 220});
+            SDL_RenderDrawLine(renderer, rect.x, rect.y, rect.x + rect.w - 1, rect.y + rect.h - 1);
+            SDL_RenderDrawLine(renderer, rect.x + rect.w - 1, rect.y, rect.x, rect.y + rect.h - 1);
+        } else {
+            set_color(renderer, Color{178, 236, 132, 228});
+            SDL_RenderDrawRect(renderer, &rect);
+        }
+    }
+}
+
+void draw_gathering_placement_label(SDL_Renderer* renderer,
+    const Simulation& simulation,
+    Camera camera,
+    GridPosition tile,
+    const BuildingDefinition& definition)
+{
+    if (!definition.gathering.has_value()) {
+        return;
+    }
+
+    const auto& gathering = *definition.gathering;
+    auto label = std::string{map_resource_name(gathering.resource)}
+        + " "
+        + std::to_string(gathering_resource_quantity_for_placement(
+            simulation,
+            definition.kind,
+            tile));
+    if (label.size() > 18) {
+        label.resize(18);
+        label.back() = '.';
+    }
+
+    auto rect = tile_rect(tile, definition.footprint, camera);
+    auto width = 0;
+    auto height = 0;
+    SDL_GetRendererOutputSize(renderer, &width, &height);
+
+    constexpr auto text_scale = 1;
+    const auto label_width = static_cast<int>(label.size()) * 6 * text_scale + 8;
+    constexpr auto label_height = 15;
+    auto label_x = rect.x;
+    auto label_y = rect.y - label_height - 3;
+    if (label_y < 0) {
+        label_y = rect.y + rect.h + 3;
+    }
+    label_x = std::clamp(label_x, 0, std::max(0, width - label_width));
+    label_y = std::clamp(label_y, 0, std::max(0, height - label_height));
+
+    auto background = SDL_Rect{
+        .x = label_x,
+        .y = label_y,
+        .w = label_width,
+        .h = label_height
+    };
+    set_color(renderer, Color{18, 22, 18, 220});
+    SDL_RenderFillRect(renderer, &background);
+    set_color(renderer, Color{116, 168, 94, 240});
+    SDL_RenderDrawRect(renderer, &background);
+    draw_text(
+        renderer,
+        label_x + 4,
+        label_y + 4,
+        label,
+        Color{206, 230, 188, 255},
+        text_scale);
+}
+
 void draw_construction_progress(SDL_Renderer* renderer, const BuildingInstance& building, const SDL_Rect& rect)
 {
     if (!building.construction_target.has_value() || building.construction_labor_required <= 0) {
@@ -309,6 +409,34 @@ bool can_place_path_preview(const Simulation& simulation, GridPosition tile)
 bool can_place_building_preview(const Simulation& simulation, BuildingKind target, GridPosition tile)
 {
     return simulation.map().can_place_building(tile, simulation.definition(target).footprint);
+}
+
+Quantity gathering_resource_quantity_for_placement(
+    const Simulation& simulation,
+    BuildingKind target,
+    GridPosition tile)
+{
+    const auto& definition = simulation.definition(target);
+    if (!definition.gathering.has_value()) {
+        return 0;
+    }
+
+    auto quantity = Quantity{0};
+    const auto& gathering = *definition.gathering;
+    for (const auto position : simulation.map().tiles_within_radius(
+             tile,
+             definition.footprint,
+             gathering.radius)) {
+        if (contains(tile, definition.footprint, position)) {
+            continue;
+        }
+
+        const auto resource = simulation.map().map_resource_at(position);
+        if (resource.has_value() && *resource == gathering.resource) {
+            quantity += simulation.map().map_resource_quantity(position);
+        }
+    }
+    return quantity;
 }
 
 void draw_world(SDL_Renderer* renderer,
@@ -618,6 +746,39 @@ void draw_placement_preview(SDL_Renderer* renderer,
     SDL_RenderFillRect(renderer, &rect);
     set_color(renderer, valid ? Color{140, 236, 156, 230} : Color{255, 112, 96, 230});
     SDL_RenderDrawRect(renderer, &rect);
+}
+
+void draw_building_placement_preview(SDL_Renderer* renderer,
+    const Simulation& simulation,
+    Camera camera,
+    std::optional<GridPosition> hover_tile,
+    BuildingKind target,
+    bool valid)
+{
+    if (!hover_tile.has_value()) {
+        return;
+    }
+
+    const auto& definition = simulation.definition(target);
+    draw_gathering_placement_overlay(
+        renderer,
+        simulation,
+        camera,
+        *hover_tile,
+        definition,
+        valid);
+    draw_placement_preview(
+        renderer,
+        camera,
+        hover_tile,
+        definition.footprint,
+        valid);
+    draw_gathering_placement_label(
+        renderer,
+        simulation,
+        camera,
+        *hover_tile,
+        definition);
 }
 
 }

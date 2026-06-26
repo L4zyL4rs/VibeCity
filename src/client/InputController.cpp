@@ -70,6 +70,30 @@ void select_build_target(
     state.status = "building " + definition.name;
 }
 
+std::string placement_hover_status(
+    const Simulation& simulation,
+    BuildingKind target,
+    GridPosition tile)
+{
+    const auto& definition = simulation.definition(target);
+    auto status = can_place_building_preview(simulation, target, tile)
+        ? std::string{}
+        : std::string{"blocked "};
+    status += definition.name;
+
+    if (definition.gathering.has_value()) {
+        status += " ";
+        status += map_resource_name(definition.gathering->resource);
+        status += ": ";
+        status += std::to_string(gathering_resource_quantity_for_placement(
+            simulation,
+            target,
+            tile));
+    }
+
+    return status;
+}
+
 void place_path_tile(GameSession& game,
     GridPosition tile,
     std::optional<BuildingId>& selected,
@@ -170,6 +194,12 @@ void handle_mouse_motion(GameSession& game, ClientInteractionState& state, const
     }
 
     state.hover_tile = screen_to_map(motion.x, motion.y, state.camera);
+    if (state.mode == ClientMode::Build && state.build_target.has_value()) {
+        state.status = placement_hover_status(
+            game.simulation(),
+            *state.build_target,
+            *state.hover_tile);
+    }
     if (state.path_dragging && state.mode == ClientMode::PlacePath && (motion.state & SDL_BUTTON_LMASK) != 0) {
         if (!state.last_path_drag_tile.has_value() || !(*state.last_path_drag_tile == *state.hover_tile)) {
             place_path_tile(game, *state.hover_tile, state.selected, state.status, true);

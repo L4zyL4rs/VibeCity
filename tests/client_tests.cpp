@@ -162,6 +162,54 @@ void zoom_keeps_the_cursor_over_the_same_tile()
     VIBECITY_CHECK(rect.y == screen_y);
 }
 
+void gathering_preview_counts_only_resource_that_survives_placement()
+{
+    auto simulation = vibecity::Simulation{};
+    const auto target = vibecity::BuildingKind::Woodcutter;
+    const auto tile = vibecity::GridPosition{40, 40};
+    const auto& definition = simulation.definition(target);
+    VIBECITY_CHECK(definition.gathering.has_value());
+    const auto& gathering = *definition.gathering;
+
+    for (const auto position : simulation.map().tiles_within_radius(
+             tile,
+             definition.footprint,
+             gathering.radius)) {
+        VIBECITY_CHECK(simulation.set_map_resource(
+            position,
+            vibecity::MapResourceId::Forest,
+            0));
+    }
+
+    VIBECITY_CHECK(simulation.set_map_resource(
+        vibecity::GridPosition{40, 40},
+        vibecity::MapResourceId::Forest,
+        6));
+    VIBECITY_CHECK(simulation.set_map_resource(
+        vibecity::GridPosition{39, 40},
+        vibecity::MapResourceId::Forest,
+        5));
+    VIBECITY_CHECK(simulation.set_map_resource(
+        vibecity::GridPosition{47, 40},
+        vibecity::MapResourceId::Forest,
+        4));
+    VIBECITY_CHECK(simulation.set_map_resource(
+        vibecity::GridPosition{48, 40},
+        vibecity::MapResourceId::Forest,
+        6));
+
+    VIBECITY_CHECK(vibecity::client::gathering_resource_quantity_for_placement(
+            simulation,
+            target,
+            tile)
+        == 9);
+    VIBECITY_CHECK(vibecity::client::gathering_resource_quantity_for_placement(
+            simulation,
+            vibecity::BuildingKind::House,
+            tile)
+        == 0);
+}
+
 void escape_cancels_before_clearing_selection()
 {
     auto state = vibecity::client::ClientInteractionState{};
@@ -231,6 +279,7 @@ int main()
     build_menu_formats_construction_materials();
     build_menu_hit_testing_respects_rows_gaps_and_scroll();
     zoom_keeps_the_cursor_over_the_same_tile();
+    gathering_preview_counts_only_resource_that_survives_placement();
     escape_cancels_before_clearing_selection();
     transport_overlay_retains_completed_jobs_for_readability();
 

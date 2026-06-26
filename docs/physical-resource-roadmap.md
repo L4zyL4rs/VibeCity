@@ -18,20 +18,21 @@ understand when production stops or must move elsewhere.
 - Woodcutters consume the nearest forest unit when a cycle starts.
 - Roads and buildings clear forest on occupied tiles.
 - Selected woodcutters highlight their collection area and usable forest tiles.
+- Woodcutter placement preview highlights the proposed collection radius,
+  shows usable forest tiles, marks trees that would be cleared by the
+  footprint, and reports the reachable forest total before placement.
 - The inspector reports collection radius and total forest remaining in range.
 - Depleted forest state is deterministic and persisted in save format version 3.
 
 ## Next Programming Slices
 
-1. Placement preview for gathering buildings, including in-range resource totals
-   before construction is confirmed.
-2. Demolition and road removal, with explicit decisions about whether cleared
+1. Demolition and road removal, with explicit decisions about whether cleared
    terrain can recover.
-3. Terrain suitability and build-cost modifiers rather than treating every
+2. Terrain suitability and build-cost modifiers rather than treating every
    non-forest tile identically.
-4. Stone and clay deposits using the same map-resource contract.
-5. Quarry and brickyard chains that make construction materials geographic.
-6. A selected-building logistics inspection mode for suppliers, customers,
+3. Stone and clay deposits using the same map-resource contract.
+4. Quarry and brickyard chains that make construction materials geographic.
+5. A selected-building logistics inspection mode for suppliers, customers,
    active routes, and flow volumes.
 
 ## Deliberate Limits

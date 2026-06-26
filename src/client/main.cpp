@@ -9,6 +9,7 @@
 
 #include <SDL.h>
 
+#include <filesystem>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -23,6 +24,7 @@ using vibecity::client::ClientMode;
 using vibecity::client::can_place_building_preview;
 using vibecity::client::can_place_path_preview;
 using vibecity::client::ClientInteractionState;
+using vibecity::client::draw_building_placement_preview;
 using vibecity::client::draw_hud;
 using vibecity::client::draw_build_menu;
 using vibecity::client::draw_inspector;
@@ -30,6 +32,7 @@ using vibecity::client::draw_objective_completion_banner;
 using vibecity::client::draw_placement_preview;
 using vibecity::client::draw_status;
 using vibecity::client::draw_world;
+using vibecity::client::gathering_resource_quantity_for_placement;
 using vibecity::client::handle_event;
 using vibecity::client::InspectorScrollMetrics;
 using vibecity::client::mode_name;
@@ -80,9 +83,20 @@ void draw_mode_placement_preview(SDL_Renderer* renderer,
     std::optional<vibecity::BuildingKind> build_target,
     std::optional<vibecity::GridPosition> hover_tile)
 {
-    const auto footprint = preview_footprint_for_mode(simulation, mode, build_target);
     const auto valid = hover_tile.has_value()
         && can_place_preview(simulation, mode, build_target, *hover_tile);
+    if (mode == ClientMode::Build && build_target.has_value()) {
+        draw_building_placement_preview(
+            renderer,
+            simulation,
+            camera,
+            hover_tile,
+            *build_target,
+            valid);
+        return;
+    }
+
+    const auto footprint = preview_footprint_for_mode(simulation, mode, build_target);
     draw_placement_preview(renderer, camera, hover_tile, footprint, valid);
 }
 
@@ -169,11 +183,54 @@ bool is_smoke_test(int argc, char** argv)
     return false;
 }
 
+std::optional<std::filesystem::path> requested_screenshot_path(int argc, char** argv)
+{
+    for (int i = 1; i < argc; ++i) {
+        if (std::string{argv[i]} == "--screenshot" && i + 1 < argc) {
+            return std::filesystem::path{argv[i + 1]};
+        }
+    }
+    return std::nullopt;
+}
+
+bool save_screenshot(SDL_Renderer* renderer, const std::filesystem::path& path)
+{
+    auto width = 0;
+    auto height = 0;
+    SDL_GetRendererOutputSize(renderer, &width, &height);
+    if (width <= 0 || height <= 0) {
+        return false;
+    }
+
+    auto* surface = SDL_CreateRGBSurfaceWithFormat(
+        0,
+        width,
+        height,
+        32,
+        SDL_PIXELFORMAT_ARGB8888);
+    if (surface == nullptr) {
+        return false;
+    }
+
+    const auto read_result = SDL_RenderReadPixels(
+        renderer,
+        nullptr,
+        SDL_PIXELFORMAT_ARGB8888,
+        surface->pixels,
+        surface->pitch);
+    const auto save_result = read_result == 0
+        ? SDL_SaveBMP(surface, path.string().c_str())
+        : -1;
+    SDL_FreeSurface(surface);
+    return save_result == 0;
+}
+
 }
 
 int main(int argc, char** argv)
 {
-    const auto smoke_test = is_smoke_test(argc, argv);
+    const auto screenshot_path = requested_screenshot_path(argc, argv);
+    const auto smoke_test = is_smoke_test(argc, argv) || screenshot_path.has_value();
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
         return 1;
     }
@@ -206,6 +263,16 @@ int main(int argc, char** argv)
     const auto scenario = vibecity::create_starting_village(game);
     auto transport_overlay = TransportOverlay{};
     state.selected = scenario.storehouse;
+    if (smoke_test) {
+        state.mode = ClientMode::Build;
+        state.build_target = vibecity::BuildingKind::Woodcutter;
+        state.hover_tile = vibecity::GridPosition{10, vibecity::starting_village_building_y};
+        state.status = "Woodcutter forest: "
+            + std::to_string(gathering_resource_quantity_for_placement(
+                game.simulation(),
+                vibecity::BuildingKind::Woodcutter,
+                *state.hover_tile));
+    }
     auto frame_count = 0;
 
     while (!state.quit) {
@@ -252,6 +319,15 @@ int main(int argc, char** argv)
 
         if (smoke_test && frame_count == 0) {
             state.inspector_scroll = state.inspector_max_scroll;
+        }
+        if (screenshot_path.has_value() && frame_count == 0) {
+            if (!save_screenshot(renderer, *screenshot_path)) {
+                SDL_DestroyRenderer(renderer);
+                SDL_DestroyWindow(window);
+                SDL_Quit();
+                return 1;
+            }
+            state.quit = true;
         }
 
         ++frame_count;

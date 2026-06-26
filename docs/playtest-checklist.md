@@ -97,6 +97,8 @@ When I ask for detailed input, please report these points:
   bread reserve make the missing surplus clear?
 - Forests: when selecting a woodcutter, is its collection radius and remaining
   local forest supply understandable?
+- Placement: when hovering a woodcutter before placement, is the collection
+  radius, reachable forest count, and footprint-cleared forest marker clear?
 - Depletion: after several production cycles, can you identify which nearby
   forest tiles were consumed?
 - Construction: could you tell which site was next and whether builders were working?
