@@ -116,6 +116,6 @@ definitions automatically receive a selectable row with their name, color,
 construction materials, footprint, worker or housing capacity, and labor cost.
 The first seven listed buildings receive numeric shortcuts.
 
-Save format version 3 records stable IDs and a catalog fingerprint. Changing a
+Save format version 4 records stable IDs and a catalog fingerprint. Changing a
 simulation-relevant definition intentionally makes existing saves incompatible
 until a migration is implemented.

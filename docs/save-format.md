@@ -19,6 +19,7 @@ The save contains all authoritative gameplay state required for deterministic co
 
 - simulation time and ID generators
 - paths, finite map resources, and building placement
+- inactive demolished-building tombstones for stable IDs
 - building inventories, capacities, and reservations
 - residents, workers, hunger, production, and construction progress
 - active transport jobs and selected route durations
@@ -30,7 +31,7 @@ Saving writes a temporary file and then replaces the previous save. Loading pars
 
 ## Binary Layout
 
-Version 3 is an explicitly little-endian binary format:
+Version 4 is an explicitly little-endian binary format:
 
 1. Eight-byte `VIBECITY` magic.
 2. Unsigned 32-bit format version.
@@ -62,7 +63,7 @@ The loader rejects:
 
 ## Version Policy
 
-There is no migration layer yet. Versions 1 and 2 are rejected. Any incompatible
+There is no migration layer yet. Versions 1 through 3 are rejected. Any incompatible
 payload change must increment the save version and either add an explicit
 migration or reject older saves with a clear error. Simulation-relevant building
 definition changes are detected by the catalog fingerprint without silently

@@ -19,7 +19,7 @@ namespace {
 constexpr std::array<std::uint8_t, 8> save_magic{
     'V', 'I', 'B', 'E', 'C', 'I', 'T', 'Y'
 };
-constexpr std::uint32_t save_version = 3;
+constexpr std::uint32_t save_version = 4;
 constexpr std::size_t save_header_size = save_magic.size() + sizeof(std::uint32_t)
     + sizeof(std::uint64_t) + sizeof(std::uint64_t);
 constexpr std::uint64_t max_save_bytes = 64 * 1024 * 1024;
@@ -262,6 +262,7 @@ void write_building(
     const BuildingCatalog& catalog)
 {
     writer.u32(building.id);
+    writer.boolean(building.active);
     writer.string(catalog.stable_id(building.kind));
     writer.boolean(building.position.has_value());
     if (building.position.has_value()) {
@@ -287,6 +288,7 @@ BuildingInstance read_building(ByteReader& reader, const BuildingCatalog& catalo
 {
     auto building = BuildingInstance{};
     building.id = reader.u32();
+    building.active = reader.boolean();
     const auto kind = catalog.find_kind(reader.string());
     if (!kind.has_value()) {
         throw std::runtime_error("unknown building stable ID in save");

@@ -388,7 +388,7 @@ Footprint footprint_for(const Simulation& simulation, const BuildingInstance& bu
 std::optional<BuildingId> building_at(const Simulation& simulation, GridPosition tile)
 {
     for (const auto& building : simulation.buildings()) {
-        if (!building.position.has_value()) {
+        if (!building.active || !building.position.has_value()) {
             continue;
         }
 
@@ -500,7 +500,7 @@ void draw_world(SDL_Renderer* renderer,
     draw_gathering_overlay(renderer, simulation, camera, selected);
 
     for (const auto& building : simulation.buildings()) {
-        if (!building.position.has_value()) {
+        if (!building.active || !building.position.has_value()) {
             continue;
         }
 
@@ -779,6 +779,32 @@ void draw_building_placement_preview(SDL_Renderer* renderer,
         camera,
         *hover_tile,
         definition);
+}
+
+void draw_demolition_preview(SDL_Renderer* renderer,
+    const Simulation& simulation,
+    Camera camera,
+    std::optional<GridPosition> hover_tile)
+{
+    if (!hover_tile.has_value()) {
+        return;
+    }
+
+    auto rect = tile_rect(*hover_tile, Footprint{1, 1}, camera);
+    auto target_exists = simulation.map().has_path(*hover_tile);
+    const auto building = building_at(simulation, *hover_tile);
+    if (building.has_value()) {
+        const auto& instance = simulation.building(*building);
+        if (instance.position.has_value()) {
+            rect = tile_rect(*instance.position, footprint_for(simulation, instance), camera);
+            target_exists = true;
+        }
+    }
+
+    set_color(renderer, target_exists ? Color{226, 74, 68, 86} : Color{120, 86, 82, 46});
+    SDL_RenderFillRect(renderer, &rect);
+    set_color(renderer, target_exists ? Color{255, 120, 96, 235} : Color{150, 108, 102, 175});
+    SDL_RenderDrawRect(renderer, &rect);
 }
 
 }

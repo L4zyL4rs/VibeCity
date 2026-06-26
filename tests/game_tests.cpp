@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <stdexcept>
 #include <string_view>
 #include <vector>
 
@@ -134,6 +135,39 @@ void command_layer_places_path_and_building()
     VIBECITY_CHECK(result.success);
     VIBECITY_CHECK(result.building.has_value());
     VIBECITY_CHECK(game.simulation().building(*result.building).kind == vibecity::BuildingKind::House);
+}
+
+void command_layer_removes_path_and_demolishes_building()
+{
+    vibecity::GameSession game;
+
+    auto result = game.execute(vibecity::PlacePathCommand{.position = vibecity::GridPosition{1, 0}});
+    VIBECITY_CHECK(result.success);
+    result = game.execute(vibecity::RemovePathCommand{.position = vibecity::GridPosition{1, 0}});
+    VIBECITY_CHECK(result.success);
+    VIBECITY_CHECK(!game.simulation().map().has_path(vibecity::GridPosition{1, 0}));
+    result = game.execute(vibecity::RemovePathCommand{.position = vibecity::GridPosition{1, 0}});
+    VIBECITY_CHECK(!result.success);
+
+    const auto house = require_building(game, vibecity::PlaceBuildingCommand{
+        .kind = vibecity::BuildingKind::House,
+        .position = vibecity::GridPosition{1, 1}
+    });
+    result = game.execute(vibecity::DemolishBuildingCommand{.building = house});
+    VIBECITY_CHECK(result.success);
+    VIBECITY_CHECK(game.simulation().map().can_place_building(
+        vibecity::GridPosition{1, 1},
+        vibecity::Footprint{1, 1}));
+    result = game.execute(vibecity::DemolishBuildingCommand{.building = house});
+    VIBECITY_CHECK(!result.success);
+
+    auto threw = false;
+    try {
+        [[maybe_unused]] const auto& removed = game.simulation().building(house);
+    } catch (const std::out_of_range&) {
+        threw = true;
+    }
+    VIBECITY_CHECK(threw);
 }
 
 void invalid_command_reports_failure()
@@ -322,6 +356,43 @@ void save_load_preserves_objective_history()
     std::filesystem::remove(path);
 }
 
+void save_load_preserves_demolished_buildings()
+{
+    const auto path = std::filesystem::temp_directory_path() / "vibecity-demolition.vcs";
+    vibecity::GameSession game;
+
+    const auto first_house = require_building(game, vibecity::PlaceBuildingCommand{
+        .kind = vibecity::BuildingKind::House,
+        .position = vibecity::GridPosition{1, 1}
+    });
+    require(game, vibecity::DemolishBuildingCommand{.building = first_house});
+    const auto second_house = require_building(game, vibecity::PlaceBuildingCommand{
+        .kind = vibecity::BuildingKind::House,
+        .position = vibecity::GridPosition{1, 1}
+    });
+    VIBECITY_CHECK(second_house == first_house + 1);
+    VIBECITY_CHECK(game.save_to_file(path).success);
+
+    vibecity::GameSession loaded;
+    VIBECITY_CHECK(loaded.load_from_file(path).success);
+    VIBECITY_CHECK(!loaded.simulation().buildings()[static_cast<std::size_t>(first_house - 1)].active);
+    VIBECITY_CHECK(loaded.simulation().buildings()[static_cast<std::size_t>(second_house - 1)].active);
+    VIBECITY_CHECK(loaded.simulation().building(second_house).kind == vibecity::BuildingKind::House);
+    VIBECITY_CHECK(!loaded.simulation().map().can_place_building(
+        vibecity::GridPosition{1, 1},
+        vibecity::Footprint{1, 1}));
+
+    auto threw = false;
+    try {
+        [[maybe_unused]] const auto& removed = loaded.simulation().building(first_house);
+    } catch (const std::out_of_range&) {
+        threw = true;
+    }
+    VIBECITY_CHECK(threw);
+
+    std::filesystem::remove(path);
+}
+
 void invalid_save_is_rejected_without_replacing_session()
 {
     const auto directory = std::filesystem::temp_directory_path();
@@ -341,7 +412,7 @@ void invalid_save_is_rejected_without_replacing_session()
 
     auto version = read_bytes(valid_path);
     VIBECITY_CHECK(version.size() > 12);
-    version[8] = 4;
+    version[8] = 5;
     write_bytes(version_path, version);
 
     vibecity::GameSession target;
@@ -557,12 +628,14 @@ void self_sufficient_village_reaches_25_residents()
 int main()
 {
     command_layer_places_path_and_building();
+    command_layer_removes_path_and_demolishes_building();
     invalid_command_reports_failure();
     starting_village_runs_through_command_layer();
     objectives_track_starting_village_status();
     objectives_count_stable_days_and_reset_on_hunger();
     save_load_round_trip_preserves_deterministic_session();
     save_load_preserves_objective_history();
+    save_load_preserves_demolished_buildings();
     invalid_save_is_rejected_without_replacing_session();
     external_building_definition_runs_and_persists();
     single_production_chain_cannot_reach_25_residents();

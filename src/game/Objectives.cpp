@@ -14,7 +14,7 @@ std::size_t objective_index(VillageObjectiveId id)
 int building_count(const Simulation& simulation, BuildingKind kind)
 {
     return static_cast<int>(std::count_if(simulation.buildings().begin(), simulation.buildings().end(), [kind](const BuildingInstance& building) {
-        return building.kind == kind;
+        return building.active && building.kind == kind;
     }));
 }
 
@@ -22,6 +22,9 @@ int total_hunger_days(const Simulation& simulation)
 {
     auto hunger_days = 0;
     for (const auto& building : simulation.buildings()) {
+        if (!building.active) {
+            continue;
+        }
         hunger_days += building.hunger_days;
     }
     return hunger_days;

@@ -22,17 +22,17 @@ understand when production stops or must move elsewhere.
   shows usable forest tiles, marks trees that would be cleared by the
   footprint, and reports the reachable forest total before placement.
 - The inspector reports collection radius and total forest remaining in range.
-- Depleted forest state is deterministic and persisted in save format version 3.
+- Depleted forest state is deterministic and persisted in save format version 4.
+- Demolition and path removal free occupied tiles without refunds or terrain
+  recovery. Removed buildings persist as inactive ID tombstones in saves.
 
 ## Next Programming Slices
 
-1. Demolition and road removal, with explicit decisions about whether cleared
-   terrain can recover.
-2. Terrain suitability and build-cost modifiers rather than treating every
+1. Terrain suitability and build-cost modifiers rather than treating every
    non-forest tile identically.
-3. Stone and clay deposits using the same map-resource contract.
-4. Quarry and brickyard chains that make construction materials geographic.
-5. A selected-building logistics inspection mode for suppliers, customers,
+2. Stone and clay deposits using the same map-resource contract.
+3. Quarry and brickyard chains that make construction materials geographic.
+4. A selected-building logistics inspection mode for suppliers, customers,
    active routes, and flow volumes.
 
 ## Deliberate Limits
@@ -42,4 +42,5 @@ understand when production stops or must move elsewhere.
 - Forest does not regrow.
 - Roads and construction clear trees immediately without labor or recovered
   timber.
+- Demolition does not refund materials or regrow cleared terrain.
 - Map generation is deterministic but not yet configurable by seed or scenario.

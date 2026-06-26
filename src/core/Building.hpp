@@ -112,6 +112,7 @@ using BuildingId = std::uint32_t;
 
 struct BuildingInstance {
     BuildingId id = 0;
+    bool active = true;
     BuildingKind kind = BuildingKind::House;
     std::optional<GridPosition> position;
     Inventory inventory;

@@ -14,9 +14,17 @@ struct PlacePathCommand {
     GridPosition position;
 };
 
+struct RemovePathCommand {
+    GridPosition position;
+};
+
 struct PlaceBuildingCommand {
     BuildingKind kind = BuildingKind::House;
     GridPosition position;
+};
+
+struct DemolishBuildingCommand {
+    BuildingId building = 0;
 };
 
 struct PlaceConstructionCommand {
@@ -41,7 +49,9 @@ struct AdvanceTimeCommand {
 
 using GameCommand = std::variant<
     PlacePathCommand,
+    RemovePathCommand,
     PlaceBuildingCommand,
+    DemolishBuildingCommand,
     PlaceConstructionCommand,
     SetResidentsCommand,
     AddInventoryCommand,

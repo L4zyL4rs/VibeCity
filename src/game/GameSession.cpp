@@ -65,9 +65,21 @@ CommandResult GameSession::execute(const GameCommand& command)
                 }
                 return ok("path placed");
             },
+            [this](const RemovePathCommand& remove_path) {
+                if (!simulation_.remove_path(remove_path.position)) {
+                    return failed("path could not be removed");
+                }
+                return ok("path removed");
+            },
             [this](const PlaceBuildingCommand& place_building) {
                 const auto id = simulation_.add_building_at(place_building.kind, place_building.position);
                 return ok("building placed", id);
+            },
+            [this](const DemolishBuildingCommand& demolish_building) {
+                if (!simulation_.demolish_building(demolish_building.building)) {
+                    return failed("building could not be demolished");
+                }
+                return ok("building demolished");
             },
             [this](const PlaceConstructionCommand& place_construction) {
                 const auto id = simulation_.place_construction_at(place_construction.target_kind, place_construction.position);

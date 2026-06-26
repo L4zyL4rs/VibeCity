@@ -51,7 +51,10 @@ Client controls:
 
 - `1`: select
 - `2`: place path
+- `X`: demolish mode
 - Hold left mouse in path mode: drag-place paths
+- Left click in demolish mode: remove a building, otherwise remove a path tile
+- `Delete` / `Backspace`: demolish the selected building
 - Click a construction-menu entry to select a building
 - `3` through `9`: select the first seven listed buildings
 - `Space`: pause or run
@@ -59,6 +62,6 @@ Client controls:
 - Arrow keys or `WASD`: pan
 - Mouse wheel over the map: zoom toward the cursor
 - Mouse wheel over the construction menu or inspector: scroll that panel
-- `Esc`: cancel placement, then clear the current selection
+- `Esc`: cancel placement or demolition, then clear the current selection
 - `F5`: save to `vibecity-save.vcs`
 - `F9`: load from `vibecity-save.vcs`

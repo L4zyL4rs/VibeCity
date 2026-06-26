@@ -229,6 +229,13 @@ void escape_cancels_before_clearing_selection()
     vibecity::client::cancel_interaction(state);
     VIBECITY_CHECK(!state.selected.has_value());
     VIBECITY_CHECK(!state.quit);
+
+    state.mode = vibecity::client::ClientMode::Demolish;
+    state.selected = 8;
+    vibecity::client::cancel_interaction(state);
+    VIBECITY_CHECK(state.mode == vibecity::client::ClientMode::Select);
+    VIBECITY_CHECK(state.selected == 8);
+    VIBECITY_CHECK(state.status == "demolition cancelled");
 }
 
 void transport_overlay_retains_completed_jobs_for_readability()

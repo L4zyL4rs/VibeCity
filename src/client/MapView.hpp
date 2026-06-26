@@ -82,4 +82,9 @@ void draw_building_placement_preview(SDL_Renderer* renderer,
     BuildingKind target,
     bool valid);
 
+void draw_demolition_preview(SDL_Renderer* renderer,
+    const Simulation& simulation,
+    Camera camera,
+    std::optional<GridPosition> hover_tile);
+
 }

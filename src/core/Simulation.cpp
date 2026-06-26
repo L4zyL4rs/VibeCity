@@ -35,6 +35,15 @@ bool shares_component(const std::vector<int>& left, const std::vector<int>& righ
     });
 }
 
+BuildingInstance make_inactive_building(BuildingId id)
+{
+    auto building = BuildingInstance{};
+    building.id = id;
+    building.active = false;
+    building.source_mask = 0;
+    return building;
+}
+
 }
 
 Simulation::Simulation(std::shared_ptr<const BuildingCatalog> catalog)
@@ -172,6 +181,34 @@ bool Simulation::add_path(GridPosition position)
     return added;
 }
 
+bool Simulation::remove_path(GridPosition position)
+{
+    const auto removed = map_.remove_path(position);
+    if (removed) {
+        worker_assignment_dirty_ = true;
+    }
+    return removed;
+}
+
+bool Simulation::demolish_building(BuildingId id)
+{
+    auto* instance = find_building(id);
+    if (instance == nullptr || !instance->position.has_value()) {
+        return false;
+    }
+
+    const auto position = *instance->position;
+    const auto footprint = footprint_for(*instance);
+    if (!map_.remove_building(id, position, footprint)) {
+        return false;
+    }
+
+    cancel_transport_jobs_for_building(id);
+    *instance = make_inactive_building(id);
+    worker_assignment_dirty_ = true;
+    return true;
+}
+
 bool Simulation::set_map_resource(
     GridPosition position,
     MapResourceId resource,
@@ -208,6 +245,9 @@ void Simulation::assign_workers()
     auto worker_pools = std::vector<WorkerPool>{};
     auto workplace_count = std::size_t{0};
     for (const auto& instance : buildings_) {
+        if (!instance.active) {
+            continue;
+        }
         const auto& building = definition(instance.kind);
         const auto available_workers = std::min(building.worker_supply, instance.residents);
         if (available_workers > 0) {
@@ -237,6 +277,9 @@ void Simulation::assign_workers()
     }
 
     for (auto& instance : buildings_) {
+        if (!instance.active) {
+            continue;
+        }
         const auto& building = definition(instance.kind);
         if (building.worker_slots <= 0) {
             continue;
@@ -338,6 +381,9 @@ int Simulation::total_residents() const
 {
     auto residents = 0;
     for (const auto& instance : buildings_) {
+        if (!instance.active) {
+            continue;
+        }
         residents += instance.residents;
     }
     return residents;
@@ -347,6 +393,9 @@ int Simulation::total_housing_capacity() const
 {
     auto capacity = 0;
     for (const auto& instance : buildings_) {
+        if (!instance.active) {
+            continue;
+        }
         capacity += definition(instance.kind).resident_capacity;
     }
     return capacity;
@@ -361,6 +410,9 @@ Quantity Simulation::daily_bread_need() const
 {
     auto need = Quantity{0};
     for (const auto& instance : buildings_) {
+        if (!instance.active) {
+            continue;
+        }
         const auto& building = definition(instance.kind);
         if (building.consumes_bread) {
             need += static_cast<Quantity>(instance.residents);
@@ -378,6 +430,9 @@ Quantity Simulation::stored_bread() const
 {
     auto bread = Quantity{0};
     for (const auto& instance : buildings_) {
+        if (!instance.active) {
+            continue;
+        }
         bread += instance.inventory.quantity(ResourceId::Bread);
     }
     return bread;
@@ -399,6 +454,9 @@ PopulationGrowthBlocker Simulation::population_growth_blocker() const
     }
 
     for (const auto& instance : buildings_) {
+        if (!instance.active) {
+            continue;
+        }
         if (instance.residents > 0 && instance.blocking_reason == BlockingReason::MissingBread) {
             return PopulationGrowthBlocker::HungryHouse;
         }
@@ -415,6 +473,9 @@ ConstructionSummary Simulation::construction_summary() const
 {
     auto summary = ConstructionSummary{};
     for (const auto& instance : buildings_) {
+        if (!instance.active) {
+            continue;
+        }
         if (!definition(instance.kind).internal_construction_site) {
             continue;
         }
@@ -474,6 +535,9 @@ LogisticsSummary Simulation::logistics_summary() const
     }
 
     for (const auto& instance : buildings_) {
+        if (!instance.active) {
+            continue;
+        }
         for (std::size_t index = 0; index < resource_count; ++index) {
             const auto resource = static_cast<ResourceId>(index);
             summary.reserved_incoming[index] += instance.inventory.reserved_incoming(resource);
@@ -488,6 +552,9 @@ ResourceArray Simulation::total_inventory() const
 {
     auto totals = empty_resources();
     for (const auto& instance : buildings_) {
+        if (!instance.active) {
+            continue;
+        }
         const auto& quantities = instance.inventory.quantities();
         for (std::size_t index = 0; index < resource_count; ++index) {
             totals[index] += quantities[index];
@@ -508,7 +575,7 @@ BuildingInstance* Simulation::find_building(BuildingId id)
     }
 
     const auto index = static_cast<std::size_t>(id - 1);
-    if (index >= buildings_.size() || buildings_[index].id != id) {
+    if (index >= buildings_.size() || buildings_[index].id != id || !buildings_[index].active) {
         return nullptr;
     }
 
@@ -522,7 +589,7 @@ const BuildingInstance* Simulation::find_building(BuildingId id) const
     }
 
     const auto index = static_cast<std::size_t>(id - 1);
-    if (index >= buildings_.size() || buildings_[index].id != id) {
+    if (index >= buildings_.size() || buildings_[index].id != id || !buildings_[index].active) {
         return nullptr;
     }
 
@@ -576,6 +643,9 @@ std::optional<Tick> Simulation::transport_minutes_if_connected(const BuildingIns
 void Simulation::run_production()
 {
     for (auto& instance : buildings_) {
+        if (!instance.active) {
+            continue;
+        }
         const auto& building = definition(instance.kind);
         if (!building.recipe.has_value()) {
             continue;
@@ -728,6 +798,9 @@ void Simulation::run_construction()
     auto available_builders = std::max(0, idle_workers_ - static_cast<int>(transport_jobs_.size()));
 
     for (auto& site : buildings_) {
+        if (!site.active) {
+            continue;
+        }
         site.assigned_builders = 0;
         if (!definition(site.kind).internal_construction_site) {
             continue;
@@ -766,6 +839,9 @@ void Simulation::run_construction()
 void Simulation::consume_daily_bread()
 {
     for (auto& instance : buildings_) {
+        if (!instance.active) {
+            continue;
+        }
         const auto& building = definition(instance.kind);
         if (!building.consumes_bread || instance.residents <= 0) {
             continue;
@@ -795,6 +871,9 @@ void Simulation::grow_population()
 
     auto immigrants_remaining = prototype_immigrants_per_day;
     for (auto& instance : buildings_) {
+        if (!instance.active) {
+            continue;
+        }
         if (immigrants_remaining <= 0) {
             break;
         }
@@ -816,6 +895,9 @@ std::vector<ResourceRequest> Simulation::collect_resource_requests() const
     auto requests = std::vector<ResourceRequest>{};
 
     for (const auto& instance : buildings_) {
+        if (!instance.active) {
+            continue;
+        }
         const auto& building = definition(instance.kind);
 
         if (building.internal_construction_site && instance.construction_target.has_value()) {
@@ -899,7 +981,8 @@ int Simulation::viable_source_count(const ResourceRequest& request) const
         buildings_.begin(),
         buildings_.end(),
         [this, &request](const BuildingInstance& candidate) {
-            return candidate.id != request.destination
+            return candidate.active
+                && candidate.id != request.destination
                 && can_source_resource(candidate, request.resource)
                 && candidate.inventory.available(request.resource) > 0;
         }));
@@ -918,7 +1001,9 @@ std::optional<Simulation::SourceSelection> Simulation::find_source_for_request(
     auto best_distance = Tick{0};
 
     for (auto& candidate : buildings_) {
-        if (candidate.id == request.destination || !can_source_resource(candidate, request.resource)) {
+        if (!candidate.active
+            || candidate.id == request.destination
+            || !can_source_resource(candidate, request.resource)) {
             continue;
         }
 
@@ -1012,6 +1097,28 @@ bool Simulation::create_transport_job(
         .delivery_ticks = delivery_ticks
     });
     return true;
+}
+
+void Simulation::cancel_transport_jobs_for_building(BuildingId id)
+{
+    for (const auto& job : transport_jobs_) {
+        if (job.source != id && job.destination != id) {
+            continue;
+        }
+
+        auto* source = find_building(job.source);
+        auto* destination = find_building(job.destination);
+        if (job.state == TransportJobState::GoingToPickup && source != nullptr) {
+            source->inventory.release_outgoing(job.resource, job.quantity);
+        }
+        if (destination != nullptr) {
+            destination->inventory.release_incoming(job.resource, job.quantity);
+        }
+    }
+
+    std::erase_if(transport_jobs_, [id](const TransportJob& job) {
+        return job.source == id || job.destination == id;
+    });
 }
 
 void Simulation::complete_construction(BuildingInstance& site)

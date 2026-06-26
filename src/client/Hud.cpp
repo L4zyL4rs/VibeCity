@@ -6,6 +6,7 @@
 #include <array>
 #include <sstream>
 #include <string>
+#include <string_view>
 
 namespace vibecity::client {
 
@@ -46,10 +47,16 @@ void draw_hud(SDL_Renderer* renderer,
     set_color(renderer, Color{60, 64, 64, 255});
     SDL_RenderFillRect(renderer, &separator);
 
-    constexpr std::array modes{ClientMode::Select, ClientMode::PlacePath};
+    constexpr std::array modes{ClientMode::Select, ClientMode::PlacePath, ClientMode::Demolish};
     constexpr std::array colors{
         Color{170, 176, 176, 255},
-        Color{82, 86, 86, 255}
+        Color{82, 86, 86, 255},
+        Color{178, 82, 70, 255}
+    };
+    constexpr std::array labels{
+        std::string_view{"1"},
+        std::string_view{"2"},
+        std::string_view{"X"}
     };
     for (std::size_t index = 0; index < modes.size(); ++index) {
         auto box = SDL_Rect{
@@ -67,12 +74,12 @@ void draw_hud(SDL_Renderer* renderer,
             renderer,
             box.x + 9,
             box.y + 7,
-            std::to_string(index + 1),
+            labels[index],
             Color{18, 20, 20, 255},
             2);
     }
 
-    auto speed_x = 100;
+    auto speed_x = 138;
     auto speed_value = ticks_per_frame;
     for (int index = 0; index < 8; ++index) {
         auto bar = SDL_Rect{

@@ -668,6 +668,21 @@ bool TileMap::add_path(GridPosition position)
     return true;
 }
 
+bool TileMap::remove_path(GridPosition position)
+{
+    if (!in_bounds(position)) {
+        return false;
+    }
+
+    auto& path_tile = tile(position);
+    if (!path_tile.path) {
+        return false;
+    }
+
+    path_tile.path = false;
+    return true;
+}
+
 bool TileMap::place_building(MapOccupantId id, GridPosition position, Footprint footprint)
 {
     if (!can_place_building(position, footprint)) {
@@ -681,6 +696,30 @@ bool TileMap::place_building(MapOccupantId id, GridPosition position, Footprint 
             auto& resource_tile = map_resource_tile(GridPosition{x, y});
             resource_tile.resource = MapResourceId::Count;
             resource_tile.resource_quantity = 0;
+        }
+    }
+
+    return true;
+}
+
+bool TileMap::remove_building(MapOccupantId id, GridPosition position, Footprint footprint)
+{
+    if (id == 0 || footprint.width <= 0 || footprint.height <= 0) {
+        return false;
+    }
+
+    for (int y = position.y; y < position.y + footprint.height; ++y) {
+        for (int x = position.x; x < position.x + footprint.width; ++x) {
+            const auto current = GridPosition{x, y};
+            if (!in_bounds(current) || tile(current).occupant != id) {
+                return false;
+            }
+        }
+    }
+
+    for (int y = position.y; y < position.y + footprint.height; ++y) {
+        for (int x = position.x; x < position.x + footprint.width; ++x) {
+            tile(GridPosition{x, y}).occupant = std::nullopt;
         }
     }
 

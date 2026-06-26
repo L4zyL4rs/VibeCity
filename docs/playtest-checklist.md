@@ -23,7 +23,10 @@ If the client fails to start, run the headless and benchmark checks instead and 
 
 - `1`: select
 - `2`: place path
+- `X`: demolish mode
 - Hold left mouse in path mode: drag-place paths
+- Left click in demolish mode: remove a building, otherwise remove a path tile
+- `Delete` / `Backspace`: demolish the selected building
 - Click a construction-menu entry to select a building
 - `3` through `9`: select the first seven listed buildings
 - `Space`: pause or run
@@ -31,7 +34,7 @@ If the client fails to start, run the headless and benchmark checks instead and 
 - Arrow keys or `WASD`: pan
 - Mouse wheel over the map: zoom toward the cursor
 - Mouse wheel over the construction menu or inspector: scroll that panel
-- `Esc`: cancel placement, then clear the current selection
+- `Esc`: cancel placement or demolition, then clear the current selection
 - `F5`: save to `vibecity-save.vcs`
 - `F9`: load from `vibecity-save.vcs`
 
@@ -104,6 +107,7 @@ When I ask for detailed input, please report these points:
 - Construction: could you tell which site was next and whether builders were working?
 - Pacing: which speed did you use, and where did waiting feel too slow or too fast?
 - Controls: any accidental mode switches, placement mistakes, camera issues, or unclear buttons.
+- Demolition: could you correct placement/path mistakes, and was no-refund/no-regrowth behavior unsurprising?
 - Visuals: any text overlap, unreadable rows, missing contrast, or map markers that were too subtle.
 - Endpoint: did the objective summary and milestone-complete banner make the goal clear?
 
@@ -117,7 +121,7 @@ Helpful evidence:
 ## Known Rough Edges To Ignore For Now
 
 - The graphics are intentionally placeholder.
-- There is no undo or bulldoze.
+- There is still no undo.
 - The UI does not yet have mouse tooltips.
 - The game has no costs for placing construction sites beyond delivered materials.
 - Workers do not visibly commute yet; reachability and assignment are simulated.

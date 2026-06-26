@@ -94,6 +94,49 @@ std::string placement_hover_status(
     return status;
 }
 
+std::string demolition_hover_status(const Simulation& simulation, GridPosition tile)
+{
+    const auto building = building_at(simulation, tile);
+    if (building.has_value()) {
+        return "demolish " + std::string{simulation.definition(
+            simulation.building(*building).kind).name};
+    }
+    if (simulation.map().has_path(tile)) {
+        return "remove path";
+    }
+    return "nothing to demolish";
+}
+
+void demolish_building(
+    GameSession& game,
+    ClientInteractionState& state,
+    BuildingId building)
+{
+    const auto result = game.execute(DemolishBuildingCommand{.building = building});
+    if (result.success && state.selected == building) {
+        state.selected = std::nullopt;
+        state.inspector_scroll = 0;
+    }
+    state.status = result.message;
+}
+
+void demolish_tile(GameSession& game, ClientInteractionState& state, GridPosition tile)
+{
+    const auto building = building_at(game.simulation(), tile);
+    if (building.has_value()) {
+        demolish_building(game, state, *building);
+        return;
+    }
+
+    if (!game.simulation().map().has_path(tile)) {
+        state.status = "nothing to demolish";
+        return;
+    }
+
+    const auto result = game.execute(RemovePathCommand{.position = tile});
+    state.status = result.message;
+}
+
 void place_path_tile(GameSession& game,
     GridPosition tile,
     std::optional<BuildingId>& selected,
@@ -131,6 +174,19 @@ void handle_keydown(GameSession& game, ClientInteractionState& state, SDL_Keycod
         state.mode = ClientMode::PlacePath;
         state.build_target = std::nullopt;
         state.status = "path mode";
+        break;
+    case SDLK_x:
+        state.mode = ClientMode::Demolish;
+        state.build_target = std::nullopt;
+        state.status = "demolish mode";
+        break;
+    case SDLK_DELETE:
+    case SDLK_BACKSPACE:
+        if (state.selected.has_value()) {
+            demolish_building(game, state, *state.selected);
+        } else {
+            state.status = "no building selected";
+        }
         break;
     case SDLK_F5: {
         const auto result = game.save_to_file(default_save_path);
@@ -199,6 +255,8 @@ void handle_mouse_motion(GameSession& game, ClientInteractionState& state, const
             game.simulation(),
             *state.build_target,
             *state.hover_tile);
+    } else if (state.mode == ClientMode::Demolish) {
+        state.status = demolition_hover_status(game.simulation(), *state.hover_tile);
     }
     if (state.path_dragging && state.mode == ClientMode::PlacePath && (motion.state & SDL_BUTTON_LMASK) != 0) {
         if (!state.last_path_drag_tile.has_value() || !(*state.last_path_drag_tile == *state.hover_tile)) {
@@ -220,6 +278,8 @@ void handle_left_mouse_down(GameSession& game, ClientInteractionState& state, in
         state.path_dragging = true;
         state.last_path_drag_tile = tile;
         place_path_tile(game, tile, state.selected, state.status, false);
+    } else if (state.mode == ClientMode::Demolish) {
+        demolish_tile(game, state, tile);
     } else if (state.mode == ClientMode::Build && state.build_target.has_value()) {
         const auto result = game.execute(PlaceConstructionCommand{
             .target_kind = *state.build_target,
@@ -285,9 +345,10 @@ void cancel_interaction(ClientInteractionState& state)
     state.path_dragging = false;
     state.last_path_drag_tile = std::nullopt;
     if (state.mode != ClientMode::Select || state.build_target.has_value()) {
+        const auto was_demolishing = state.mode == ClientMode::Demolish;
         state.mode = ClientMode::Select;
         state.build_target = std::nullopt;
-        state.status = "placement cancelled";
+        state.status = was_demolishing ? "demolition cancelled" : "placement cancelled";
     } else if (state.selected.has_value()) {
         state.selected = std::nullopt;
         state.inspector_scroll = 0;

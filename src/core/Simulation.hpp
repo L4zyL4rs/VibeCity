@@ -119,6 +119,8 @@ public:
     }
 
     bool add_path(GridPosition position);
+    bool remove_path(GridPosition position);
+    bool demolish_building(BuildingId id);
     bool set_map_resource(GridPosition position, MapResourceId resource, Quantity quantity);
     void set_residents(BuildingId id, int residents);
     void mark_worker_assignment_dirty();
@@ -187,6 +189,7 @@ private:
     void finish_recipe(BuildingInstance& building, const Recipe& recipe);
     bool has_recipe_inputs(const BuildingInstance& building, const Recipe& recipe) const;
     bool has_recipe_output_capacity(const BuildingInstance& building, const Recipe& recipe) const;
+    void cancel_transport_jobs_for_building(BuildingId id);
 
     // Buildings are append-only so stable ID N remains at index N - 1.
     std::vector<BuildingInstance> buildings_;

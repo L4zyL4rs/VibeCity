@@ -23,6 +23,15 @@ bool enum_at_most(Enum value, Enum maximum)
         <= static_cast<std::underlying_type_t<Enum>>(maximum);
 }
 
+bool inventory_is_empty(const Inventory& inventory)
+{
+    const auto state = inventory.state();
+    return state.quantities == empty_resources()
+        && state.capacities == empty_resources()
+        && state.reserved_outgoing == empty_resources()
+        && state.reserved_incoming == empty_resources();
+}
+
 }
 
 SimulationState Simulation::state() const
@@ -98,8 +107,8 @@ Simulation Simulation::from_state(
     for (std::size_t index = 0; index < state.buildings.size(); ++index) {
         auto& building = state.buildings[index];
         const auto expected_id = static_cast<BuildingId>(index + 1);
-        if (building.id != expected_id || !building.position.has_value()) {
-            throw std::invalid_argument("saved building IDs must be dense and positioned");
+        if (building.id != expected_id) {
+            throw std::invalid_argument("saved building IDs must be dense");
         }
         if (!enum_at_most(building.blocking_reason, BlockingReason::NoNearbyMapResource)) {
             throw std::invalid_argument("invalid saved building enum");
@@ -112,6 +121,28 @@ Simulation Simulation::from_state(
             || building.construction_labor_required < 0
             || building.construction_labor_completed < 0) {
             throw std::invalid_argument("invalid saved building counters");
+        }
+
+        if (!building.active) {
+            if (building.position.has_value()
+                || !inventory_is_empty(building.inventory)
+                || building.residents != 0
+                || building.assigned_workers != 0
+                || building.assigned_builders != 0
+                || building.recipe_progress != 0
+                || building.hunger_days != 0
+                || building.construction_target.has_value()
+                || building.construction_labor_required != 0
+                || building.construction_labor_completed != 0
+                || building.blocking_reason != BlockingReason::None) {
+                throw std::invalid_argument("invalid saved demolished building");
+            }
+            building.source_mask = 0;
+            continue;
+        }
+
+        if (!building.position.has_value()) {
+            throw std::invalid_argument("saved active building must be positioned");
         }
 
         const auto& definition = catalog->definition(building.kind);
@@ -182,6 +213,8 @@ Simulation Simulation::from_state(
             || job.destination == 0
             || job.source > state.buildings.size()
             || job.destination > state.buildings.size()
+            || !state.buildings[static_cast<std::size_t>(job.source - 1)].active
+            || !state.buildings[static_cast<std::size_t>(job.destination - 1)].active
             || job.source == job.destination
             || !enum_less_than(job.resource, ResourceId::Count)
             || (job.state != TransportJobState::GoingToPickup

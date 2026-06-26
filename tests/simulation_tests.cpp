@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <optional>
+#include <stdexcept>
 
 namespace {
 
@@ -49,6 +50,41 @@ void paths_and_buildings_clear_map_resources()
         vibecity::GridPosition{5, 5},
         vibecity::Footprint{2, 2}));
     VIBECITY_CHECK(map.map_resource_quantity(vibecity::GridPosition{5, 5}) == 0);
+}
+
+void path_and_building_removal_free_tiles_without_regrowing_resources()
+{
+    auto map = vibecity::TileMap{12, 12};
+    VIBECITY_CHECK(map.set_map_resource(
+        vibecity::GridPosition{2, 2},
+        vibecity::MapResourceId::Forest,
+        vibecity::forest_tile_capacity));
+    VIBECITY_CHECK(map.add_path(vibecity::GridPosition{2, 2}));
+    VIBECITY_CHECK(map.remove_path(vibecity::GridPosition{2, 2}));
+    VIBECITY_CHECK(!map.has_path(vibecity::GridPosition{2, 2}));
+    VIBECITY_CHECK(map.map_resource_quantity(vibecity::GridPosition{2, 2}) == 0);
+    VIBECITY_CHECK(!map.remove_path(vibecity::GridPosition{2, 2}));
+
+    VIBECITY_CHECK(map.set_map_resource(
+        vibecity::GridPosition{5, 5},
+        vibecity::MapResourceId::Forest,
+        vibecity::forest_tile_capacity));
+    VIBECITY_CHECK(map.place_building(
+        7,
+        vibecity::GridPosition{5, 5},
+        vibecity::Footprint{2, 2}));
+    VIBECITY_CHECK(map.remove_building(
+        7,
+        vibecity::GridPosition{5, 5},
+        vibecity::Footprint{2, 2}));
+    VIBECITY_CHECK(map.can_place_building(
+        vibecity::GridPosition{5, 5},
+        vibecity::Footprint{2, 2}));
+    VIBECITY_CHECK(map.map_resource_quantity(vibecity::GridPosition{5, 5}) == 0);
+    VIBECITY_CHECK(!map.remove_building(
+        7,
+        vibecity::GridPosition{5, 5},
+        vibecity::Footprint{2, 2}));
 }
 
 void harvesting_prefers_nearest_then_topmost_resource()
@@ -222,6 +258,50 @@ void path_connectivity_labels_building_access_components()
     VIBECITY_CHECK(second_source.size() == 1);
     VIBECITY_CHECK(first_source != second_source);
     VIBECITY_CHECK(multi_access.size() == 2);
+}
+
+void demolishing_building_frees_tiles_and_cancels_transport()
+{
+    auto simulation = vibecity::Simulation{};
+    clear_map_resources(simulation);
+    for (int x = 1; x <= 8; ++x) {
+        VIBECITY_CHECK(simulation.add_path(vibecity::GridPosition{x, 0}));
+    }
+
+    const auto house = simulation.add_building_at(
+        vibecity::BuildingKind::House,
+        vibecity::GridPosition{1, 1});
+    const auto storehouse = simulation.add_building_at(
+        vibecity::BuildingKind::Storehouse,
+        vibecity::GridPosition{5, 1});
+    simulation.set_residents(house, 1);
+    VIBECITY_CHECK(simulation.building(storehouse).inventory.add(
+        vibecity::ResourceId::Bread,
+        5));
+
+    simulation.tick();
+    VIBECITY_CHECK(!simulation.transport_jobs().empty());
+    VIBECITY_CHECK(simulation.building(storehouse).inventory.reserved_outgoing(
+        vibecity::ResourceId::Bread) > 0);
+
+    VIBECITY_CHECK(simulation.demolish_building(house));
+    VIBECITY_CHECK(simulation.transport_jobs().empty());
+    VIBECITY_CHECK(simulation.building(storehouse).inventory.reserved_outgoing(
+        vibecity::ResourceId::Bread) == 0);
+    VIBECITY_CHECK(simulation.total_residents() == 0);
+    VIBECITY_CHECK(simulation.total_housing_capacity() == 0);
+    VIBECITY_CHECK(simulation.map().can_place_building(
+        vibecity::GridPosition{1, 1},
+        vibecity::Footprint{1, 1}));
+    VIBECITY_CHECK(!simulation.demolish_building(house));
+
+    auto threw = false;
+    try {
+        [[maybe_unused]] const auto& removed = simulation.building(house);
+    } catch (const std::out_of_range&) {
+        threw = true;
+    }
+    VIBECITY_CHECK(threw);
 }
 
 void farm_produces_grain_when_staffed()
@@ -812,11 +892,13 @@ int main()
 {
     default_map_resources_are_deterministic();
     paths_and_buildings_clear_map_resources();
+    path_and_building_removal_free_tiles_without_regrowing_resources();
     harvesting_prefers_nearest_then_topmost_resource();
     path_distance_field_matches_pairwise_pathfinding();
     path_distance_field_can_be_reused_without_stale_distances();
     path_route_follows_connected_road_tiles();
     path_connectivity_labels_building_access_components();
+    demolishing_building_frees_tiles_and_cancels_transport();
     farm_produces_grain_when_staffed();
     bakery_consumes_inputs_and_produces_bread();
     house_consumes_bread_daily();

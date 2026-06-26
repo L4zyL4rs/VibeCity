@@ -27,6 +27,7 @@ using vibecity::client::ClientInteractionState;
 using vibecity::client::draw_building_placement_preview;
 using vibecity::client::draw_hud;
 using vibecity::client::draw_build_menu;
+using vibecity::client::draw_demolition_preview;
 using vibecity::client::draw_inspector;
 using vibecity::client::draw_objective_completion_banner;
 using vibecity::client::draw_placement_preview;
@@ -52,6 +53,10 @@ std::optional<vibecity::Footprint> preview_footprint_for_mode(
         return vibecity::Footprint{1, 1};
     }
 
+    if (mode == ClientMode::Demolish) {
+        return vibecity::Footprint{1, 1};
+    }
+
     if (mode == ClientMode::Build && build_target.has_value()) {
         return simulation.definition(*build_target).footprint;
     }
@@ -67,6 +72,11 @@ bool can_place_preview(
 {
     if (mode == ClientMode::PlacePath) {
         return can_place_path_preview(simulation, tile);
+    }
+
+    if (mode == ClientMode::Demolish) {
+        return vibecity::client::building_at(simulation, tile).has_value()
+            || simulation.map().has_path(tile);
     }
 
     if (mode == ClientMode::Build && build_target.has_value()) {
@@ -85,6 +95,10 @@ void draw_mode_placement_preview(SDL_Renderer* renderer,
 {
     const auto valid = hover_tile.has_value()
         && can_place_preview(simulation, mode, build_target, *hover_tile);
+    if (mode == ClientMode::Demolish) {
+        draw_demolition_preview(renderer, simulation, camera, hover_tile);
+        return;
+    }
     if (mode == ClientMode::Build && build_target.has_value()) {
         draw_building_placement_preview(
             renderer,

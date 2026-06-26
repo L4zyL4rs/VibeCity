@@ -159,7 +159,9 @@ public:
         int radius,
         Quantity quantity);
     bool add_path(GridPosition position);
+    bool remove_path(GridPosition position);
     bool place_building(MapOccupantId id, GridPosition position, Footprint footprint);
+    bool remove_building(MapOccupantId id, GridPosition position, Footprint footprint);
 
 private:
     struct Tile {
