@@ -117,7 +117,12 @@ void draw_hud(SDL_Renderer* renderer,
 
 void draw_status(SDL_Renderer* renderer, std::string_view status)
 {
-    draw_text(renderer, 700, 10, std::string{"STATUS: "} + std::string{status}, Color{202, 204, 176, 255}, 2);
+    auto text = std::string{"STATUS: "} + std::string{status};
+    if (text.size() > 46) {
+        text.resize(46);
+        text.back() = '.';
+    }
+    draw_text(renderer, 700, 10, text, Color{202, 204, 176, 255}, 2);
 }
 
 void draw_objective_completion_banner(SDL_Renderer* renderer,

@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <sstream>
 #include <string>
 
 namespace vibecity::client {
@@ -462,6 +463,82 @@ std::optional<BuildingId> building_at(const Simulation& simulation, GridPosition
         }
     }
     return std::nullopt;
+}
+
+std::string terrain_display_name(TerrainId terrain)
+{
+    switch (terrain) {
+    case TerrainId::Grass:
+        return "grass";
+    case TerrainId::Fertile:
+        return "fertile";
+    case TerrainId::Rocky:
+        return "rocky";
+    case TerrainId::ShallowWater:
+        return "shallow water";
+    case TerrainId::Count:
+        return "unknown";
+    }
+    return "unknown";
+}
+
+std::string tile_inspection_text(const Simulation& simulation, GridPosition tile)
+{
+    if (!simulation.map().in_bounds(tile)) {
+        return "outside map";
+    }
+
+    auto output = std::ostringstream{};
+    output << "tile " << tile.x << "," << tile.y
+           << " " << terrain_display_name(simulation.map().terrain_at(tile));
+
+    if (const auto resource = simulation.map().map_resource_at(tile)) {
+        output << " "
+               << map_resource_name(*resource)
+               << ": " << simulation.map().map_resource_quantity(tile);
+    }
+    if (simulation.map().has_path(tile)) {
+        output << " path";
+    }
+    if (const auto building = building_at(simulation, tile)) {
+        const auto& instance = simulation.building(*building);
+        output << " #" << *building << " " << simulation.definition(instance.kind).name;
+    }
+    return output.str();
+}
+
+std::string placement_blocker_text(
+    const Simulation& simulation,
+    GridPosition tile,
+    Footprint footprint)
+{
+    if (footprint.width <= 0 || footprint.height <= 0) {
+        return "invalid footprint";
+    }
+
+    for (int y = tile.y; y < tile.y + footprint.height; ++y) {
+        for (int x = tile.x; x < tile.x + footprint.width; ++x) {
+            const auto current = GridPosition{x, y};
+            if (!simulation.map().in_bounds(current)) {
+                return "outside map";
+            }
+            if (terrain_blocks_construction(simulation.map().terrain_at(current))) {
+                return "blocked by " + terrain_display_name(simulation.map().terrain_at(current));
+            }
+            if (simulation.map().has_path(current)) {
+                return "blocked by path";
+            }
+            if (const auto building = building_at(simulation, current)) {
+                const auto& instance = simulation.building(*building);
+                return "blocked by #"
+                    + std::to_string(*building)
+                    + " "
+                    + std::string{simulation.definition(instance.kind).name};
+            }
+        }
+    }
+
+    return {};
 }
 
 bool can_place_path_preview(const Simulation& simulation, GridPosition tile)

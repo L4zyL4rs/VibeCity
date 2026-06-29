@@ -36,6 +36,8 @@ understand when production stops or must move elsewhere.
   and stone on rocky tiles.
 - Stone deposits are generated on rocky terrain and rendered separately from
   forest, but no default building consumes stone yet.
+- Hovering map tiles reports terrain, resource quantity, path/building
+  occupancy, and common placement blockers.
 
 ## Implemented: Logistics Inspection
 

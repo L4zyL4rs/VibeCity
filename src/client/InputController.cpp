@@ -76,9 +76,12 @@ std::string placement_hover_status(
     GridPosition tile)
 {
     const auto& definition = simulation.definition(target);
-    auto status = can_place_building_preview(simulation, target, tile)
-        ? std::string{}
-        : std::string{"blocked "};
+    auto status = std::string{};
+    if (!can_place_building_preview(simulation, target, tile)) {
+        const auto blocker = placement_blocker_text(simulation, tile, definition.footprint);
+        status += blocker.empty() ? "blocked" : blocker;
+        status += " ";
+    }
     status += definition.name;
 
     if (definition.gathering.has_value()) {
@@ -257,6 +260,16 @@ void handle_mouse_motion(GameSession& game, ClientInteractionState& state, const
             *state.hover_tile);
     } else if (state.mode == ClientMode::Demolish) {
         state.status = demolition_hover_status(game.simulation(), *state.hover_tile);
+    } else if (state.mode == ClientMode::Select) {
+        state.status = tile_inspection_text(game.simulation(), *state.hover_tile);
+    } else if (state.mode == ClientMode::PlacePath && !state.path_dragging) {
+        const auto blocker = placement_blocker_text(
+            game.simulation(),
+            *state.hover_tile,
+            Footprint{1, 1});
+        state.status = blocker.empty()
+            ? std::string{"place path: "} + tile_inspection_text(game.simulation(), *state.hover_tile)
+            : blocker;
     }
     if (state.path_dragging && state.mode == ClientMode::PlacePath && (motion.state & SDL_BUTTON_LMASK) != 0) {
         if (!state.last_path_drag_tile.has_value() || !(*state.last_path_drag_tile == *state.hover_tile)) {

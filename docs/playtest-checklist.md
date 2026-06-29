@@ -104,6 +104,8 @@ When I ask for detailed input, please report these points:
   local forest supply understandable?
 - Terrain/resources: can you distinguish normal grass, fertile terrain, rocky
   terrain, forests, and stone deposits without guessing?
+- Hover info: does the status line make the tile terrain, resource amount,
+  path/building occupancy, and placement blocker clear enough?
 - Placement: when hovering a woodcutter before placement, is the collection
   radius, reachable forest count, and footprint-cleared forest marker clear?
 - Depletion: after several production cycles, can you identify which nearby

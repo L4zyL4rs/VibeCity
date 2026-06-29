@@ -211,6 +211,76 @@ void gathering_preview_counts_only_resource_that_survives_placement()
         == 0);
 }
 
+void map_hover_text_reports_tile_contents()
+{
+    auto simulation = vibecity::Simulation{};
+    const auto resource_tile = vibecity::GridPosition{1, 1};
+    VIBECITY_CHECK(simulation.set_map_resource(
+        resource_tile,
+        vibecity::MapResourceId::Forest,
+        3));
+    VIBECITY_CHECK(
+        vibecity::client::tile_inspection_text(simulation, resource_tile)
+        == "tile 1,1 grass forest: 3");
+
+    const auto path_tile = vibecity::GridPosition{2, 2};
+    VIBECITY_CHECK(simulation.add_path(path_tile));
+    VIBECITY_CHECK(
+        vibecity::client::tile_inspection_text(simulation, path_tile)
+        == "tile 2,2 grass path");
+
+    const auto house = simulation.add_building_at(
+        vibecity::BuildingKind::House,
+        vibecity::GridPosition{3, 3});
+    VIBECITY_CHECK(house == 1);
+    VIBECITY_CHECK(
+        vibecity::client::tile_inspection_text(
+            simulation,
+            vibecity::GridPosition{3, 3})
+        == "tile 3,3 grass #1 House");
+
+    const auto deposits = simulation.map().map_resource_deposits();
+    const auto stone = std::find_if(
+        deposits.begin(),
+        deposits.end(),
+        [](const vibecity::MapResourceDeposit& deposit) {
+            return deposit.resource == vibecity::MapResourceId::Stone;
+        });
+    VIBECITY_CHECK(stone != deposits.end());
+    const auto stone_text = vibecity::client::tile_inspection_text(
+        simulation,
+        stone->position);
+    VIBECITY_CHECK(stone_text.find("rocky stone:") != std::string::npos);
+}
+
+void placement_blocker_text_reports_common_blocks()
+{
+    auto simulation = vibecity::Simulation{};
+    VIBECITY_CHECK(vibecity::client::placement_blocker_text(
+            simulation,
+            vibecity::GridPosition{-1, 1},
+            vibecity::Footprint{1, 1})
+        == "outside map");
+
+    const auto path_tile = vibecity::GridPosition{2, 2};
+    VIBECITY_CHECK(simulation.add_path(path_tile));
+    VIBECITY_CHECK(vibecity::client::placement_blocker_text(
+            simulation,
+            path_tile,
+            vibecity::Footprint{1, 1})
+        == "blocked by path");
+
+    const auto house = simulation.add_building_at(
+        vibecity::BuildingKind::House,
+        vibecity::GridPosition{3, 3});
+    VIBECITY_CHECK(house == 1);
+    VIBECITY_CHECK(vibecity::client::placement_blocker_text(
+            simulation,
+            vibecity::GridPosition{3, 3},
+            vibecity::Footprint{1, 1})
+        == "blocked by #1 House");
+}
+
 void selected_logistics_lines_show_routes_and_reservations()
 {
     auto simulation = vibecity::Simulation{};
@@ -349,6 +419,8 @@ int main()
     build_menu_hit_testing_respects_rows_gaps_and_scroll();
     zoom_keeps_the_cursor_over_the_same_tile();
     gathering_preview_counts_only_resource_that_survives_placement();
+    map_hover_text_reports_tile_contents();
+    placement_blocker_text_reports_common_blocks();
     selected_logistics_lines_show_routes_and_reservations();
     escape_cancels_before_clearing_selection();
     transport_overlay_retains_completed_jobs_for_readability();

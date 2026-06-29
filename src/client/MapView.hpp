@@ -8,6 +8,7 @@
 
 #include <cstddef>
 #include <optional>
+#include <string>
 #include <vector>
 
 namespace vibecity::client {
@@ -33,6 +34,12 @@ void zoom_camera_at(Camera& camera, int screen_x, int screen_y, int steps);
     const Simulation& simulation,
     BuildingKind target,
     GridPosition tile);
+[[nodiscard]] std::string terrain_display_name(TerrainId terrain);
+[[nodiscard]] std::string tile_inspection_text(const Simulation& simulation, GridPosition tile);
+[[nodiscard]] std::string placement_blocker_text(
+    const Simulation& simulation,
+    GridPosition tile,
+    Footprint footprint);
 
 void draw_world(SDL_Renderer* renderer,
     const Simulation& simulation,
