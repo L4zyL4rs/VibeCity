@@ -37,14 +37,20 @@ understand when production stops or must move elsewhere.
 - Stone deposits are generated on rocky terrain and rendered separately from
   forest, but no default building consumes stone yet.
 
+## Implemented: Logistics Inspection
+
+- Selected buildings show active incoming and outgoing reservations.
+- The inspector reports supplier and customer counts plus active goods volume
+  for the selected building.
+- Active routes touching the selected building list direction, resource,
+  counterpart building, job state, and remaining minutes.
+
 ## Next Programming Slices
 
-1. Selected-building logistics inspection mode for suppliers, customers,
-   active routes, and flow volumes.
-2. Terrain suitability and build-cost modifiers rather than treating every
+1. Terrain suitability and build-cost modifiers rather than treating every
    buildable tile identically.
-3. Quarry and brickyard chains that make construction materials geographic.
-4. Clay deposits using the same terrain/resource contract.
+2. Quarry and brickyard chains that make construction materials geographic.
+3. Clay deposits using the same terrain/resource contract.
 
 ## Deliberate Limits
 

@@ -7,6 +7,7 @@
 
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace vibecity::client {
 
@@ -18,6 +19,9 @@ struct InspectorScrollMetrics {
 };
 
 [[nodiscard]] std::string selected_summary(const Simulation& simulation, std::optional<BuildingId> selected);
+[[nodiscard]] std::vector<std::string> selected_logistics_lines(
+    const Simulation& simulation,
+    BuildingId selected);
 
 [[nodiscard]] InspectorScrollMetrics draw_inspector(SDL_Renderer* renderer,
     const Simulation& simulation,

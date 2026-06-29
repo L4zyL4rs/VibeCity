@@ -8,6 +8,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace vibecity::client {
 namespace {
@@ -129,6 +130,74 @@ std::string resource_amounts_text(const ResourceArray& amounts)
         wrote_amount = true;
     }
     return wrote_amount ? output.str() : "NONE";
+}
+
+std::string truncate_text(std::string text, std::size_t maximum)
+{
+    if (text.size() <= maximum) {
+        return text;
+    }
+    if (maximum == 0) {
+        return {};
+    }
+    text.resize(maximum);
+    text.back() = '.';
+    return text;
+}
+
+const BuildingInstance* find_active_building(const Simulation& simulation, BuildingId id)
+{
+    for (const auto& building : simulation.buildings()) {
+        if (building.active && building.id == id) {
+            return &building;
+        }
+    }
+    return nullptr;
+}
+
+std::string short_building_label(const Simulation& simulation, BuildingId id)
+{
+    if (const auto* building = find_active_building(simulation, id)) {
+        auto output = std::ostringstream{};
+        output << "#" << building->id << " " << simulation.definition(building->kind).name;
+        return truncate_text(output.str(), 18);
+    }
+
+    return "#" + std::to_string(id) + " UNKNOWN";
+}
+
+void add_unique_building(std::vector<BuildingId>& ids, BuildingId id)
+{
+    if (std::find(ids.begin(), ids.end(), id) == ids.end()) {
+        ids.push_back(id);
+    }
+}
+
+std::string transport_state_label(TransportJobState state)
+{
+    switch (state) {
+    case TransportJobState::GoingToPickup:
+        return "PICKUP";
+    case TransportJobState::CarryingGoods:
+        return "CARRY";
+    case TransportJobState::Complete:
+        return "DONE";
+    case TransportJobState::Failed:
+        return "FAILED";
+    }
+    return "UNKNOWN";
+}
+
+ResourceArray reserved_amounts(const BuildingInstance& building, bool incoming)
+{
+    auto amounts = empty_resources();
+    for (std::size_t index = 0; index < resource_count; ++index) {
+        const auto resource = static_cast<ResourceId>(index);
+        amounts[index] = incoming
+            ? building.inventory.reserved_incoming(resource)
+            : building.inventory.reserved_outgoing(resource);
+    }
+    return amounts;
 }
 
 ResourceArray daily_recipe_amounts(const ResourceArray& amounts, Tick cycle_minutes)
@@ -492,6 +561,17 @@ int draw_inspector_content(SDL_Renderer* renderer,
         y += 24;
     }
 
+    const auto logistics_lines = selected_logistics_lines(simulation, building.id);
+    if (!logistics_lines.empty()) {
+        draw_text(renderer, x, y, "LOGISTICS", text, 2);
+        y += 24;
+        for (const auto& line : logistics_lines) {
+            draw_text(renderer, x, y, line, muted, 1);
+            y += 16;
+        }
+        y += 8;
+    }
+
     draw_text(renderer, x, y, "INVENTORY", text, 2);
     y += 24;
 
@@ -551,6 +631,70 @@ void draw_scrollbar(SDL_Renderer* renderer,
     SDL_RenderFillRect(renderer, &thumb_rect);
 }
 
+}
+
+std::vector<std::string> selected_logistics_lines(
+    const Simulation& simulation,
+    BuildingId selected)
+{
+    auto lines = std::vector<std::string>{};
+    const auto* building = find_active_building(simulation, selected);
+    if (building == nullptr) {
+        return lines;
+    }
+
+    const auto incoming_reserved = reserved_amounts(*building, true);
+    const auto outgoing_reserved = reserved_amounts(*building, false);
+    if (resource_total(incoming_reserved) > 0) {
+        lines.push_back("RESERVED IN: " + resource_amounts_text(incoming_reserved));
+    }
+    if (resource_total(outgoing_reserved) > 0) {
+        lines.push_back("RESERVED OUT: " + resource_amounts_text(outgoing_reserved));
+    }
+
+    auto suppliers = std::vector<BuildingId>{};
+    auto customers = std::vector<BuildingId>{};
+    auto active_in = Quantity{0};
+    auto active_out = Quantity{0};
+    for (const auto& job : simulation.transport_jobs()) {
+        if (job.destination == selected) {
+            add_unique_building(suppliers, job.source);
+            active_in += job.quantity;
+        }
+        if (job.source == selected) {
+            add_unique_building(customers, job.destination);
+            active_out += job.quantity;
+        }
+    }
+
+    if (!suppliers.empty()) {
+        lines.push_back(
+            "SUPPLIERS: " + std::to_string(suppliers.size())
+            + "  ACTIVE IN: " + std::to_string(active_in));
+    }
+    if (!customers.empty()) {
+        lines.push_back(
+            "CUSTOMERS: " + std::to_string(customers.size())
+            + "  ACTIVE OUT: " + std::to_string(active_out));
+    }
+
+    for (const auto& job : simulation.transport_jobs()) {
+        if (job.destination != selected && job.source != selected) {
+            continue;
+        }
+
+        const auto incoming = job.destination == selected;
+        auto line = std::ostringstream{};
+        line << (incoming ? "IN " : "OUT ")
+             << job.quantity << " " << resource_display_name(job.resource)
+             << (incoming ? " FROM " : " TO ")
+             << short_building_label(simulation, incoming ? job.source : job.destination)
+             << " " << transport_state_label(job.state)
+             << " " << std::max<Tick>(0, job.ticks_remaining) << "M";
+        lines.push_back(truncate_text(line.str(), 48));
+    }
+
+    return lines;
 }
 
 std::string selected_summary(const Simulation& simulation, std::optional<BuildingId> selected)

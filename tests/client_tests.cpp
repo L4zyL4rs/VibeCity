@@ -2,6 +2,7 @@
 
 #include "client/BuildMenu.hpp"
 #include "client/InputController.hpp"
+#include "client/Inspector.hpp"
 #include "client/MapView.hpp"
 
 #include <algorithm>
@@ -210,6 +211,64 @@ void gathering_preview_counts_only_resource_that_survives_placement()
         == 0);
 }
 
+void selected_logistics_lines_show_routes_and_reservations()
+{
+    auto simulation = vibecity::Simulation{};
+    for (int x = 1; x <= 8; ++x) {
+        VIBECITY_CHECK(simulation.add_path(vibecity::GridPosition{x, 1}));
+    }
+
+    const auto house = simulation.add_building_at(
+        vibecity::BuildingKind::House,
+        vibecity::GridPosition{1, 2});
+    const auto storehouse = simulation.add_building_at(
+        vibecity::BuildingKind::Storehouse,
+        vibecity::GridPosition{5, 2});
+    simulation.set_residents(house, 1);
+    VIBECITY_CHECK(
+        simulation.building(storehouse).inventory.add(vibecity::ResourceId::Bread, 5));
+
+    simulation.tick();
+    VIBECITY_CHECK(!simulation.transport_jobs().empty());
+
+    const auto house_lines = vibecity::client::selected_logistics_lines(simulation, house);
+    VIBECITY_CHECK(std::find(
+            house_lines.begin(),
+            house_lines.end(),
+            "RESERVED IN: 5 BREAD")
+        != house_lines.end());
+    VIBECITY_CHECK(std::find(
+            house_lines.begin(),
+            house_lines.end(),
+            "SUPPLIERS: 1  ACTIVE IN: 5")
+        != house_lines.end());
+    VIBECITY_CHECK(std::any_of(
+        house_lines.begin(),
+        house_lines.end(),
+        [](const std::string& line) {
+            return line.find("IN 5 BREAD FROM #2 Storehouse PICKUP") != std::string::npos;
+        }));
+
+    const auto storehouse_lines =
+        vibecity::client::selected_logistics_lines(simulation, storehouse);
+    VIBECITY_CHECK(std::find(
+            storehouse_lines.begin(),
+            storehouse_lines.end(),
+            "RESERVED OUT: 5 BREAD")
+        != storehouse_lines.end());
+    VIBECITY_CHECK(std::find(
+            storehouse_lines.begin(),
+            storehouse_lines.end(),
+            "CUSTOMERS: 1  ACTIVE OUT: 5")
+        != storehouse_lines.end());
+    VIBECITY_CHECK(std::any_of(
+        storehouse_lines.begin(),
+        storehouse_lines.end(),
+        [](const std::string& line) {
+            return line.find("OUT 5 BREAD TO #1 House PICKUP") != std::string::npos;
+        }));
+}
+
 void escape_cancels_before_clearing_selection()
 {
     auto state = vibecity::client::ClientInteractionState{};
@@ -287,6 +346,7 @@ int main()
     build_menu_hit_testing_respects_rows_gaps_and_scroll();
     zoom_keeps_the_cursor_over_the_same_tile();
     gathering_preview_counts_only_resource_that_survives_placement();
+    selected_logistics_lines_show_routes_and_reservations();
     escape_cancels_before_clearing_selection();
     transport_overlay_retains_completed_jobs_for_readability();
 

@@ -164,6 +164,9 @@ if(SDL2_FOUND)
 
     add_executable(vibecity_client_tests
         src/client/BuildMenu.cpp
+        src/client/ClientMode.cpp
+        src/client/Hud.cpp
+        src/client/Inspector.cpp
         src/client/InputController.cpp
         src/client/MapView.cpp
         src/client/Palette.cpp
