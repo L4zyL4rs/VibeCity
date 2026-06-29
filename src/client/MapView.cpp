@@ -699,9 +699,14 @@ void TransportOverlay::update(const Simulation& simulation)
     });
 }
 
-void TransportOverlay::draw(SDL_Renderer* renderer, Camera camera) const
+void TransportOverlay::draw(
+    SDL_Renderer* renderer,
+    Camera camera,
+    std::optional<BuildingId> selected) const
 {
     for (const auto& visual : visuals_) {
+        const auto related_to_selection = selected.has_value()
+            && (visual.source == *selected || visual.destination == *selected);
         const auto source = building_center_screen(
             visual.source_position,
             visual.source_footprint,
@@ -719,11 +724,14 @@ void TransportOverlay::draw(SDL_Renderer* renderer, Camera camera) const
                 1.0F)
             : 1.0F;
         const auto color = resource_color(visual.resource);
+        const auto route_alpha = related_to_selection
+            ? 170.0F
+            : (selected.has_value() ? 36.0F : 96.0F);
         set_color(renderer, Color{
             color.r,
             color.g,
             color.b,
-            static_cast<std::uint8_t>(96.0F * fade)
+            static_cast<std::uint8_t>(route_alpha * fade)
         });
 
         auto previous = source;
@@ -773,7 +781,9 @@ void TransportOverlay::draw(SDL_Renderer* renderer, Camera camera) const
             consider_segment(destination);
         }
 
-        const auto marker_size = visual.carrying_goods ? 8 : 5;
+        const auto marker_size = related_to_selection
+            ? (visual.carrying_goods ? 10 : 7)
+            : (visual.carrying_goods ? 8 : 5);
         auto marker_rect = SDL_Rect{
             .x = static_cast<int>(std::lround(marker.x)) - marker_size / 2,
             .y = static_cast<int>(std::lround(marker.y)) - marker_size / 2,
@@ -785,7 +795,9 @@ void TransportOverlay::draw(SDL_Renderer* renderer, Camera camera) const
             color.r,
             color.g,
             color.b,
-            static_cast<std::uint8_t>(255.0F * fade)
+            static_cast<std::uint8_t>(
+                (related_to_selection ? 255.0F : (selected.has_value() ? 120.0F : 255.0F))
+                * fade)
         });
         SDL_RenderFillRect(renderer, &marker_rect);
         set_color(renderer, Color{18, 20, 20, static_cast<std::uint8_t>(255.0F * fade)});
@@ -796,6 +808,16 @@ void TransportOverlay::draw(SDL_Renderer* renderer, Camera camera) const
 std::size_t TransportOverlay::visual_count() const
 {
     return visuals_.size();
+}
+
+std::size_t TransportOverlay::visual_count_for_building(BuildingId building) const
+{
+    return static_cast<std::size_t>(std::count_if(
+        visuals_.begin(),
+        visuals_.end(),
+        [building](const Visual& visual) {
+            return visual.source == building || visual.destination == building;
+        }));
 }
 
 void draw_placement_preview(SDL_Renderer* renderer,

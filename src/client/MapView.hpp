@@ -42,9 +42,13 @@ void draw_world(SDL_Renderer* renderer,
 class TransportOverlay {
 public:
     void update(const Simulation& simulation);
-    void draw(SDL_Renderer* renderer, Camera camera) const;
+    void draw(
+        SDL_Renderer* renderer,
+        Camera camera,
+        std::optional<BuildingId> selected) const;
 
     [[nodiscard]] std::size_t visual_count() const;
+    [[nodiscard]] std::size_t visual_count_for_building(BuildingId building) const;
 
 private:
     struct Visual {

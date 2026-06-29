@@ -44,6 +44,8 @@ understand when production stops or must move elsewhere.
   for the selected building.
 - Active routes touching the selected building list direction, resource,
   counterpart building, job state, and remaining minutes.
+- Selecting a building brightens its active transport routes on the map while
+  dimming unrelated transport visuals.
 
 ## Next Programming Slices
 

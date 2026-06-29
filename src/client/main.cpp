@@ -160,7 +160,7 @@ ClientPanelMetrics draw_map(SDL_Renderer* renderer,
     SDL_RenderClear(renderer);
 
     draw_world(renderer, simulation, camera, selected);
-    transport_overlay.draw(renderer, camera);
+    transport_overlay.draw(renderer, camera, selected);
     draw_mode_placement_preview(renderer, simulation, camera, mode, build_target, hover_tile);
     const auto build_menu_metrics = draw_build_menu(
         renderer,

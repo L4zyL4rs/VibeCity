@@ -320,6 +320,9 @@ void transport_overlay_retains_completed_jobs_for_readability()
     auto overlay = vibecity::client::TransportOverlay{};
     overlay.update(simulation);
     VIBECITY_CHECK(overlay.visual_count() == 1);
+    VIBECITY_CHECK(overlay.visual_count_for_building(house) == 1);
+    VIBECITY_CHECK(overlay.visual_count_for_building(storehouse) == 1);
+    VIBECITY_CHECK(overlay.visual_count_for_building(storehouse + 100) == 0);
 
     for (int attempt = 0;
          attempt < 100 && !simulation.transport_jobs().empty();
