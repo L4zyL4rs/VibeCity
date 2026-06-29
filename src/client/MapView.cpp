@@ -119,6 +119,44 @@ ScreenPoint interpolate(ScreenPoint start, ScreenPoint end, float progress)
     };
 }
 
+Color terrain_color(TerrainId terrain)
+{
+    switch (terrain) {
+    case TerrainId::Grass:
+        return Color{30, 35, 33, 255};
+    case TerrainId::Fertile:
+        return Color{36, 52, 36, 255};
+    case TerrainId::Rocky:
+        return Color{54, 54, 50, 255};
+    case TerrainId::ShallowWater:
+        return Color{32, 58, 74, 255};
+    case TerrainId::Count:
+        return Color{30, 35, 33, 255};
+    }
+    return Color{30, 35, 33, 255};
+}
+
+void draw_terrain(
+    SDL_Renderer* renderer,
+    const TileMap& map,
+    Camera camera,
+    TileBounds visible)
+{
+    for (int y = visible.first_y; y < visible.end_y; ++y) {
+        for (int x = visible.first_x; x < visible.end_x; ++x) {
+            const auto position = GridPosition{x, y};
+            const auto terrain = map.terrain_at(position);
+            if (terrain == TerrainId::Grass) {
+                continue;
+            }
+
+            auto rect = tile_rect(position, Footprint{1, 1}, camera);
+            set_color(renderer, terrain_color(terrain));
+            SDL_RenderFillRect(renderer, &rect);
+        }
+    }
+}
+
 void draw_map_resources(
     SDL_Renderer* renderer,
     const TileMap& map,
@@ -128,35 +166,62 @@ void draw_map_resources(
     for (int y = visible.first_y; y < visible.end_y; ++y) {
         for (int x = visible.first_x; x < visible.end_x; ++x) {
             const auto position = GridPosition{x, y};
-            if (map.map_resource_at(position) != MapResourceId::Forest) {
+            const auto resource = map.map_resource_at(position);
+            if (!resource.has_value()) {
                 continue;
             }
 
             const auto quantity = map.map_resource_quantity(position);
-            const auto density = static_cast<int>(
-                40 * quantity / std::max<Quantity>(1, forest_tile_capacity));
             auto rect = tile_rect(position, Footprint{1, 1}, camera);
-            set_color(renderer, Color{
-                static_cast<std::uint8_t>(42 + density / 4),
-                static_cast<std::uint8_t>(72 + density),
-                static_cast<std::uint8_t>(48 + density / 3),
-                255
-            });
-            SDL_RenderFillRect(renderer, &rect);
+            if (*resource == MapResourceId::Forest) {
+                const auto density = static_cast<int>(
+                    40 * quantity / std::max<Quantity>(1, forest_tile_capacity));
+                set_color(renderer, Color{
+                    static_cast<std::uint8_t>(42 + density / 4),
+                    static_cast<std::uint8_t>(72 + density),
+                    static_cast<std::uint8_t>(48 + density / 3),
+                    255
+                });
+                SDL_RenderFillRect(renderer, &rect);
 
-            const auto maximum_crown = std::max(2, camera.tile_size - 4);
-            const auto crown_size = std::max(
-                2,
-                static_cast<int>(
-                    maximum_crown * quantity / std::max<Quantity>(1, forest_tile_capacity)));
-            auto crown = SDL_Rect{
-                .x = rect.x + (rect.w - crown_size) / 2,
-                .y = rect.y + (rect.h - crown_size) / 2,
-                .w = crown_size,
-                .h = crown_size
-            };
-            set_color(renderer, Color{70, 122, 64, 255});
-            SDL_RenderFillRect(renderer, &crown);
+                const auto maximum_crown = std::max(2, camera.tile_size - 4);
+                const auto crown_size = std::max(
+                    2,
+                    static_cast<int>(
+                        maximum_crown * quantity / std::max<Quantity>(1, forest_tile_capacity)));
+                auto crown = SDL_Rect{
+                    .x = rect.x + (rect.w - crown_size) / 2,
+                    .y = rect.y + (rect.h - crown_size) / 2,
+                    .w = crown_size,
+                    .h = crown_size
+                };
+                set_color(renderer, Color{70, 122, 64, 255});
+                SDL_RenderFillRect(renderer, &crown);
+            } else if (*resource == MapResourceId::Stone) {
+                const auto density = static_cast<int>(
+                    36 * quantity / std::max<Quantity>(1, stone_tile_capacity));
+                set_color(renderer, Color{
+                    static_cast<std::uint8_t>(70 + density / 2),
+                    static_cast<std::uint8_t>(72 + density / 2),
+                    static_cast<std::uint8_t>(72 + density / 2),
+                    255
+                });
+                SDL_RenderFillRect(renderer, &rect);
+
+                const auto block_size = std::max(
+                    2,
+                    static_cast<int>(
+                        (std::max(2, camera.tile_size - 5) * quantity)
+                        / std::max<Quantity>(1, stone_tile_capacity)));
+                auto block = SDL_Rect{
+                    .x = rect.x + (rect.w - block_size) / 2,
+                    .y = rect.y + (rect.h - block_size) / 2,
+                    .w = block_size,
+                    .h = block_size
+                };
+                set_color(renderer, Color{142, 145, 140, 255});
+                SDL_RenderFillRect(renderer, &block);
+            }
         }
     }
 }
@@ -402,6 +467,7 @@ std::optional<BuildingId> building_at(const Simulation& simulation, GridPosition
 bool can_place_path_preview(const Simulation& simulation, GridPosition tile)
 {
     return simulation.map().in_bounds(tile)
+        && !terrain_blocks_construction(simulation.map().terrain_at(tile))
         && !simulation.map().has_path(tile)
         && !building_at(simulation, tile).has_value();
 }
@@ -459,6 +525,8 @@ void draw_world(SDL_Renderer* renderer,
     SDL_RenderFillRect(renderer, &map_rect);
     set_color(renderer, Color{72, 78, 72, 255});
     SDL_RenderDrawRect(renderer, &map_rect);
+
+    draw_terrain(renderer, map, camera, visible);
 
     if (camera.tile_size >= 14) {
         set_color(renderer, Color{35, 41, 38, 255});

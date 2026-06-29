@@ -85,6 +85,7 @@ struct SimulationState {
     int map_width = 128;
     int map_height = 128;
     std::vector<GridPosition> paths;
+    std::vector<TerrainTile> terrain;
     std::vector<MapResourceDeposit> map_resources;
     std::vector<BuildingInstance> buildings;
     std::vector<TransportJob> transport_jobs;

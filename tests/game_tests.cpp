@@ -291,6 +291,7 @@ void save_load_round_trip_preserves_deterministic_session()
         forest.position,
         forest.resource,
         2));
+    const auto terrain = original.simulation().map().terrain_tiles().front();
 
     auto io = original.save_to_file(first_save);
     VIBECITY_CHECK(io.success);
@@ -300,6 +301,7 @@ void save_load_round_trip_preserves_deterministic_session()
     vibecity::GameSession loaded;
     io = loaded.load_from_file(first_save);
     VIBECITY_CHECK(io.success);
+    VIBECITY_CHECK(loaded.simulation().map().terrain_at(terrain.position) == terrain.terrain);
     VIBECITY_CHECK(loaded.simulation().map().map_resource_quantity(forest.position) == 2);
     io = loaded.save_to_file(loaded_save);
     VIBECITY_CHECK(io.success);
@@ -412,7 +414,7 @@ void invalid_save_is_rejected_without_replacing_session()
 
     auto version = read_bytes(valid_path);
     VIBECITY_CHECK(version.size() > 12);
-    version[8] = 5;
+    version[8] = 6;
     write_bytes(version_path, version);
 
     vibecity::GameSession target;

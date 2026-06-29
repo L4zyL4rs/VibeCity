@@ -36,6 +36,8 @@ std::string_view map_resource_display_name(MapResourceId resource)
     switch (resource) {
     case MapResourceId::Forest:
         return "FOREST";
+    case MapResourceId::Stone:
+        return "STONE";
     case MapResourceId::Count:
         return "UNKNOWN";
     }

@@ -2,6 +2,7 @@
 
 #include "core/Simulation.hpp"
 
+#include <algorithm>
 #include <cstdlib>
 #include <iostream>
 #include <optional>
@@ -24,11 +25,96 @@ void default_map_resources_are_deterministic()
 {
     const auto first = vibecity::Simulation{};
     const auto second = vibecity::Simulation{};
+    const auto first_terrain = first.map().terrain_tiles();
+    const auto second_terrain = second.map().terrain_tiles();
+    const auto first_deposits = first.map().map_resource_deposits();
+    const auto second_deposits = second.map().map_resource_deposits();
 
-    VIBECITY_CHECK(!first.map().map_resource_deposits().empty());
-    VIBECITY_CHECK(
-        first.map().map_resource_deposits()
-        == second.map().map_resource_deposits());
+    VIBECITY_CHECK(!first_terrain.empty());
+    VIBECITY_CHECK(first_terrain == second_terrain);
+    VIBECITY_CHECK(std::any_of(
+        first_terrain.begin(),
+        first_terrain.end(),
+        [](const vibecity::TerrainTile& tile) {
+            return tile.terrain == vibecity::TerrainId::Fertile;
+        }));
+    VIBECITY_CHECK(std::any_of(
+        first_terrain.begin(),
+        first_terrain.end(),
+        [](const vibecity::TerrainTile& tile) {
+            return tile.terrain == vibecity::TerrainId::Rocky;
+        }));
+    VIBECITY_CHECK(!first_deposits.empty());
+    VIBECITY_CHECK(first_deposits == second_deposits);
+    VIBECITY_CHECK(std::any_of(
+        first_deposits.begin(),
+        first_deposits.end(),
+        [](const vibecity::MapResourceDeposit& deposit) {
+            return deposit.resource == vibecity::MapResourceId::Stone;
+        }));
+}
+
+void terrain_blocks_paths_and_buildings()
+{
+    auto map = vibecity::TileMap{8, 8};
+
+    VIBECITY_CHECK(map.set_terrain(
+        vibecity::GridPosition{2, 2},
+        vibecity::TerrainId::ShallowWater));
+    VIBECITY_CHECK(!map.add_path(vibecity::GridPosition{2, 2}));
+    VIBECITY_CHECK(!map.can_place_building(
+        vibecity::GridPosition{2, 2},
+        vibecity::Footprint{1, 1}));
+    VIBECITY_CHECK(!map.place_building(
+        1,
+        vibecity::GridPosition{2, 2},
+        vibecity::Footprint{1, 1}));
+
+    VIBECITY_CHECK(map.add_path(vibecity::GridPosition{3, 3}));
+    VIBECITY_CHECK(!map.set_terrain(
+        vibecity::GridPosition{3, 3},
+        vibecity::TerrainId::ShallowWater));
+
+    VIBECITY_CHECK(map.place_building(
+        2,
+        vibecity::GridPosition{4, 4},
+        vibecity::Footprint{1, 1}));
+    VIBECITY_CHECK(!map.set_terrain(
+        vibecity::GridPosition{4, 4},
+        vibecity::TerrainId::Rocky));
+}
+
+void map_resources_follow_supported_terrain()
+{
+    auto map = vibecity::TileMap{8, 8};
+    constexpr auto rocky = vibecity::GridPosition{2, 2};
+    constexpr auto grass = vibecity::GridPosition{3, 3};
+    constexpr auto water = vibecity::GridPosition{4, 4};
+
+    VIBECITY_CHECK(map.set_terrain(rocky, vibecity::TerrainId::Rocky));
+    VIBECITY_CHECK(map.set_map_resource(
+        rocky,
+        vibecity::MapResourceId::Stone,
+        vibecity::stone_tile_capacity));
+    VIBECITY_CHECK(!map.set_map_resource(
+        rocky,
+        vibecity::MapResourceId::Forest,
+        vibecity::forest_tile_capacity));
+
+    VIBECITY_CHECK(map.set_map_resource(
+        grass,
+        vibecity::MapResourceId::Forest,
+        vibecity::forest_tile_capacity));
+    VIBECITY_CHECK(!map.set_map_resource(
+        grass,
+        vibecity::MapResourceId::Stone,
+        vibecity::stone_tile_capacity));
+
+    VIBECITY_CHECK(map.set_terrain(water, vibecity::TerrainId::ShallowWater));
+    VIBECITY_CHECK(!map.set_map_resource(
+        water,
+        vibecity::MapResourceId::Forest,
+        1));
 }
 
 void paths_and_buildings_clear_map_resources()
@@ -891,6 +977,8 @@ void output_storage_full_blocks_production()
 int main()
 {
     default_map_resources_are_deterministic();
+    terrain_blocks_paths_and_buildings();
+    map_resources_follow_supported_terrain();
     paths_and_buildings_clear_map_resources();
     path_and_building_removal_free_tiles_without_regrowing_resources();
     harvesting_prefers_nearest_then_topmost_resource();

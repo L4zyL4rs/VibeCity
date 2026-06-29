@@ -28,10 +28,30 @@ std::uint32_t tile_hash(GridPosition position)
 
 }
 
+std::optional<TerrainId> terrain_id_from_string(std::string_view id)
+{
+    if (id == terrain_name(TerrainId::Grass)) {
+        return TerrainId::Grass;
+    }
+    if (id == terrain_name(TerrainId::Fertile)) {
+        return TerrainId::Fertile;
+    }
+    if (id == terrain_name(TerrainId::Rocky)) {
+        return TerrainId::Rocky;
+    }
+    if (id == terrain_name(TerrainId::ShallowWater)) {
+        return TerrainId::ShallowWater;
+    }
+    return std::nullopt;
+}
+
 std::optional<MapResourceId> map_resource_id_from_string(std::string_view id)
 {
     if (id == map_resource_name(MapResourceId::Forest)) {
         return MapResourceId::Forest;
+    }
+    if (id == map_resource_name(MapResourceId::Stone)) {
+        return MapResourceId::Stone;
     }
     return std::nullopt;
 }
@@ -170,6 +190,7 @@ TileMap::TileMap(int width, int height)
     width_ = width;
     height_ = height;
     tiles_.resize(static_cast<std::size_t>(width_ * height_));
+    terrain_tiles_.assign(tiles_.size(), TerrainId::Grass);
     map_resource_tiles_.resize(tiles_.size());
 }
 
@@ -191,6 +212,32 @@ bool TileMap::in_bounds(GridPosition position) const
 bool TileMap::has_path(GridPosition position) const
 {
     return in_bounds(position) && tile(position).path;
+}
+
+TerrainId TileMap::terrain_at(GridPosition position) const
+{
+    if (!in_bounds(position)) {
+        return TerrainId::Count;
+    }
+    return terrain_tile(position);
+}
+
+std::vector<TerrainTile> TileMap::terrain_tiles() const
+{
+    auto result = std::vector<TerrainTile>{};
+    for (int y = 0; y < height_; ++y) {
+        for (int x = 0; x < width_; ++x) {
+            const auto position = GridPosition{x, y};
+            const auto terrain = terrain_at(position);
+            if (terrain != TerrainId::Grass) {
+                result.push_back(TerrainTile{
+                    .position = position,
+                    .terrain = terrain
+                });
+            }
+        }
+    }
+    return result;
 }
 
 std::vector<GridPosition> TileMap::path_positions() const
@@ -317,7 +364,9 @@ bool TileMap::can_place_building(GridPosition position, Footprint footprint) con
             }
 
             const auto& current_tile = tile(current);
-            if (current_tile.path || current_tile.occupant.has_value()) {
+            if (terrain_blocks_construction(terrain_at(current))
+                || current_tile.path
+                || current_tile.occupant.has_value()) {
                 return false;
             }
         }
@@ -546,6 +595,86 @@ std::vector<GridPosition> TileMap::path_between_buildings(
     return {};
 }
 
+void TileMap::generate_default_terrain()
+{
+    std::fill(terrain_tiles_.begin(), terrain_tiles_.end(), TerrainId::Grass);
+    for (int y = 0; y < height_; ++y) {
+        for (int x = 0; x < width_; ++x) {
+            auto& resource_tile = map_resource_tile(GridPosition{x, y});
+            if (resource_tile.resource != MapResourceId::Count
+                && !terrain_supports_map_resource(TerrainId::Grass, resource_tile.resource)) {
+                resource_tile.resource = MapResourceId::Count;
+                resource_tile.resource_quantity = 0;
+            }
+        }
+    }
+
+    constexpr auto fertile_spacing_x = 28;
+    constexpr auto fertile_spacing_y = 24;
+    constexpr auto fertile_radius = 7;
+    constexpr auto fertile_radius_squared = fertile_radius * fertile_radius;
+    for (int center_y = 20; center_y < height_; center_y += fertile_spacing_y) {
+        for (int center_x = 16; center_x < width_; center_x += fertile_spacing_x) {
+            for (int y = center_y - fertile_radius; y <= center_y + fertile_radius; ++y) {
+                for (int x = center_x - fertile_radius; x <= center_x + fertile_radius; ++x) {
+                    const auto position = GridPosition{x, y};
+                    const auto dx = x - center_x;
+                    const auto dy = y - center_y;
+                    if (!in_bounds(position)
+                        || dx * dx + dy * dy > fertile_radius_squared
+                        || tile_hash(position) % 17U == 0U) {
+                        continue;
+                    }
+                    set_terrain(position, TerrainId::Fertile);
+                }
+            }
+        }
+    }
+
+    constexpr auto rocky_spacing_x = 28;
+    constexpr auto rocky_spacing_y = 28;
+    constexpr auto rocky_radius = 5;
+    constexpr auto rocky_radius_squared = rocky_radius * rocky_radius;
+    for (int center_y = 8; center_y < height_; center_y += rocky_spacing_y) {
+        for (int center_x = 20; center_x < width_; center_x += rocky_spacing_x) {
+            for (int y = center_y - rocky_radius; y <= center_y + rocky_radius; ++y) {
+                for (int x = center_x - rocky_radius; x <= center_x + rocky_radius; ++x) {
+                    const auto position = GridPosition{x, y};
+                    const auto dx = x - center_x;
+                    const auto dy = y - center_y;
+                    if (!in_bounds(position)
+                        || dx * dx + dy * dy > rocky_radius_squared
+                        || tile_hash(position) % 7U == 0U) {
+                        continue;
+                    }
+                    set_terrain(position, TerrainId::Rocky);
+                }
+            }
+        }
+    }
+}
+
+bool TileMap::set_terrain(GridPosition position, TerrainId terrain)
+{
+    if (!in_bounds(position) || terrain == TerrainId::Count) {
+        return false;
+    }
+
+    const auto& map_tile = tile(position);
+    if (map_tile.path || map_tile.occupant.has_value()) {
+        return false;
+    }
+
+    terrain_tile(position) = terrain;
+    auto& resource_tile = map_resource_tile(position);
+    if (resource_tile.resource != MapResourceId::Count
+        && !terrain_supports_map_resource(terrain, resource_tile.resource)) {
+        resource_tile.resource = MapResourceId::Count;
+        resource_tile.resource_quantity = 0;
+    }
+    return true;
+}
+
 void TileMap::generate_default_map_resources()
 {
     constexpr auto grove_spacing = 16;
@@ -562,7 +691,10 @@ void TileMap::generate_default_map_resources()
                     const auto dy = y - center_y;
                     if (!in_bounds(position)
                         || dx * dx + dy * dy > grove_radius_squared
-                        || tile_hash(position) % 11U == 0U) {
+                        || tile_hash(position) % 11U == 0U
+                        || !terrain_supports_map_resource(
+                            terrain_at(position),
+                            MapResourceId::Forest)) {
                         continue;
                     }
                     set_map_resource(
@@ -571,6 +703,20 @@ void TileMap::generate_default_map_resources()
                         forest_tile_capacity);
                 }
             }
+        }
+    }
+
+    for (int y = 0; y < height_; ++y) {
+        for (int x = 0; x < width_; ++x) {
+            const auto position = GridPosition{x, y};
+            if (terrain_at(position) != TerrainId::Rocky
+                || tile_hash(position) % 5U == 0U) {
+                continue;
+            }
+            set_map_resource(
+                position,
+                MapResourceId::Stone,
+                stone_tile_capacity);
         }
     }
 }
@@ -596,6 +742,9 @@ bool TileMap::set_map_resource(
         current.resource = MapResourceId::Count;
         current.resource_quantity = 0;
         return true;
+    }
+    if (!terrain_supports_map_resource(terrain_at(position), resource)) {
+        return false;
     }
 
     current.resource = resource;
@@ -652,7 +801,7 @@ bool TileMap::harvest_map_resource_within_radius(
 
 bool TileMap::add_path(GridPosition position)
 {
-    if (!in_bounds(position)) {
+    if (!in_bounds(position) || terrain_blocks_construction(terrain_at(position))) {
         return false;
     }
 
@@ -739,6 +888,16 @@ const TileMap::Tile& TileMap::tile(GridPosition position) const
 TileMap::Tile& TileMap::tile(GridPosition position)
 {
     return tiles_[static_cast<std::size_t>(index(position))];
+}
+
+TerrainId& TileMap::terrain_tile(GridPosition position)
+{
+    return terrain_tiles_[static_cast<std::size_t>(index(position))];
+}
+
+TerrainId TileMap::terrain_tile(GridPosition position) const
+{
+    return terrain_tiles_[static_cast<std::size_t>(index(position))];
 }
 
 const TileMap::MapResourceTile& TileMap::map_resource_tile(GridPosition position) const

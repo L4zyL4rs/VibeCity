@@ -100,6 +100,8 @@ When I ask for detailed input, please report these points:
   bread reserve make the missing surplus clear?
 - Forests: when selecting a woodcutter, is its collection radius and remaining
   local forest supply understandable?
+- Terrain/resources: can you distinguish normal grass, fertile terrain, rocky
+  terrain, forests, and stone deposits without guessing?
 - Placement: when hovering a woodcutter before placement, is the collection
   radius, reachable forest count, and footprint-cleared forest marker clear?
 - Depletion: after several production cycles, can you identify which nearby

@@ -23,13 +23,65 @@ struct Footprint {
     int height = 1;
 };
 
+enum class TerrainId : std::uint8_t {
+    Grass,
+    Fertile,
+    Rocky,
+    ShallowWater,
+    Count
+};
+
+struct TerrainTile {
+    GridPosition position;
+    TerrainId terrain = TerrainId::Grass;
+
+    friend constexpr bool operator==(
+        const TerrainTile& left,
+        const TerrainTile& right) = default;
+};
+
+[[nodiscard]] constexpr std::string_view terrain_name(TerrainId terrain)
+{
+    switch (terrain) {
+    case TerrainId::Grass:
+        return "grass";
+    case TerrainId::Fertile:
+        return "fertile";
+    case TerrainId::Rocky:
+        return "rocky";
+    case TerrainId::ShallowWater:
+        return "shallow_water";
+    case TerrainId::Count:
+        return "unknown";
+    }
+    return "unknown";
+}
+
+[[nodiscard]] std::optional<TerrainId> terrain_id_from_string(std::string_view id);
+[[nodiscard]] constexpr bool terrain_blocks_construction(TerrainId terrain)
+{
+    switch (terrain) {
+    case TerrainId::Grass:
+    case TerrainId::Fertile:
+    case TerrainId::Rocky:
+        return false;
+    case TerrainId::ShallowWater:
+    case TerrainId::Count:
+        return true;
+    }
+    return true;
+}
+
 enum class MapResourceId : std::uint8_t {
     Forest,
+    Stone,
     Count
 };
 
 inline constexpr Quantity forest_tile_capacity = 6;
+inline constexpr Quantity stone_tile_capacity = 8;
 static_assert(forest_tile_capacity <= 255);
+static_assert(stone_tile_capacity <= 255);
 
 struct MapResourceDeposit {
     GridPosition position;
@@ -46,6 +98,8 @@ struct MapResourceDeposit {
     switch (resource) {
     case MapResourceId::Forest:
         return "forest";
+    case MapResourceId::Stone:
+        return "stone";
     case MapResourceId::Count:
         return "unknown";
     }
@@ -58,10 +112,27 @@ struct MapResourceDeposit {
     switch (resource) {
     case MapResourceId::Forest:
         return forest_tile_capacity;
+    case MapResourceId::Stone:
+        return stone_tile_capacity;
     case MapResourceId::Count:
         return 0;
     }
     return 0;
+}
+
+[[nodiscard]] constexpr bool terrain_supports_map_resource(
+    TerrainId terrain,
+    MapResourceId resource)
+{
+    switch (resource) {
+    case MapResourceId::Forest:
+        return terrain == TerrainId::Grass || terrain == TerrainId::Fertile;
+    case MapResourceId::Stone:
+        return terrain == TerrainId::Rocky;
+    case MapResourceId::Count:
+        return false;
+    }
+    return false;
 }
 
 class PathDistanceField {
@@ -109,6 +180,8 @@ public:
     [[nodiscard]] int width() const;
     [[nodiscard]] int height() const;
     [[nodiscard]] bool in_bounds(GridPosition position) const;
+    [[nodiscard]] TerrainId terrain_at(GridPosition position) const;
+    [[nodiscard]] std::vector<TerrainTile> terrain_tiles() const;
     [[nodiscard]] bool has_path(GridPosition position) const;
     [[nodiscard]] std::vector<GridPosition> path_positions() const;
     [[nodiscard]] std::optional<MapResourceId> map_resource_at(GridPosition position) const;
@@ -150,6 +223,8 @@ public:
         GridPosition destination_position,
         Footprint destination_footprint) const;
 
+    void generate_default_terrain();
+    bool set_terrain(GridPosition position, TerrainId terrain);
     void generate_default_map_resources();
     bool set_map_resource(GridPosition position, MapResourceId resource, Quantity quantity);
     bool harvest_map_resource_within_radius(
@@ -177,6 +252,8 @@ private:
     [[nodiscard]] int index(GridPosition position) const;
     [[nodiscard]] const Tile& tile(GridPosition position) const;
     [[nodiscard]] Tile& tile(GridPosition position);
+    [[nodiscard]] TerrainId& terrain_tile(GridPosition position);
+    [[nodiscard]] TerrainId terrain_tile(GridPosition position) const;
     [[nodiscard]] const MapResourceTile& map_resource_tile(GridPosition position) const;
     [[nodiscard]] MapResourceTile& map_resource_tile(GridPosition position);
     [[nodiscard]] static int distance_to_footprint(
@@ -188,6 +265,7 @@ private:
     int width_ = 0;
     int height_ = 0;
     std::vector<Tile> tiles_;
+    std::vector<TerrainId> terrain_tiles_;
     std::vector<MapResourceTile> map_resource_tiles_;
 };
 

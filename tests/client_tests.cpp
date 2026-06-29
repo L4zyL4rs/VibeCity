@@ -190,11 +190,11 @@ void gathering_preview_counts_only_resource_that_survives_placement()
         vibecity::MapResourceId::Forest,
         5));
     VIBECITY_CHECK(simulation.set_map_resource(
-        vibecity::GridPosition{47, 40},
+        vibecity::GridPosition{47, 41},
         vibecity::MapResourceId::Forest,
         4));
     VIBECITY_CHECK(simulation.set_map_resource(
-        vibecity::GridPosition{48, 40},
+        vibecity::GridPosition{47, 42},
         vibecity::MapResourceId::Forest,
         6));
 

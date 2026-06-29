@@ -40,6 +40,7 @@ SimulationState Simulation::state() const
         .map_width = map_.width(),
         .map_height = map_.height(),
         .paths = map_.path_positions(),
+        .terrain = map_.terrain_tiles(),
         .map_resources = map_.map_resource_deposits(),
         .buildings = buildings_,
         .transport_jobs = transport_jobs_,
@@ -86,6 +87,14 @@ Simulation Simulation::from_state(
     }
 
     auto restored_map = TileMap{state.map_width, state.map_height};
+    for (const auto terrain : state.terrain) {
+        if (!enum_less_than(terrain.terrain, TerrainId::Count)
+            || terrain.terrain == TerrainId::Grass
+            || restored_map.terrain_at(terrain.position) != TerrainId::Grass
+            || !restored_map.set_terrain(terrain.position, terrain.terrain)) {
+            throw std::invalid_argument("invalid or duplicate saved terrain");
+        }
+    }
     for (const auto path : state.paths) {
         if (restored_map.has_path(path) || !restored_map.add_path(path)) {
             throw std::invalid_argument("invalid or duplicate saved path");

@@ -52,6 +52,7 @@ Simulation::Simulation(std::shared_ptr<const BuildingCatalog> catalog)
     if (catalog_ == nullptr) {
         throw std::invalid_argument("simulation requires a building catalog");
     }
+    map_.generate_default_terrain();
     map_.generate_default_map_resources();
 }
 

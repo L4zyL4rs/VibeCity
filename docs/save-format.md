@@ -18,7 +18,7 @@ Loading pauses the client and clears transient selection and drag state. The sim
 The save contains all authoritative gameplay state required for deterministic continuation:
 
 - simulation time and ID generators
-- paths, finite map resources, and building placement
+- paths, terrain, finite map resources, and building placement
 - inactive demolished-building tombstones for stable IDs
 - building inventories, capacities, and reservations
 - residents, workers, hunger, production, and construction progress
@@ -31,7 +31,7 @@ Saving writes a temporary file and then replaces the previous save. Loading pars
 
 ## Binary Layout
 
-Version 4 is an explicitly little-endian binary format:
+Version 5 is an explicitly little-endian binary format:
 
 1. Eight-byte `VIBECITY` magic.
 2. Unsigned 32-bit format version.
@@ -55,7 +55,7 @@ The loader rejects:
 - excessive file, map, building, path, or job counts
 - invalid enum values, counters, IDs, or references
 - overlapping paths and buildings
-- invalid, duplicate, or overlapping map-resource deposits
+- invalid, duplicate, or overlapping terrain and map-resource deposits
 - inventory quantities or reservations outside capacity
 - transport jobs whose reservations do not match inventories
 - building state that does not match the current building definitions
@@ -63,7 +63,7 @@ The loader rejects:
 
 ## Version Policy
 
-There is no migration layer yet. Versions 1 through 3 are rejected. Any incompatible
+There is no migration layer yet. Versions 1 through 4 are rejected. Any incompatible
 payload change must increment the save version and either add an explicit
 migration or reject older saves with a clear error. Simulation-relevant building
 definition changes are detected by the catalog fingerprint without silently

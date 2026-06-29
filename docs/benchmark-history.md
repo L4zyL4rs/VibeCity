@@ -200,3 +200,27 @@ Notes:
 - An initial combined gameplay/resource tile expanded the pathfinding working
   set and measured roughly 61-70 ms. Separating resource state restored the hot
   path layout.
+
+### 2026-06-29 Terrain and Stone Foundation
+
+Terrain is now authoritative simulation state and new maps generate deterministic
+fertile and rocky terrain. Stone deposits are generated on rocky tiles using the
+same finite map-resource storage as forests. This sample is from the local
+default build, so compare sanity counters first and treat timings as
+machine/build-mode context rather than a release-speed baseline.
+
+Representative default-build sample:
+
+| Case | Ticks | Milliseconds | Ticks/s | Buildings | Active Jobs | Transported | Resource Tiles | Resource Quantity | Constructed |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| starting village 30d | 43,200 | 16.44 | 2,627,609 | 4 | 0 | 60 | 5,320 | 34,156 | 0 |
+| construction village 30d | 43,200 | 97.00 | 445,370 | 9 | 0 | 1,759 | 5,298 | 34,023 | 5 |
+| 100 buildings 10d | 14,400 | 956.88 | 15,049 | 100 | 77 | 100,435 | 5,004 | 32,052 | 0 |
+
+Notes:
+
+- Resource tiles and resource quantity increased because stone deposits now
+  count alongside forests.
+- The large scenario's active-job and transported counters remain close to the
+  finite-forest gameplay baseline; stone is not consumed by default buildings
+  yet.

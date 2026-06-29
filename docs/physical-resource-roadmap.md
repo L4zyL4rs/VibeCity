@@ -22,18 +22,29 @@ understand when production stops or must move elsewhere.
   shows usable forest tiles, marks trees that would be cleared by the
   footprint, and reports the reachable forest total before placement.
 - The inspector reports collection radius and total forest remaining in range.
-- Depleted forest state is deterministic and persisted in save format version 4.
+- Depleted forest state is deterministic and persisted in save format version 5.
 - Demolition and path removal free occupied tiles without refunds or terrain
   recovery. Removed buildings persist as inactive ID tombstones in saves.
 
+## Implemented: Terrain Foundation
+
+- New maps generate deterministic fertile and rocky terrain bands.
+- Terrain is stored as authoritative simulation data and persisted in saves.
+- Shallow water is supported as blocked terrain for roads and buildings, though
+  it is not generated in the starter map yet.
+- Map resources validate their terrain support: forest on grass/fertile tiles
+  and stone on rocky tiles.
+- Stone deposits are generated on rocky terrain and rendered separately from
+  forest, but no default building consumes stone yet.
+
 ## Next Programming Slices
 
-1. Terrain suitability and build-cost modifiers rather than treating every
-   non-forest tile identically.
-2. Stone and clay deposits using the same map-resource contract.
-3. Quarry and brickyard chains that make construction materials geographic.
-4. A selected-building logistics inspection mode for suppliers, customers,
+1. Selected-building logistics inspection mode for suppliers, customers,
    active routes, and flow volumes.
+2. Terrain suitability and build-cost modifiers rather than treating every
+   buildable tile identically.
+3. Quarry and brickyard chains that make construction materials geographic.
+4. Clay deposits using the same terrain/resource contract.
 
 ## Deliberate Limits
 
@@ -44,3 +55,5 @@ understand when production stops or must move elsewhere.
   timber.
 - Demolition does not refund materials or regrow cleared terrain.
 - Map generation is deterministic but not yet configurable by seed or scenario.
+- Stone is visible and saved, but it has no economy chain in the default
+  village yet.
