@@ -176,6 +176,13 @@ Simulation Simulation::from_state(
                 state_definition.footprint)) {
             throw std::invalid_argument("saved building overlaps map resource");
         }
+        if (state_definition.required_terrain.has_value()
+            && !restored_map.footprint_matches_terrain(
+                *building.position,
+                state_definition.footprint,
+                *state_definition.required_terrain)) {
+            throw std::invalid_argument("saved building violates terrain placement");
+        }
         const auto expected_storage = definition.internal_construction_site
             ? state_definition.construction_materials
             : state_definition.storage;

@@ -541,6 +541,26 @@ std::string placement_blocker_text(
     return {};
 }
 
+std::string building_placement_blocker_text(
+    const Simulation& simulation,
+    BuildingKind target,
+    GridPosition tile)
+{
+    const auto& definition = simulation.definition(target);
+    auto blocker = placement_blocker_text(simulation, tile, definition.footprint);
+    if (!blocker.empty()) {
+        return blocker;
+    }
+    if (definition.required_terrain.has_value()
+        && !simulation.map().footprint_matches_terrain(
+            tile,
+            definition.footprint,
+            *definition.required_terrain)) {
+        return "requires " + terrain_display_name(*definition.required_terrain);
+    }
+    return {};
+}
+
 bool can_place_path_preview(const Simulation& simulation, GridPosition tile)
 {
     return simulation.map().in_bounds(tile)
@@ -551,7 +571,7 @@ bool can_place_path_preview(const Simulation& simulation, GridPosition tile)
 
 bool can_place_building_preview(const Simulation& simulation, BuildingKind target, GridPosition tile)
 {
-    return simulation.map().can_place_building(tile, simulation.definition(target).footprint);
+    return simulation.can_place_building_at(target, tile);
 }
 
 Quantity gathering_resource_quantity_for_placement(

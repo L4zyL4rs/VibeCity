@@ -350,6 +350,26 @@ bool TileMap::footprint_has_map_resource(GridPosition position, Footprint footpr
     return false;
 }
 
+bool TileMap::footprint_matches_terrain(
+    GridPosition position,
+    Footprint footprint,
+    TerrainId terrain) const
+{
+    if (footprint.width <= 0 || footprint.height <= 0 || terrain == TerrainId::Count) {
+        return false;
+    }
+
+    for (int y = position.y; y < position.y + footprint.height; ++y) {
+        for (int x = position.x; x < position.x + footprint.width; ++x) {
+            const auto current = GridPosition{x, y};
+            if (!in_bounds(current) || terrain_at(current) != terrain) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 bool TileMap::can_place_building(GridPosition position, Footprint footprint) const
 {
     if (footprint.width <= 0 || footprint.height <= 0) {
@@ -611,10 +631,10 @@ void TileMap::generate_default_terrain()
 
     constexpr auto fertile_spacing_x = 28;
     constexpr auto fertile_spacing_y = 24;
-    constexpr auto fertile_radius = 7;
+    constexpr auto fertile_radius = 10;
     constexpr auto fertile_radius_squared = fertile_radius * fertile_radius;
     for (int center_y = 20; center_y < height_; center_y += fertile_spacing_y) {
-        for (int center_x = 16; center_x < width_; center_x += fertile_spacing_x) {
+        for (int center_x = 18; center_x < width_; center_x += fertile_spacing_x) {
             for (int y = center_y - fertile_radius; y <= center_y + fertile_radius; ++y) {
                 for (int x = center_x - fertile_radius; x <= center_x + fertile_radius; ++x) {
                     const auto position = GridPosition{x, y};
@@ -628,6 +648,12 @@ void TileMap::generate_default_terrain()
                     set_terrain(position, TerrainId::Fertile);
                 }
             }
+        }
+    }
+
+    for (int y = 1; y <= 3 && y < height_; ++y) {
+        for (int x = 1; x < std::min(width_, 40); ++x) {
+            set_terrain(GridPosition{x, y}, TerrainId::Fertile);
         }
     }
 

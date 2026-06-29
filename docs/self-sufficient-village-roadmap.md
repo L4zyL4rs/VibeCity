@@ -57,6 +57,8 @@ Already implemented:
   settlement improve placement and map orientation.
 - Selected-building production details expose cycle and daily capacity.
 - First playtest balance requires two production chains for 25 residents.
+- Farms now require fertile terrain, and placement hover text explains terrain
+  blockers.
 - First client splits: pixel text helpers, core palette helpers, map-view helpers, HUD helpers, inspector helpers, input handling, and client mode definitions live outside `src/client/main.cpp`.
 - Versioned save/load with objective history, active logistics, reservations, construction progress, paths, and deterministic continuation.
 - Tests for core production, consumption, logistics, reachability, construction, and command-layer flow.

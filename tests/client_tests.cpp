@@ -221,13 +221,13 @@ void map_hover_text_reports_tile_contents()
         3));
     VIBECITY_CHECK(
         vibecity::client::tile_inspection_text(simulation, resource_tile)
-        == "tile 1,1 grass forest: 3");
+        == "tile 1,1 fertile forest: 3");
 
     const auto path_tile = vibecity::GridPosition{2, 2};
     VIBECITY_CHECK(simulation.add_path(path_tile));
     VIBECITY_CHECK(
         vibecity::client::tile_inspection_text(simulation, path_tile)
-        == "tile 2,2 grass path");
+        == "tile 2,2 fertile path");
 
     const auto house = simulation.add_building_at(
         vibecity::BuildingKind::House,
@@ -237,7 +237,7 @@ void map_hover_text_reports_tile_contents()
         vibecity::client::tile_inspection_text(
             simulation,
             vibecity::GridPosition{3, 3})
-        == "tile 3,3 grass #1 House");
+        == "tile 3,3 fertile #1 House");
 
     const auto deposits = simulation.map().map_resource_deposits();
     const auto stone = std::find_if(
@@ -256,6 +256,25 @@ void map_hover_text_reports_tile_contents()
 void placement_blocker_text_reports_common_blocks()
 {
     auto simulation = vibecity::Simulation{};
+    VIBECITY_CHECK(vibecity::client::building_placement_blocker_text(
+            simulation,
+            vibecity::BuildingKind::Farm,
+            vibecity::GridPosition{60, 1})
+        == "requires fertile");
+    VIBECITY_CHECK(!vibecity::client::can_place_building_preview(
+        simulation,
+        vibecity::BuildingKind::Farm,
+        vibecity::GridPosition{60, 1}));
+    VIBECITY_CHECK(vibecity::client::building_placement_blocker_text(
+            simulation,
+            vibecity::BuildingKind::Farm,
+            vibecity::GridPosition{8, 1})
+        .empty());
+    VIBECITY_CHECK(vibecity::client::can_place_building_preview(
+        simulation,
+        vibecity::BuildingKind::Farm,
+        vibecity::GridPosition{8, 1}));
+
     VIBECITY_CHECK(vibecity::client::placement_blocker_text(
             simulation,
             vibecity::GridPosition{-1, 1},

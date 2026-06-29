@@ -36,6 +36,23 @@ std::string fit_text(std::string value, std::size_t maximum_characters)
     return value;
 }
 
+std::string terrain_label(TerrainId terrain)
+{
+    switch (terrain) {
+    case TerrainId::Grass:
+        return "GRASS";
+    case TerrainId::Fertile:
+        return "FERTILE";
+    case TerrainId::Rocky:
+        return "ROCKY";
+    case TerrainId::ShallowWater:
+        return "SHALLOW WATER";
+    case TerrainId::Count:
+        return "UNKNOWN";
+    }
+    return "UNKNOWN";
+}
+
 std::vector<std::string> construction_cost_lines(const BuildingDefinition& definition)
 {
     constexpr auto maximum_characters = std::size_t{40};
@@ -88,6 +105,9 @@ std::string details_text(const BuildingDefinition& definition)
                << "H";
     } else {
         output << "  LABOR " << definition.construction_labor_minutes << "M";
+    }
+    if (definition.required_terrain.has_value()) {
+        output << "  ON " << terrain_label(*definition.required_terrain);
     }
     return output.str();
 }

@@ -122,6 +122,7 @@ public:
     bool add_path(GridPosition position);
     bool remove_path(GridPosition position);
     bool demolish_building(BuildingId id);
+    [[nodiscard]] bool can_place_building_at(BuildingKind kind, GridPosition position) const;
     bool set_map_resource(GridPosition position, MapResourceId resource, Quantity quantity);
     void set_residents(BuildingId id, int residents);
     void mark_worker_assignment_dirty();
@@ -161,7 +162,12 @@ private:
     [[nodiscard]] BuildingInstance* find_building(BuildingId id);
     [[nodiscard]] const BuildingInstance* find_building(BuildingId id) const;
 
-    [[nodiscard]] GridPosition auto_place_building(BuildingId id, Footprint footprint);
+    [[nodiscard]] bool can_place_definition_at(
+        const BuildingDefinition& definition,
+        GridPosition position) const;
+    [[nodiscard]] GridPosition auto_place_building(
+        BuildingId id,
+        const BuildingDefinition& definition);
     [[nodiscard]] Footprint footprint_for(const BuildingInstance& building) const;
     [[nodiscard]] std::optional<Tick> transport_minutes_if_connected(const BuildingInstance& source,
         const BuildingInstance& destination) const;

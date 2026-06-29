@@ -224,3 +224,25 @@ Notes:
 - The large scenario's active-job and transported counters remain close to the
   finite-forest gameplay baseline; stone is not consumed by default buildings
   yet.
+
+### 2026-06-29 Fertile Farm Placement
+
+Farms now require fertile terrain under their full footprint. The generated
+benchmark scenario still prefers its old grid positions, but farms scan for a
+valid fertile fallback when the preferred tile is unsuitable. This changes the
+large-case layout and sanity counters, so compare it as a gameplay/layout
+baseline rather than a pure performance change.
+
+Representative default-build sample:
+
+| Case | Ticks | Milliseconds | Ticks/s | Buildings | Active Jobs | Transported | Resource Tiles | Resource Quantity | Constructed |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| starting village 30d | 43,200 | 17.33 | 2,493,225 | 4 | 0 | 60 | 5,320 | 34,156 | 0 |
+| construction village 30d | 43,200 | 98.02 | 440,733 | 9 | 0 | 1,759 | 5,298 | 34,023 | 5 |
+| 100 buildings 10d | 14,400 | 2,000.09 | 7,200 | 100 | 45 | 91,184 | 5,020 | 32,169 | 0 |
+
+Notes:
+
+- Starting and scripted construction scenarios keep their sanity counters.
+- The generated 100-building case now places farms only on fertile terrain, so
+  active jobs and transported totals are intentionally different.

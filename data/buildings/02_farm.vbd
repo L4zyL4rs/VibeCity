@@ -12,6 +12,9 @@ source_policy = recipe_outputs
 map_color = 142, 158, 86
 construction_labor_minutes = 3600
 
+[placement]
+requires_terrain = fertile
+
 [construction]
 timber = 8
 

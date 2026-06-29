@@ -105,6 +105,22 @@ and column. Production stops with a visible blocker when the required quantity
 is no longer available. The selected-building inspector shows the collection
 radius and remaining in-range quantity.
 
+## Placement Rules
+
+An optional `[placement]` section can restrict where a building may be placed:
+
+```ini
+[placement]
+requires_terrain = fertile
+```
+
+- `requires_terrain`: Stable terrain ID required under every footprint tile.
+  Currently `grass`, `fertile`, `rocky`, and `shallow_water` are valid IDs,
+  though shallow water also blocks construction globally.
+
+The client placement preview reports terrain blockers, and the construction menu
+includes required terrain in the details row.
+
 ## Current Boundary
 
 Definitions can compose existing simulation behavior. A building that needs a
@@ -113,7 +129,8 @@ rule still needs C++ work.
 
 The client construction menu is generated from the active catalog. Custom
 definitions automatically receive a selectable row with their name, color,
-construction materials, footprint, worker or housing capacity, and labor cost.
+construction materials, footprint, worker or housing capacity, required terrain,
+and labor cost.
 The first seven listed buildings receive numeric shortcuts.
 
 Save format version 5 records stable IDs and a catalog fingerprint. Changing a

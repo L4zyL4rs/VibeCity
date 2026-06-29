@@ -64,7 +64,7 @@ BuildingId Simulation::add_building(BuildingKind kind)
     }
     const auto id = next_building_id_++;
     auto instance = make_building(id, building);
-    instance.position = auto_place_building(id, building.footprint);
+    instance.position = auto_place_building(id, building);
     buildings_.push_back(instance);
     worker_assignment_dirty_ = true;
     return id;
@@ -76,13 +76,12 @@ BuildingId Simulation::add_building_at(BuildingKind kind, GridPosition position)
     if (building.internal_construction_site) {
         throw std::invalid_argument("construction site cannot be placed as a completed building");
     }
-    const auto footprint = building.footprint;
-    if (!map_.can_place_building(position, footprint)) {
+    if (!can_place_definition_at(building, position)) {
         throw std::invalid_argument("building cannot be placed at requested position");
     }
 
     const auto id = next_building_id_++;
-    map_.place_building(id, position, footprint);
+    map_.place_building(id, position, building.footprint);
     auto instance = make_building(id, building);
     instance.position = position;
     buildings_.push_back(instance);
@@ -102,7 +101,7 @@ BuildingId Simulation::place_construction(BuildingKind target_kind)
         id,
         definition(BuildingKind::ConstructionSite),
         target);
-    site.position = auto_place_building(id, target.footprint);
+    site.position = auto_place_building(id, target);
     buildings_.push_back(site);
     return id;
 }
@@ -114,13 +113,12 @@ BuildingId Simulation::place_construction_at(BuildingKind target_kind, GridPosit
         throw std::invalid_argument("construction site cannot target another construction site");
     }
 
-    const auto footprint = target.footprint;
-    if (!map_.can_place_building(position, footprint)) {
+    if (!can_place_definition_at(target, position)) {
         throw std::invalid_argument("construction site cannot be placed at requested position");
     }
 
     const auto id = next_building_id_++;
-    map_.place_building(id, position, footprint);
+    map_.place_building(id, position, target.footprint);
     auto site = make_construction_site(
         id,
         definition(BuildingKind::ConstructionSite),
@@ -208,6 +206,15 @@ bool Simulation::demolish_building(BuildingId id)
     *instance = make_inactive_building(id);
     worker_assignment_dirty_ = true;
     return true;
+}
+
+bool Simulation::can_place_building_at(BuildingKind kind, GridPosition position) const
+{
+    const auto& building = definition(kind);
+    if (building.internal_construction_site) {
+        return false;
+    }
+    return can_place_definition_at(building, position);
 }
 
 bool Simulation::set_map_resource(
@@ -597,19 +604,47 @@ const BuildingInstance* Simulation::find_building(BuildingId id) const
     return &buildings_[index];
 }
 
-GridPosition Simulation::auto_place_building(BuildingId id, Footprint footprint)
+bool Simulation::can_place_definition_at(
+    const BuildingDefinition& definition,
+    GridPosition position) const
+{
+    if (!map_.can_place_building(position, definition.footprint)) {
+        return false;
+    }
+    if (definition.required_terrain.has_value()
+        && !map_.footprint_matches_terrain(
+            position,
+            definition.footprint,
+            *definition.required_terrain)) {
+        return false;
+    }
+    return true;
+}
+
+GridPosition Simulation::auto_place_building(
+    BuildingId id,
+    const BuildingDefinition& definition)
 {
     for (int x = 0; x < map_.width(); ++x) {
         map_.add_path(GridPosition{x, 0});
     }
 
-    const auto position = GridPosition{next_auto_building_x_, 1};
-    if (!map_.place_building(id, position, footprint)) {
-        throw std::runtime_error("automatic building placement failed");
+    for (int y = 1; y < map_.height(); ++y) {
+        const auto first_x = y == 1 ? next_auto_building_x_ : 1;
+        for (int x = first_x; x < map_.width(); ++x) {
+            const auto position = GridPosition{x, y};
+            if (!can_place_definition_at(definition, position)) {
+                continue;
+            }
+            if (!map_.place_building(id, position, definition.footprint)) {
+                throw std::runtime_error("automatic building placement failed");
+            }
+            next_auto_building_x_ = position.x + definition.footprint.width + 1;
+            return position;
+        }
     }
 
-    next_auto_building_x_ += footprint.width + 1;
-    return position;
+    throw std::runtime_error("automatic building placement failed");
 }
 
 Footprint Simulation::footprint_for(const BuildingInstance& building) const

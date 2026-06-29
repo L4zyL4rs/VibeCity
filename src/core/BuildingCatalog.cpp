@@ -14,12 +14,13 @@ namespace vibecity {
 namespace {
 
 using Sections = std::map<std::string, std::map<std::string, std::string>>;
-constexpr std::array<std::string_view, 7> allowed_sections{
+constexpr std::array<std::string_view, 8> allowed_sections{
     "building",
     "construction",
     "storage",
     "recipe",
     "gathering",
+    "placement",
     "inputs",
     "outputs"
 };
@@ -385,6 +386,14 @@ BuildingDefinition parse_definition(const std::filesystem::path& path)
         };
     }
 
+    if (const auto terrain_id = take_optional(sections, "placement", "requires_terrain")) {
+        const auto terrain = terrain_id_from_string(*terrain_id);
+        if (!terrain.has_value() || *terrain == TerrainId::Count) {
+            throw std::runtime_error(path.string() + ": invalid required terrain");
+        }
+        definition.required_terrain = *terrain;
+    }
+
     for (const auto& [section_name, values] : sections) {
         if (!values.empty()) {
             throw std::runtime_error(
@@ -398,6 +407,7 @@ BuildingDefinition parse_definition(const std::filesystem::path& path)
             || definition.worker_slots != 0
             || definition.resident_capacity != 0
             || definition.worker_supply != 0
+            || definition.required_terrain.has_value()
             || definition.construction_labor_minutes != 0) {
             throw std::runtime_error(path.string() + ": invalid internal construction site");
         }
@@ -510,6 +520,10 @@ std::uint64_t catalog_fingerprint(const std::vector<BuildingDefinition>& definit
             hash_integer(hash, static_cast<std::uint8_t>(definition->gathering->resource));
             hash_integer(hash, definition->gathering->radius);
             hash_integer(hash, definition->gathering->units_per_cycle);
+        }
+        hash_integer(hash, static_cast<std::uint8_t>(definition->required_terrain.has_value()));
+        if (definition->required_terrain.has_value()) {
+            hash_integer(hash, static_cast<std::uint8_t>(*definition->required_terrain));
         }
         hash_integer(hash, static_cast<std::uint8_t>(definition->source_policy));
         hash_integer(hash, static_cast<std::uint8_t>(definition->requests_storage_inputs));

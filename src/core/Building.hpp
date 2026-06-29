@@ -74,6 +74,7 @@ struct BuildingDefinition {
     ResourceArray storage{};
     std::optional<Recipe> recipe;
     std::optional<GatheringRule> gathering;
+    std::optional<TerrainId> required_terrain;
     ResourceSourcePolicy source_policy = ResourceSourcePolicy::None;
     bool requests_storage_inputs = false;
     bool internal_construction_site = false;

@@ -117,6 +117,25 @@ void map_resources_follow_supported_terrain()
         1));
 }
 
+void building_placement_can_require_terrain()
+{
+    auto simulation = vibecity::Simulation{};
+    VIBECITY_CHECK(simulation.definition(vibecity::BuildingKind::Farm).required_terrain
+        == vibecity::TerrainId::Fertile);
+
+    VIBECITY_CHECK(!simulation.can_place_building_at(
+        vibecity::BuildingKind::Farm,
+        vibecity::GridPosition{60, 1}));
+    VIBECITY_CHECK(simulation.can_place_building_at(
+        vibecity::BuildingKind::Farm,
+        vibecity::GridPosition{8, 1}));
+
+    const auto farm = simulation.add_building_at(
+        vibecity::BuildingKind::Farm,
+        vibecity::GridPosition{8, 1});
+    VIBECITY_CHECK(simulation.building(farm).kind == vibecity::BuildingKind::Farm);
+}
+
 void paths_and_buildings_clear_map_resources()
 {
     auto map = vibecity::TileMap{12, 12};
@@ -979,6 +998,7 @@ int main()
     default_map_resources_are_deterministic();
     terrain_blocks_paths_and_buildings();
     map_resources_follow_supported_terrain();
+    building_placement_can_require_terrain();
     paths_and_buildings_clear_map_resources();
     path_and_building_removal_free_tiles_without_regrowing_resources();
     harvesting_prefers_nearest_then_topmost_resource();

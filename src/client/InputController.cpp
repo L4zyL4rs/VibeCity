@@ -78,7 +78,7 @@ std::string placement_hover_status(
     const auto& definition = simulation.definition(target);
     auto status = std::string{};
     if (!can_place_building_preview(simulation, target, tile)) {
-        const auto blocker = placement_blocker_text(simulation, tile, definition.footprint);
+        const auto blocker = building_placement_blocker_text(simulation, target, tile);
         status += blocker.empty() ? "blocked" : blocker;
         status += " ";
     }

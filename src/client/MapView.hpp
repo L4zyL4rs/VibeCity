@@ -40,6 +40,10 @@ void zoom_camera_at(Camera& camera, int screen_x, int screen_y, int steps);
     const Simulation& simulation,
     GridPosition tile,
     Footprint footprint);
+[[nodiscard]] std::string building_placement_blocker_text(
+    const Simulation& simulation,
+    BuildingKind target,
+    GridPosition tile);
 
 void draw_world(SDL_Renderer* renderer,
     const Simulation& simulation,

@@ -106,6 +106,8 @@ When I ask for detailed input, please report these points:
   terrain, forests, and stone deposits without guessing?
 - Hover info: does the status line make the tile terrain, resource amount,
   path/building occupancy, and placement blocker clear enough?
+- Farm placement: is it clear that farms require fertile terrain, and are
+  fertile patches easy enough to find without being trivial?
 - Placement: when hovering a woodcutter before placement, is the collection
   radius, reachable forest count, and footprint-cleared forest marker clear?
 - Depletion: after several production cycles, can you identify which nearby

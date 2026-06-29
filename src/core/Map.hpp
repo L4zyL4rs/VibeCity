@@ -199,6 +199,10 @@ public:
     [[nodiscard]] bool footprint_has_map_resource(
         GridPosition position,
         Footprint footprint) const;
+    [[nodiscard]] bool footprint_matches_terrain(
+        GridPosition position,
+        Footprint footprint,
+        TerrainId terrain) const;
     [[nodiscard]] bool can_place_building(GridPosition position, Footprint footprint) const;
     [[nodiscard]] bool has_path_access(GridPosition position, Footprint footprint) const;
     [[nodiscard]] bool buildings_connected(GridPosition source_position,

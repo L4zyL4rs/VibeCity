@@ -48,6 +48,28 @@ void add_path_line(vibecity::GameSession& game, int y, int start_x, int end_x)
     }
 }
 
+vibecity::GridPosition placement_for_kind(
+    const vibecity::GameSession& game,
+    vibecity::BuildingKind kind,
+    vibecity::GridPosition preferred)
+{
+    if (game.simulation().can_place_building_at(kind, preferred)) {
+        return preferred;
+    }
+
+    const auto& map = game.simulation().map();
+    for (int y = 1; y < map.height(); ++y) {
+        for (int x = 1; x < map.width(); ++x) {
+            const auto candidate = vibecity::GridPosition{x, y};
+            if (game.simulation().can_place_building_at(kind, candidate)) {
+                return candidate;
+            }
+        }
+    }
+
+    throw std::runtime_error("benchmark could not place building");
+}
+
 vibecity::Quantity total_transported(const vibecity::ResourceStats& stats)
 {
     auto total = vibecity::Quantity{0};
@@ -116,7 +138,7 @@ vibecity::GameSession generated_hundred_buildings()
     for (int index = 0; index < 100; ++index) {
         const auto row = index / 25;
         const auto column = index % 25;
-        const auto position = vibecity::GridPosition{1 + column * 5, row * 4 + 1};
+        auto position = vibecity::GridPosition{1 + column * 5, row * 4 + 1};
 
         const auto kind_index = index % 10;
         auto kind = vibecity::BuildingKind::House;
@@ -129,6 +151,7 @@ vibecity::GameSession generated_hundred_buildings()
         } else if (kind_index == 8) {
             kind = vibecity::BuildingKind::Storehouse;
         }
+        position = placement_for_kind(game, kind, position);
 
         const auto building = require_building(game, vibecity::PlaceBuildingCommand{
             .kind = kind,

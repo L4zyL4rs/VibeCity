@@ -38,6 +38,8 @@ understand when production stops or must move elsewhere.
   forest, but no default building consumes stone yet.
 - Hovering map tiles reports terrain, resource quantity, path/building
   occupancy, and common placement blockers.
+- Building definitions can require a terrain under their footprint; farms now
+  require fertile terrain.
 
 ## Implemented: Logistics Inspection
 
@@ -51,8 +53,8 @@ understand when production stops or must move elsewhere.
 
 ## Next Programming Slices
 
-1. Terrain suitability and build-cost modifiers rather than treating every
-   buildable tile identically.
+1. Terrain build-cost modifiers rather than treating every buildable suitable
+   tile identically.
 2. Quarry and brickyard chains that make construction materials geographic.
 3. Clay deposits using the same terrain/resource contract.
 
