@@ -414,7 +414,7 @@ void invalid_save_is_rejected_without_replacing_session()
 
     auto version = read_bytes(valid_path);
     VIBECITY_CHECK(version.size() > 12);
-    version[8] = 6;
+    version[8] = 7;
     write_bytes(version_path, version);
 
     vibecity::GameSession target;

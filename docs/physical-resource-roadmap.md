@@ -22,7 +22,7 @@ understand when production stops or must move elsewhere.
   shows usable forest tiles, marks trees that would be cleared by the
   footprint, and reports the reachable forest total before placement.
 - The inspector reports collection radius and total forest remaining in range.
-- Depleted forest state is deterministic and persisted in save format version 5.
+- Depleted forest state is deterministic and persisted in save files.
 - Demolition and path removal free occupied tiles without refunds or terrain
   recovery. Removed buildings persist as inactive ID tombstones in saves.
 
@@ -35,11 +35,24 @@ understand when production stops or must move elsewhere.
 - Map resources validate their terrain support: forest on grass/fertile tiles
   and stone on rocky tiles.
 - Stone deposits are generated on rocky terrain and rendered separately from
-  forest, but no default building consumes stone yet.
+  forest.
 - Hovering map tiles reports terrain, resource quantity, path/building
   occupancy, and common placement blockers.
 - Building definitions can require a terrain under their footprint; farms now
   require fertile terrain.
+
+## Implemented: Stone Slice
+
+- The default catalog includes a data-defined quarry.
+- Quarries require rocky terrain under their footprint.
+- Quarries harvest finite nearby stone deposits with the same gathering
+  contract used by woodcutters.
+- Stone is a core transported resource with storage, palette, inspector, and
+  build-menu support.
+- Storehouses can store stone, and new storehouse construction requires
+  delivered stone.
+- Save format version 6 rejects older resource-array layouts rather than
+  silently misreading them.
 
 ## Implemented: Logistics Inspection
 
@@ -55,8 +68,9 @@ understand when production stops or must move elsewhere.
 
 1. Terrain build-cost modifiers rather than treating every buildable suitable
    tile identically.
-2. Quarry and brickyard chains that make construction materials geographic.
-3. Clay deposits using the same terrain/resource contract.
+2. Make stone matter in at least one normal village expansion route, not only
+   optional storehouse construction.
+3. Clay deposits and brickyards using the same terrain/resource contract.
 
 ## Deliberate Limits
 
@@ -67,5 +81,5 @@ understand when production stops or must move elsewhere.
   timber.
 - Demolition does not refund materials or regrow cleared terrain.
 - Map generation is deterministic but not yet configurable by seed or scenario.
-- Stone is visible and saved, but it has no economy chain in the default
-  village yet.
+- Stone exists as a quarry chain, but the current 25-resident route does not
+  force the player to build one yet.

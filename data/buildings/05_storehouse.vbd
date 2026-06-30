@@ -14,6 +14,7 @@ construction_labor_minutes = 8640
 
 [construction]
 timber = 24
+stone = 12
 tools = 2
 
 [storage]
@@ -21,4 +22,5 @@ grain = 100
 bread = 100
 timber = 100
 firewood = 100
+stone = 100
 tools = 20

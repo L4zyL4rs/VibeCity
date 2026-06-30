@@ -31,7 +31,7 @@ Saving writes a temporary file and then replaces the previous save. Loading pars
 
 ## Binary Layout
 
-Version 5 is an explicitly little-endian binary format:
+Version 6 is an explicitly little-endian binary format:
 
 1. Eight-byte `VIBECITY` magic.
 2. Unsigned 32-bit format version.
@@ -42,9 +42,9 @@ Version 5 is an explicitly little-endian binary format:
 The checksum detects accidental corruption; it is not a security or authenticity mechanism.
 
 Buildings and transport-job resources use stable string IDs in the payload.
-Fixed-size resource arrays remain in the documented core resource order. The
-payload also stores a deterministic fingerprint of every simulation-relevant
-building field.
+Fixed-size resource arrays remain in the documented core resource order: grain,
+bread, timber, firewood, stone, tools. The payload also stores a deterministic
+fingerprint of every simulation-relevant building field.
 
 ## Validation
 
@@ -63,7 +63,7 @@ The loader rejects:
 
 ## Version Policy
 
-There is no migration layer yet. Versions 1 through 4 are rejected. Any incompatible
+There is no migration layer yet. Versions 1 through 5 are rejected. Any incompatible
 payload change must increment the save version and either add an explicit
 migration or reject older saves with a clear error. Simulation-relevant building
 definition changes are detected by the catalog fingerprint without silently

@@ -1,8 +1,8 @@
 # Village Playtest Checklist
 
-Use this checklist for the second village playtest. The goal is to verify that
-the first playtest fixes made throughput, shortages, pacing, and map interaction
-understandable.
+Use this checklist for the next village playtest. The goal is to verify that
+throughput, shortages, pacing, road-following transport, and the new
+quarry/stone layer are understandable.
 
 ## Build And Run
 
@@ -45,7 +45,7 @@ Starting state:
 - 3 full houses.
 - 1 storehouse.
 - Limited bread, timber, and two tools.
-- No farm, woodcutter, or bakery built yet.
+- No farm, woodcutter, quarry, or bakery built yet.
 
 Milestone:
 
@@ -85,6 +85,10 @@ The scripted scenario succeeds with this construction sequence on the existing p
 One chain cannot support 25 residents. The selected-building production section
 and settlement daily bread need should make the shortfall visible.
 
+Quarries are not required for this reference route yet. They are available as a
+terrain/resource readability test and become relevant when constructing
+additional storehouses.
+
 The exact coordinates are not meant to be final gameplay advice. They are a control route matching the automated milestone test.
 
 ## Feedback To Capture
@@ -102,16 +106,20 @@ When I ask for detailed input, please report these points:
   bread reserve make the missing surplus clear?
 - Forests: when selecting a woodcutter, is its collection radius and remaining
   local forest supply understandable?
+- Stone/quarries: can you find rocky stone deposits, place a quarry only on
+  suitable terrain, and understand its collection radius and remaining local
+  stone supply?
 - Terrain/resources: can you distinguish normal grass, fertile terrain, rocky
   terrain, forests, and stone deposits without guessing?
 - Hover info: does the status line make the tile terrain, resource amount,
   path/building occupancy, and placement blocker clear enough?
 - Farm placement: is it clear that farms require fertile terrain, and are
   fertile patches easy enough to find without being trivial?
-- Placement: when hovering a woodcutter before placement, is the collection
-  radius, reachable forest count, and footprint-cleared forest marker clear?
+- Placement: when hovering a woodcutter or quarry before placement, is the
+  collection radius, reachable resource count, and footprint-cleared resource
+  marker clear?
 - Depletion: after several production cycles, can you identify which nearby
-  forest tiles were consumed?
+  forest or stone tiles were consumed?
 - Construction: could you tell which site was next and whether builders were working?
 - Pacing: which speed did you use, and where did waiting feel too slow or too fast?
 - Controls: any accidental mode switches, placement mistakes, camera issues, or unclear buttons.

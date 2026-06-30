@@ -895,6 +895,87 @@ void woodcutter_ignores_forest_outside_collection_radius()
     VIBECITY_CHECK(instance.blocking_reason == vibecity::BlockingReason::NoNearbyMapResource);
 }
 
+void quarry_harvests_finite_nearby_stone()
+{
+    vibecity::Simulation simulation;
+    clear_map_resources(simulation);
+
+    const auto quarry_kind = simulation.building_catalog().find_kind("quarry");
+    VIBECITY_CHECK(quarry_kind.has_value());
+    const auto& quarry_definition = simulation.definition(*quarry_kind);
+    VIBECITY_CHECK(quarry_definition.gathering.has_value());
+    VIBECITY_CHECK(quarry_definition.gathering->resource == vibecity::MapResourceId::Stone);
+
+    auto quarry_position = std::optional<vibecity::GridPosition>{};
+    auto stone_position = std::optional<vibecity::GridPosition>{};
+    auto house_position = vibecity::GridPosition{};
+    auto path_position = vibecity::GridPosition{};
+    const auto inside_footprint = [](
+                                      vibecity::GridPosition tile,
+                                      vibecity::GridPosition origin,
+                                      vibecity::Footprint footprint) {
+        return tile.x >= origin.x
+            && tile.y >= origin.y
+            && tile.x < origin.x + footprint.width
+            && tile.y < origin.y + footprint.height;
+    };
+    for (int y = 1; y < simulation.map().height() && !quarry_position.has_value(); ++y) {
+        for (int x = 1; x < simulation.map().width() && !quarry_position.has_value(); ++x) {
+            const auto candidate = vibecity::GridPosition{x, y};
+            if (!simulation.can_place_building_at(*quarry_kind, candidate)) {
+                continue;
+            }
+
+            path_position = vibecity::GridPosition{x, y + quarry_definition.footprint.height};
+            house_position = vibecity::GridPosition{x, path_position.y + 1};
+            if (!simulation.map().in_bounds(path_position)
+                || !simulation.can_place_building_at(vibecity::BuildingKind::House, house_position)) {
+                continue;
+            }
+
+            for (const auto stone_candidate : simulation.map().tiles_within_radius(
+                     candidate,
+                     quarry_definition.footprint,
+                     quarry_definition.gathering->radius)) {
+                if (!inside_footprint(stone_candidate, candidate, quarry_definition.footprint)
+                    && !inside_footprint(
+                        stone_candidate,
+                        house_position,
+                        simulation.definition(vibecity::BuildingKind::House).footprint)
+                    && !(stone_candidate == path_position)
+                    && simulation.map().terrain_at(stone_candidate) == vibecity::TerrainId::Rocky) {
+                    quarry_position = candidate;
+                    stone_position = stone_candidate;
+                    break;
+                }
+            }
+        }
+    }
+    VIBECITY_CHECK(quarry_position.has_value());
+    VIBECITY_CHECK(stone_position.has_value());
+
+    const auto house = simulation.add_building_at(
+        vibecity::BuildingKind::House,
+        house_position);
+    const auto quarry = simulation.add_building_at(*quarry_kind, *quarry_position);
+    VIBECITY_CHECK(simulation.add_path(path_position));
+    VIBECITY_CHECK(simulation.set_map_resource(
+        *stone_position,
+        vibecity::MapResourceId::Stone,
+        2));
+    simulation.set_residents(house, 1);
+
+    simulation.run_for(960);
+
+    const auto& instance = simulation.building(quarry);
+    VIBECITY_CHECK(simulation.map().map_resource_quantity(*stone_position) == 0);
+    VIBECITY_CHECK(instance.inventory.quantity(vibecity::ResourceId::Stone) == 8);
+    VIBECITY_CHECK(simulation.stats().produced[vibecity::resource_index(vibecity::ResourceId::Stone)] == 8);
+
+    simulation.tick();
+    VIBECITY_CHECK(instance.blocking_reason == vibecity::BlockingReason::NoNearbyMapResource);
+}
+
 void construction_site_fetches_materials_and_completes()
 {
     vibecity::Simulation simulation;
@@ -1028,6 +1109,7 @@ int main()
     farm_and_woodcutter_supply_bakery_chain();
     woodcutter_harvests_finite_nearby_forest();
     woodcutter_ignores_forest_outside_collection_radius();
+    quarry_harvests_finite_nearby_stone();
     construction_site_fetches_materials_and_completes();
     construction_summary_reports_queue_focus();
     construction_site_reports_missing_materials();

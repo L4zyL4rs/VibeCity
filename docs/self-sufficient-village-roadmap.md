@@ -9,7 +9,8 @@ The milestone is successful when a player can grow a small connected village int
 The player should be able to:
 
 1. Start with a few houses, residents, paths, and a limited storehouse stockpile.
-2. Build farms, woodcutters, bakeries, storehouses, houses, and paths.
+2. Build farms, woodcutters, quarries, bakeries, storehouses, houses, and
+   paths.
 3. Watch construction materials and food move through visible transport jobs.
 4. Grow to 25 residents.
 5. Keep all houses supplied with bread for several days.
@@ -31,8 +32,9 @@ The milestone is done when all of these are true:
 
 Already implemented:
 
-- Core resources: grain, bread, timber, firewood, tools.
-- Buildings: house, farm, bakery, woodcutter, storehouse, construction site.
+- Core resources: grain, bread, timber, firewood, stone, tools.
+- Buildings: house, farm, bakery, woodcutter, quarry, storehouse, construction
+  site.
 - Production recipes and storage capacities.
 - Houses consuming bread daily.
 - Settlement population facts: residents, housing capacity, free housing, and daily bread need.
@@ -59,19 +61,26 @@ Already implemented:
 - First playtest balance requires two production chains for 25 residents.
 - Farms now require fertile terrain, and placement hover text explains terrain
   blockers.
+- Quarries now require rocky terrain and harvest finite stone deposits through
+  the same data-driven gathering rules as woodcutters.
+- New storehouses require delivered stone, making at least one construction
+  material geographic.
 - First client splits: pixel text helpers, core palette helpers, map-view helpers, HUD helpers, inspector helpers, input handling, and client mode definitions live outside `src/client/main.cpp`.
 - Versioned save/load with objective history, active logistics, reservations, construction progress, paths, and deterministic continuation.
 - Tests for core production, consumption, logistics, reachability, construction, and command-layer flow.
 
 Main gaps:
 
-- The first playtest balance pass is implemented, but needs a second manual pass.
+- The first playtest balance pass is implemented, but needs another manual pass
+  now that quarry placement and stone delivery exist.
 - Objective completion now has a HUD banner and headless summary, but there is no richer endpoint stats screen.
 - Non-gating benchmark target exists with CSV output and an initial baseline history.
 - Village playtest checklist exists for the first manual usability/pacing pass.
 - Client responsibilities are now split enough for near-term UI work, but the inspector can still become crowded quickly.
 - Icons and hover tooltips are still absent; current labels must remain
   self-explanatory without them.
+- The scripted 25-resident route still does not force quarry use; stone is
+  currently an expansion constraint for additional storehouses.
 
 ## Implementation Slices
 
@@ -497,20 +506,25 @@ Done when:
 
 ## Suggested Order
 
-1. Run the third manual village playtest against road-following transport.
-2. Verify that overlapping transport jobs remain readable.
-3. Decide whether the village milestone needs a richer completion summary.
-4. Use benchmark history before further logistics/pathfinding changes.
+1. Run the next manual village playtest against road-following transport and
+   the new quarry/stone layer.
+2. Verify that rocky terrain, stone deposits, quarry placement, and storehouse
+   stone costs are understandable.
+3. Decide whether stone should gate one required step in the 25-resident route
+   or remain an expansion-only material for now.
+4. Decide whether the village milestone needs a richer completion summary.
+5. Use benchmark history before further logistics/pathfinding changes.
 
 ## First Concrete Next Task
 
 Run the updated playtest from `docs/playtest-checklist.md` and verify that cargo
-can be followed along roads and that the `16 / 17` growth reserve explains the
-single-chain population ceiling.
+can be followed along roads, the `16 / 17` growth reserve explains the
+single-chain population ceiling, and quarry/stone placement reads clearly enough
+for a later stone-gated route.
 
 ## Follow-On Milestone
 
 The self-sufficient village is now feeding into
-`docs/physical-resource-roadmap.md`. Forests are the first finite map resource:
-woodcutters require nearby trees, selection shows their collection area, and
-depletion persists through save/load.
+`docs/physical-resource-roadmap.md`. Forests and stone are finite map resources:
+woodcutters and quarries require nearby deposits, selection shows collection
+areas, and depletion persists through save/load.

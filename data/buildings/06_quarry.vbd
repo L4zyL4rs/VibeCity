@@ -1,0 +1,34 @@
+[building]
+id = quarry
+name = Quarry
+footprint = 2, 2
+worker_slots = 1
+resident_capacity = 0
+worker_supply = 0
+consumes_bread = false
+requests_storage_inputs = false
+internal_construction_site = false
+source_policy = recipe_outputs
+map_color = 132, 136, 128
+construction_labor_minutes = 4320
+
+[placement]
+requires_terrain = rocky
+
+[construction]
+timber = 12
+tools = 1
+
+[storage]
+stone = 40
+
+[recipe]
+cycle_minutes = 480
+
+[gathering]
+map_resource = stone
+radius = 6
+units_per_cycle = 1
+
+[outputs]
+stone = 4

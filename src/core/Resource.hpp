@@ -17,6 +17,7 @@ enum class ResourceId : std::uint8_t {
     Bread,
     Timber,
     Firewood,
+    Stone,
     Tools,
     Count
 };
@@ -40,6 +41,7 @@ constexpr std::array<std::string_view, resource_count> resource_names{
     "bread",
     "timber",
     "firewood",
+    "stone",
     "tools"
 };
 

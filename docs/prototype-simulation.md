@@ -8,7 +8,7 @@ The purpose of the prototype is to prove that a tiny settlement can build, feed,
 
 The first prototype should answer one question:
 
-Can the player understand and influence a small physical economy where houses, workers, food, timber, construction sites, and paths interact?
+Can the player understand and influence a small physical economy where houses, workers, food, timber, stone, construction sites, and paths interact?
 
 The prototype should support this loop:
 
@@ -17,10 +17,11 @@ The prototype should support this loop:
 3. Farms produce grain.
 4. Bakeries turn grain and firewood into bread.
 5. Woodcutters produce timber and firewood.
-6. Construction sites require timber, optional tools, and labor.
-7. Goods are carried by visible transport jobs.
-8. Paths determine reachability and travel time.
-9. Inspectors explain why something is blocked.
+6. Quarries produce stone from rocky deposits.
+7. Construction sites require timber, optional stone/tools, and labor.
+8. Goods are carried by visible transport jobs.
+9. Paths determine reachability and travel time.
+10. Inspectors explain why something is blocked.
 
 ## 2. Scale
 
@@ -102,16 +103,21 @@ Each tile stores:
 - Occupant building ID, if any.
 - Path or road type, if any.
 - Passability flags.
-- Optional natural resource marker.
+- Optional finite natural resource marker.
 
 Prototype terrain types:
 
 - Grass.
-- Trees.
-- Water, blocked for now.
-- Stone, optional.
+- Fertile soil.
+- Rocky ground.
+- Shallow water, blocked for now.
 
-Trees can be harvested by woodcutters. Water and stone can be visually present without supporting advanced gameplay yet.
+Prototype map resources:
+
+- Forest on grass or fertile terrain.
+- Stone on rocky terrain.
+
+Forests can be harvested by woodcutters. Stone can be harvested by quarries.
 
 ### 4.2 Buildings And Access
 
@@ -150,6 +156,7 @@ Prototype resources:
 - Bread.
 - Timber.
 - Firewood.
+- Stone.
 - Tools.
 - Labor.
 

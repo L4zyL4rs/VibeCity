@@ -38,10 +38,12 @@ void build_menu_lists_catalog_buildings()
 {
     const auto catalog = vibecity::default_building_catalog();
     const auto kinds = vibecity::client::build_menu_kinds(*catalog);
+    const auto quarry = catalog->find_kind("quarry");
 
-    VIBECITY_CHECK(kinds.size() == 5);
+    VIBECITY_CHECK(quarry.has_value());
+    VIBECITY_CHECK(kinds.size() == 6);
     VIBECITY_CHECK(kinds.front() == vibecity::BuildingKind::House);
-    VIBECITY_CHECK(kinds.back() == vibecity::BuildingKind::Storehouse);
+    VIBECITY_CHECK(std::find(kinds.begin(), kinds.end(), *quarry) != kinds.end());
     for (const auto kind : kinds) {
         VIBECITY_CHECK(!catalog->definition(kind).internal_construction_site);
     }
@@ -115,6 +117,12 @@ void build_menu_formats_construction_materials()
     VIBECITY_CHECK(vibecity::client::operation_summary_text(
             catalog->definition(vibecity::BuildingKind::Woodcutter))
         == "HARVESTS FOREST -> 1 TIMBER + 3 FIREWOOD / 6H");
+    const auto quarry = catalog->find_kind("quarry");
+    VIBECITY_CHECK(quarry.has_value());
+    VIBECITY_CHECK(vibecity::client::construction_cost_text(catalog->definition(*quarry))
+        == "NEEDS 12 TIMBER + 1 TOOLS");
+    VIBECITY_CHECK(vibecity::client::operation_summary_text(catalog->definition(*quarry))
+        == "HARVESTS STONE -> 4 STONE / 8H");
 }
 
 void build_menu_hit_testing_respects_rows_gaps_and_scroll()

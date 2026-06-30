@@ -19,6 +19,8 @@ Color resource_color(ResourceId resource)
         return Color{136, 90, 48, 255};
     case ResourceId::Firewood:
         return Color{206, 82, 48, 255};
+    case ResourceId::Stone:
+        return Color{146, 148, 142, 255};
     case ResourceId::Tools:
         return Color{168, 176, 184, 255};
     case ResourceId::Count:

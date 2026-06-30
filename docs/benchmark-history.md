@@ -246,3 +246,23 @@ Notes:
 - Starting and scripted construction scenarios keep their sanity counters.
 - The generated 100-building case now places farms only on fertile terrain, so
   active jobs and transported totals are intentionally different.
+
+### 2026-06-30 Quarry And Stone Resource
+
+Stone is now a core resource and the default catalog includes a data-defined
+quarry that harvests rocky stone deposits. Storehouse construction requires
+stone, but the current benchmark scenarios do not construct extra storehouses or
+place quarries, so the sanity counters match the fertile-farm baseline.
+
+Representative default-build sample:
+
+| Case | Ticks | Milliseconds | Ticks/s | Buildings | Active Jobs | Transported | Resource Tiles | Resource Quantity | Constructed |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| starting village 30d | 43,200 | 18.17 | 2,378,198 | 4 | 0 | 60 | 5,320 | 34,156 | 0 |
+| construction village 30d | 43,200 | 94.07 | 459,239 | 9 | 0 | 1,759 | 5,298 | 34,023 | 5 |
+| 100 buildings 10d | 14,400 | 1,975.40 | 7,290 | 100 | 45 | 91,184 | 5,020 | 32,169 | 0 |
+
+Notes:
+
+- The large-case counters are unchanged from the fertile-farm placement sample.
+- The new quarry behavior is covered by core tests rather than this benchmark.

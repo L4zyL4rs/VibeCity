@@ -24,6 +24,8 @@ std::string_view resource_display_name(ResourceId resource)
         return "TIMBER";
     case ResourceId::Firewood:
         return "FIREWOOD";
+    case ResourceId::Stone:
+        return "STONE";
     case ResourceId::Tools:
         return "TOOLS";
     case ResourceId::Count:
@@ -89,13 +91,6 @@ std::string stored_pair_line(const ResourceArray& totals, ResourceId first, Reso
     auto output = std::ostringstream{};
     output << resource_display_name(first) << ": " << totals[resource_index(first)]
            << "  " << resource_display_name(second) << ": " << totals[resource_index(second)];
-    return output.str();
-}
-
-std::string stored_single_line(const ResourceArray& totals, ResourceId resource)
-{
-    auto output = std::ostringstream{};
-    output << resource_display_name(resource) << ": " << totals[resource_index(resource)];
     return output.str();
 }
 
@@ -386,7 +381,7 @@ int draw_economy_summary(SDL_Renderer* renderer,
     y += 20;
     draw_text(renderer, x, y, stored_pair_line(totals, ResourceId::Timber, ResourceId::Firewood), muted, 2);
     y += 20;
-    draw_text(renderer, x, y, stored_single_line(totals, ResourceId::Tools), muted, 2);
+    draw_text(renderer, x, y, stored_pair_line(totals, ResourceId::Stone, ResourceId::Tools), muted, 2);
     y += 28;
 
     draw_text(renderer, x, y, "CUMULATIVE FLOW", text, 2);
