@@ -222,6 +222,16 @@ std::string objective_progress_line(const VillageObjectiveStatus& status)
     return output.str();
 }
 
+std::string objective_short_line(const VillageObjectiveStatus& status)
+{
+    auto output = std::ostringstream{};
+    output << status.label;
+    if (status.target > 1) {
+        output << " " << std::min(status.current, status.target) << "/" << status.target;
+    }
+    return output.str();
+}
+
 int draw_objective_summary(SDL_Renderer* renderer,
     const VillageObjectiveTracker& objectives,
     int x,
@@ -241,6 +251,36 @@ int draw_objective_summary(SDL_Renderer* renderer,
         draw_text(renderer, x, y, objective_progress_line(*active), muted, 2);
     }
     y += 20;
+
+    if (active != nullptr) {
+        auto after_active = false;
+        auto next_count = 0;
+        for (const auto& status : objectives.statuses()) {
+            if (&status == active) {
+                after_active = true;
+                continue;
+            }
+            if (!after_active || status.complete) {
+                continue;
+            }
+
+            draw_text(
+                renderer,
+                x,
+                y,
+                "NEXT: " + objective_short_line(status),
+                muted,
+                1);
+            y += 16;
+            ++next_count;
+            if (next_count >= 2) {
+                break;
+            }
+        }
+        if (next_count > 0) {
+            y += 4;
+        }
+    }
 
     draw_text(renderer,
         x,
