@@ -42,27 +42,6 @@ const vibecity::VillageObjectiveStatus& objective_status(const vibecity::GameSes
     return game.objectives().statuses()[static_cast<std::size_t>(id)];
 }
 
-vibecity::BuildingKind require_quarry_kind(const vibecity::GameSession& game)
-{
-    const auto kind = game.simulation().building_catalog().find_kind("quarry");
-    VIBECITY_CHECK(kind.has_value());
-    return *kind;
-}
-
-void require_vertical_path_line(vibecity::GameSession& game, int x, int start_y, int end_y)
-{
-    for (int y = start_y; y <= end_y; ++y) {
-        require(game, vibecity::PlacePathCommand{.position = vibecity::GridPosition{x, y}});
-    }
-}
-
-void require_horizontal_path_line(vibecity::GameSession& game, int y, int start_x, int end_x)
-{
-    for (int x = start_x; x <= end_x; ++x) {
-        require(game, vibecity::PlacePathCommand{.position = vibecity::GridPosition{x, y}});
-    }
-}
-
 std::vector<std::uint8_t> read_bytes(const std::filesystem::path& path)
 {
     auto input = std::ifstream{path, std::ios::binary | std::ios::ate};
@@ -583,63 +562,22 @@ void self_sufficient_village_reaches_25_residents()
     vibecity::GameSession game;
     const auto ids = vibecity::create_starting_village(game);
     VIBECITY_CHECK(ids.houses.size() == 3);
-    const auto quarry_kind = require_quarry_kind(game);
-
-    const auto woodcutter = require_building(game, vibecity::PlaceConstructionCommand{
-        .target_kind = vibecity::BuildingKind::Woodcutter,
-        .position = vibecity::GridPosition{10, vibecity::starting_village_building_y}
-    });
-    const auto farm = require_building(game, vibecity::PlaceConstructionCommand{
-        .target_kind = vibecity::BuildingKind::Farm,
-        .position = vibecity::GridPosition{13, vibecity::starting_village_building_y}
-    });
-    const auto bakery = require_building(game, vibecity::PlaceConstructionCommand{
-        .target_kind = vibecity::BuildingKind::Bakery,
-        .position = vibecity::GridPosition{16, vibecity::starting_village_building_y}
-    });
-    const auto first_house = require_building(game, vibecity::PlaceConstructionCommand{
-        .target_kind = vibecity::BuildingKind::House,
-        .position = vibecity::GridPosition{19, vibecity::starting_village_building_y}
-    });
-    const auto second_house = require_building(game, vibecity::PlaceConstructionCommand{
-        .target_kind = vibecity::BuildingKind::House,
-        .position = vibecity::GridPosition{21, vibecity::starting_village_building_y}
-    });
-    require_building(game, vibecity::PlaceConstructionCommand{
-        .target_kind = vibecity::BuildingKind::Woodcutter,
-        .position = vibecity::GridPosition{23, vibecity::starting_village_building_y}
-    });
-    require_building(game, vibecity::PlaceConstructionCommand{
-        .target_kind = vibecity::BuildingKind::Farm,
-        .position = vibecity::GridPosition{26, vibecity::starting_village_building_y}
-    });
-    require_building(game, vibecity::PlaceConstructionCommand{
-        .target_kind = vibecity::BuildingKind::Bakery,
-        .position = vibecity::GridPosition{29, vibecity::starting_village_building_y}
-    });
-    require_vertical_path_line(game, 20, 12, 19);
-    const auto quarry = require_building(game, vibecity::PlaceConstructionCommand{
-        .target_kind = quarry_kind,
-        .position = vibecity::GridPosition{19, 10}
-    });
-    require_horizontal_path_line(game, vibecity::starting_village_road_y, 31, 34);
-    const auto second_storehouse = require_building(game, vibecity::PlaceConstructionCommand{
-        .target_kind = vibecity::BuildingKind::Storehouse,
-        .position = vibecity::GridPosition{32, vibecity::starting_village_building_y}
-    });
+    const auto milestone = vibecity::queue_reference_village_milestone(game);
+    const auto quarry_kind = game.simulation().building_catalog().find_kind("quarry");
+    VIBECITY_CHECK(quarry_kind.has_value());
 
     for (int day = 0; day < 30; ++day) {
         require(game, vibecity::AdvanceTimeCommand{.ticks = vibecity::ticks_per_day});
     }
 
     const auto& simulation = game.simulation();
-    VIBECITY_CHECK(simulation.building(woodcutter).kind == vibecity::BuildingKind::Woodcutter);
-    VIBECITY_CHECK(simulation.building(farm).kind == vibecity::BuildingKind::Farm);
-    VIBECITY_CHECK(simulation.building(bakery).kind == vibecity::BuildingKind::Bakery);
-    VIBECITY_CHECK(simulation.building(quarry).kind == quarry_kind);
-    VIBECITY_CHECK(simulation.building(first_house).kind == vibecity::BuildingKind::House);
-    VIBECITY_CHECK(simulation.building(second_house).kind == vibecity::BuildingKind::House);
-    VIBECITY_CHECK(simulation.building(second_storehouse).kind == vibecity::BuildingKind::Storehouse);
+    VIBECITY_CHECK(simulation.building(milestone.woodcutter).kind == vibecity::BuildingKind::Woodcutter);
+    VIBECITY_CHECK(simulation.building(milestone.farm).kind == vibecity::BuildingKind::Farm);
+    VIBECITY_CHECK(simulation.building(milestone.bakery).kind == vibecity::BuildingKind::Bakery);
+    VIBECITY_CHECK(simulation.building(milestone.quarry).kind == *quarry_kind);
+    VIBECITY_CHECK(simulation.building(milestone.first_house).kind == vibecity::BuildingKind::House);
+    VIBECITY_CHECK(simulation.building(milestone.second_house).kind == vibecity::BuildingKind::House);
+    VIBECITY_CHECK(simulation.building(milestone.second_storehouse).kind == vibecity::BuildingKind::Storehouse);
     VIBECITY_CHECK(simulation.stats().constructed_buildings >= 8);
     VIBECITY_CHECK(simulation.stats().produced[vibecity::resource_index(vibecity::ResourceId::Stone)] >= 12);
     VIBECITY_CHECK(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Stone)] >= 12);

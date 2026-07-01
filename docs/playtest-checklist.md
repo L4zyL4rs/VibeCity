@@ -16,8 +16,12 @@ If the client fails to start, run the headless and benchmark checks instead and 
 
 ```bash
 ./build/vibecity_headless
+./build/vibecity_headless --milestone
 ./build/vibecity_bench --csv
 ```
+
+The `--milestone` headless run queues the reference route below and advances it
+for 30 days.
 
 ## Current Controls
 

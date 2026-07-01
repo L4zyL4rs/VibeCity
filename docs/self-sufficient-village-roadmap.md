@@ -242,6 +242,7 @@ Programming work:
   - reach 25 residents
   - run 5 stable days at 25 residents
 - Exposed active objective status in the client inspector and headless output.
+- Added a `vibecity_headless --milestone` mode for the scripted reference route.
 - Added objective summary helpers for active objective, completed count, and all-complete state.
 - Added a client milestone-complete banner and headless completion summary.
 

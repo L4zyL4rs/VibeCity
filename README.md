@@ -39,6 +39,7 @@ cmake -S . -B build
 cmake --build build
 ctest --test-dir build --output-on-failure
 ./build/vibecity_headless
+./build/vibecity_headless --milestone
 ```
 
 If SDL2 is available, CMake also builds the first windowed client:

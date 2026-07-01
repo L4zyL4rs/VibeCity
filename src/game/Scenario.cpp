@@ -35,6 +35,13 @@ void add_path_line(GameSession& game, int y, int start_x, int end_x)
     }
 }
 
+void add_vertical_path_line(GameSession& game, int x, int start_y, int end_y)
+{
+    for (int y = start_y; y <= end_y; ++y) {
+        require(game, PlacePathCommand{.position = GridPosition{x, y}});
+    }
+}
+
 void add_stock(GameSession& game, BuildingId building, ResourceId resource, Quantity quantity)
 {
     require(game, AddInventoryCommand{
@@ -78,6 +85,62 @@ StartingVillageIds create_starting_village(GameSession& game)
     add_stock(game, ids.storehouse, ResourceId::Bread, starting_storehouse_bread);
     add_stock(game, ids.storehouse, ResourceId::Timber, starting_timber);
     add_stock(game, ids.storehouse, ResourceId::Tools, starting_tools);
+
+    return ids;
+}
+
+ReferenceVillageMilestoneIds queue_reference_village_milestone(GameSession& game)
+{
+    auto ids = ReferenceVillageMilestoneIds{};
+    const auto quarry_kind = game.simulation().building_catalog().find_kind("quarry");
+    if (!quarry_kind.has_value()) {
+        throw std::runtime_error("reference milestone requires quarry definition");
+    }
+
+    ids.woodcutter = require_building(game, PlaceConstructionCommand{
+        .target_kind = BuildingKind::Woodcutter,
+        .position = GridPosition{10, starting_village_building_y}
+    });
+    ids.farm = require_building(game, PlaceConstructionCommand{
+        .target_kind = BuildingKind::Farm,
+        .position = GridPosition{13, starting_village_building_y}
+    });
+    ids.bakery = require_building(game, PlaceConstructionCommand{
+        .target_kind = BuildingKind::Bakery,
+        .position = GridPosition{16, starting_village_building_y}
+    });
+    ids.first_house = require_building(game, PlaceConstructionCommand{
+        .target_kind = BuildingKind::House,
+        .position = GridPosition{19, starting_village_building_y}
+    });
+    ids.second_house = require_building(game, PlaceConstructionCommand{
+        .target_kind = BuildingKind::House,
+        .position = GridPosition{21, starting_village_building_y}
+    });
+    ids.second_woodcutter = require_building(game, PlaceConstructionCommand{
+        .target_kind = BuildingKind::Woodcutter,
+        .position = GridPosition{23, starting_village_building_y}
+    });
+    ids.second_farm = require_building(game, PlaceConstructionCommand{
+        .target_kind = BuildingKind::Farm,
+        .position = GridPosition{26, starting_village_building_y}
+    });
+    ids.second_bakery = require_building(game, PlaceConstructionCommand{
+        .target_kind = BuildingKind::Bakery,
+        .position = GridPosition{29, starting_village_building_y}
+    });
+
+    add_vertical_path_line(game, 20, 12, 19);
+    ids.quarry = require_building(game, PlaceConstructionCommand{
+        .target_kind = *quarry_kind,
+        .position = GridPosition{19, 10}
+    });
+
+    add_path_line(game, starting_village_road_y, 31, 34);
+    ids.second_storehouse = require_building(game, PlaceConstructionCommand{
+        .target_kind = BuildingKind::Storehouse,
+        .position = GridPosition{32, starting_village_building_y}
+    });
 
     return ids;
 }

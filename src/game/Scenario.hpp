@@ -18,6 +18,20 @@ struct StartingVillageIds {
     BuildingId storehouse = 0;
 };
 
+struct ReferenceVillageMilestoneIds {
+    BuildingId woodcutter = 0;
+    BuildingId farm = 0;
+    BuildingId bakery = 0;
+    BuildingId first_house = 0;
+    BuildingId second_house = 0;
+    BuildingId second_woodcutter = 0;
+    BuildingId second_farm = 0;
+    BuildingId second_bakery = 0;
+    BuildingId quarry = 0;
+    BuildingId second_storehouse = 0;
+};
+
 [[nodiscard]] StartingVillageIds create_starting_village(GameSession& game);
+[[nodiscard]] ReferenceVillageMilestoneIds queue_reference_village_milestone(GameSession& game);
 
 }

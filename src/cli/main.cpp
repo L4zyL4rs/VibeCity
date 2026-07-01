@@ -1,6 +1,8 @@
 #include "game/Scenario.hpp"
 
+#include <exception>
 #include <iostream>
+#include <string_view>
 
 namespace {
 
@@ -115,55 +117,78 @@ void print_position(const vibecity::BuildingInstance& building)
     std::cout << " pos=(" << building.position->x << "," << building.position->y << ")";
 }
 
+bool wants_milestone(int argc, char** argv)
+{
+    for (int index = 1; index < argc; ++index) {
+        if (std::string_view{argv[index]} == "--milestone") {
+            return true;
+        }
+    }
+    return false;
 }
 
-int main()
+}
+
+int main(int argc, char** argv)
 {
     using namespace vibecity;
 
-    GameSession game;
-    const auto scenario = create_starting_village(game);
-    const auto advance = game.execute(AdvanceTimeCommand{.ticks = 2 * ticks_per_day});
-    if (!advance.success) {
-        std::cerr << "failed to advance scenario: " << advance.message << "\n";
+    try {
+        GameSession game;
+        const auto scenario = create_starting_village(game);
+        const auto milestone = wants_milestone(argc, argv);
+        if (milestone) {
+            [[maybe_unused]] const auto milestone_ids = queue_reference_village_milestone(game);
+        }
+
+        const auto advance = game.execute(AdvanceTimeCommand{
+            .ticks = (milestone ? 30 : 2) * ticks_per_day
+        });
+        if (!advance.success) {
+            std::cerr << "failed to advance scenario: " << advance.message << "\n";
+            return 1;
+        }
+
+        const auto& simulation = game.simulation();
+
+        std::cout << "VibeCity headless simulation\n";
+        std::cout << "mode=" << (milestone ? "reference milestone" : "starting village 2d") << "\n";
+        std::cout << "scenario houses=" << scenario.houses.size()
+                  << ", storehouse=#" << scenario.storehouse << "\n";
+        std::cout << "day=" << simulation.current_day() << ", tick=" << simulation.current_tick() << "\n\n";
+
+        for (const auto& building : simulation.buildings()) {
+            std::cout << "#" << building.id << " " << simulation.definition(building.kind).name
+                      << " workers=" << building.assigned_workers
+                      << " residents=" << building.residents
+                      << " block=" << blocking_reason_text(building.blocking_reason);
+            print_position(building);
+            print_construction_details(simulation, building);
+            std::cout << " inventory=[";
+            print_inventory(building);
+            std::cout << "]\n";
+        }
+
+        std::cout << "\nIdle workers: " << simulation.idle_workers()
+                  << "\nAvailable haulers: " << simulation.available_haulers()
+                  << "\nActive transport jobs:\n";
+        print_transport_jobs(simulation);
+        std::cout << "\nProduced: ";
+        print_resource_array(simulation.stats().produced);
+        std::cout << "\nConsumed: ";
+        print_resource_array(simulation.stats().consumed);
+        std::cout << "\nTransported: ";
+        print_resource_array(simulation.stats().transported);
+        std::cout << "\nConstructed buildings: " << simulation.stats().constructed_buildings;
+        std::cout << "\nStored: ";
+        print_resource_array(simulation.total_inventory());
+        std::cout << "\nObjectives:\n";
+        print_objectives(game.objectives());
+        std::cout << "\n";
+    } catch (const std::exception& exception) {
+        std::cerr << "headless failed: " << exception.what() << "\n";
         return 1;
     }
-
-    const auto& simulation = game.simulation();
-
-    std::cout << "VibeCity headless simulation\n";
-    std::cout << "scenario houses=" << scenario.houses.size()
-              << ", storehouse=#" << scenario.storehouse << "\n";
-    std::cout << "day=" << simulation.current_day() << ", tick=" << simulation.current_tick() << "\n\n";
-
-    for (const auto& building : simulation.buildings()) {
-        std::cout << "#" << building.id << " " << simulation.definition(building.kind).name
-                  << " workers=" << building.assigned_workers
-                  << " residents=" << building.residents
-                  << " block=" << blocking_reason_text(building.blocking_reason);
-        print_position(building);
-        print_construction_details(simulation, building);
-        std::cout << " inventory=[";
-        print_inventory(building);
-        std::cout << "]\n";
-    }
-
-    std::cout << "\nIdle workers: " << simulation.idle_workers()
-              << "\nAvailable haulers: " << simulation.available_haulers()
-              << "\nActive transport jobs:\n";
-    print_transport_jobs(simulation);
-    std::cout << "\nProduced: ";
-    print_resource_array(simulation.stats().produced);
-    std::cout << "\nConsumed: ";
-    print_resource_array(simulation.stats().consumed);
-    std::cout << "\nTransported: ";
-    print_resource_array(simulation.stats().transported);
-    std::cout << "\nConstructed buildings: " << simulation.stats().constructed_buildings;
-    std::cout << "\nStored: ";
-    print_resource_array(simulation.total_inventory());
-    std::cout << "\nObjectives:\n";
-    print_objectives(game.objectives());
-    std::cout << "\n";
 
     return 0;
 }
