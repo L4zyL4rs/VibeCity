@@ -8,7 +8,7 @@ namespace {
 constexpr Quantity starting_house_bread = 10;
 constexpr Quantity starting_storehouse_bread = 60;
 constexpr Quantity starting_timber = 8;
-constexpr Quantity starting_tools = 2;
+constexpr Quantity starting_tools = 5;
 
 CommandResult require(GameSession& game, const GameCommand& command)
 {

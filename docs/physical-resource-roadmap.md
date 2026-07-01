@@ -68,9 +68,8 @@ understand when production stops or must move elsewhere.
 
 1. Terrain build-cost modifiers rather than treating every buildable suitable
    tile identically.
-2. Make stone matter in at least one normal village expansion route, not only
-   optional storehouse construction.
-3. Clay deposits and brickyards using the same terrain/resource contract.
+2. Clay deposits and brickyards using the same terrain/resource contract.
+3. Better deposit generation controls by scenario or seed.
 
 ## Deliberate Limits
 
@@ -81,5 +80,5 @@ understand when production stops or must move elsewhere.
   timber.
 - Demolition does not refund materials or regrow cleared terrain.
 - Map generation is deterministic but not yet configurable by seed or scenario.
-- Stone exists as a quarry chain, but the current 25-resident route does not
-  force the player to build one yet.
+- Stone currently gates the second storehouse in the village milestone, but
+  most construction materials still use simple delivered quantities.

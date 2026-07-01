@@ -42,6 +42,27 @@ const vibecity::VillageObjectiveStatus& objective_status(const vibecity::GameSes
     return game.objectives().statuses()[static_cast<std::size_t>(id)];
 }
 
+vibecity::BuildingKind require_quarry_kind(const vibecity::GameSession& game)
+{
+    const auto kind = game.simulation().building_catalog().find_kind("quarry");
+    VIBECITY_CHECK(kind.has_value());
+    return *kind;
+}
+
+void require_vertical_path_line(vibecity::GameSession& game, int x, int start_y, int end_y)
+{
+    for (int y = start_y; y <= end_y; ++y) {
+        require(game, vibecity::PlacePathCommand{.position = vibecity::GridPosition{x, y}});
+    }
+}
+
+void require_horizontal_path_line(vibecity::GameSession& game, int y, int start_x, int end_x)
+{
+    for (int x = start_x; x <= end_x; ++x) {
+        require(game, vibecity::PlacePathCommand{.position = vibecity::GridPosition{x, y}});
+    }
+}
+
 std::vector<std::uint8_t> read_bytes(const std::filesystem::path& path)
 {
     auto input = std::ifstream{path, std::ios::binary | std::ios::ate};
@@ -189,7 +210,7 @@ void starting_village_runs_through_command_layer()
     VIBECITY_CHECK(!ids.bakery.has_value());
     VIBECITY_CHECK(game.simulation().building(ids.storehouse).inventory.quantity(vibecity::ResourceId::Bread) == 60);
     VIBECITY_CHECK(game.simulation().building(ids.storehouse).inventory.quantity(vibecity::ResourceId::Timber) == 8);
-    VIBECITY_CHECK(game.simulation().building(ids.storehouse).inventory.quantity(vibecity::ResourceId::Tools) == 2);
+    VIBECITY_CHECK(game.simulation().building(ids.storehouse).inventory.quantity(vibecity::ResourceId::Tools) == 5);
     VIBECITY_CHECK(game.simulation().definition(vibecity::BuildingKind::Woodcutter)
             .construction_materials
         == vibecity::empty_resources());
@@ -221,7 +242,10 @@ void objectives_track_starting_village_status()
     VIBECITY_CHECK(game.objectives().active_status()->id == vibecity::VillageObjectiveId::HaveWoodcutter);
     VIBECITY_CHECK(!objective_status(game, vibecity::VillageObjectiveId::HaveWoodcutter).complete);
     VIBECITY_CHECK(!objective_status(game, vibecity::VillageObjectiveId::HaveFarm).complete);
+    VIBECITY_CHECK(!objective_status(game, vibecity::VillageObjectiveId::HaveQuarry).complete);
     VIBECITY_CHECK(!objective_status(game, vibecity::VillageObjectiveId::HaveBakery).complete);
+    VIBECITY_CHECK(objective_status(game, vibecity::VillageObjectiveId::HaveTwoStorehouses).current == 1);
+    VIBECITY_CHECK(!objective_status(game, vibecity::VillageObjectiveId::HaveTwoStorehouses).complete);
     VIBECITY_CHECK(objective_status(game, vibecity::VillageObjectiveId::Reach15Residents).complete);
     VIBECITY_CHECK(objective_status(game, vibecity::VillageObjectiveId::Reach25Residents).current == 15);
     VIBECITY_CHECK(!objective_status(game, vibecity::VillageObjectiveId::Reach25Residents).complete);
@@ -559,6 +583,7 @@ void self_sufficient_village_reaches_25_residents()
     vibecity::GameSession game;
     const auto ids = vibecity::create_starting_village(game);
     VIBECITY_CHECK(ids.houses.size() == 3);
+    const auto quarry_kind = require_quarry_kind(game);
 
     const auto woodcutter = require_building(game, vibecity::PlaceConstructionCommand{
         .target_kind = vibecity::BuildingKind::Woodcutter,
@@ -592,8 +617,18 @@ void self_sufficient_village_reaches_25_residents()
         .target_kind = vibecity::BuildingKind::Bakery,
         .position = vibecity::GridPosition{29, vibecity::starting_village_building_y}
     });
+    require_vertical_path_line(game, 20, 12, 19);
+    const auto quarry = require_building(game, vibecity::PlaceConstructionCommand{
+        .target_kind = quarry_kind,
+        .position = vibecity::GridPosition{19, 10}
+    });
+    require_horizontal_path_line(game, vibecity::starting_village_road_y, 31, 34);
+    const auto second_storehouse = require_building(game, vibecity::PlaceConstructionCommand{
+        .target_kind = vibecity::BuildingKind::Storehouse,
+        .position = vibecity::GridPosition{32, vibecity::starting_village_building_y}
+    });
 
-    for (int day = 0; day < 20; ++day) {
+    for (int day = 0; day < 30; ++day) {
         require(game, vibecity::AdvanceTimeCommand{.ticks = vibecity::ticks_per_day});
     }
 
@@ -601,9 +636,13 @@ void self_sufficient_village_reaches_25_residents()
     VIBECITY_CHECK(simulation.building(woodcutter).kind == vibecity::BuildingKind::Woodcutter);
     VIBECITY_CHECK(simulation.building(farm).kind == vibecity::BuildingKind::Farm);
     VIBECITY_CHECK(simulation.building(bakery).kind == vibecity::BuildingKind::Bakery);
+    VIBECITY_CHECK(simulation.building(quarry).kind == quarry_kind);
     VIBECITY_CHECK(simulation.building(first_house).kind == vibecity::BuildingKind::House);
     VIBECITY_CHECK(simulation.building(second_house).kind == vibecity::BuildingKind::House);
-    VIBECITY_CHECK(simulation.stats().constructed_buildings >= 5);
+    VIBECITY_CHECK(simulation.building(second_storehouse).kind == vibecity::BuildingKind::Storehouse);
+    VIBECITY_CHECK(simulation.stats().constructed_buildings >= 8);
+    VIBECITY_CHECK(simulation.stats().produced[vibecity::resource_index(vibecity::ResourceId::Stone)] >= 12);
+    VIBECITY_CHECK(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Stone)] >= 12);
     VIBECITY_CHECK(simulation.total_residents() == 25);
     VIBECITY_CHECK(simulation.total_housing_capacity() == 25);
     VIBECITY_CHECK(simulation.free_housing_capacity() == 0);
@@ -619,6 +658,8 @@ void self_sufficient_village_reaches_25_residents()
             * vibecity::ticks_per_day / bakery_definition.recipe->cycle_minutes
         == 16);
     VIBECITY_CHECK(objective_status(game, vibecity::VillageObjectiveId::Reach25Residents).complete);
+    VIBECITY_CHECK(objective_status(game, vibecity::VillageObjectiveId::HaveQuarry).complete);
+    VIBECITY_CHECK(objective_status(game, vibecity::VillageObjectiveId::HaveTwoStorehouses).complete);
     VIBECITY_CHECK(objective_status(game, vibecity::VillageObjectiveId::Stable25Residents).complete);
     VIBECITY_CHECK(game.objectives().completed_count() == static_cast<int>(vibecity::village_objective_count));
     VIBECITY_CHECK(game.objectives().all_complete());

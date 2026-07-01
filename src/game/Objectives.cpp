@@ -18,6 +18,15 @@ int building_count(const Simulation& simulation, BuildingKind kind)
     }));
 }
 
+int building_count(const Simulation& simulation, std::string_view stable_id)
+{
+    const auto kind = simulation.building_catalog().find_kind(stable_id);
+    if (!kind.has_value()) {
+        return 0;
+    }
+    return building_count(simulation, *kind);
+}
+
 int total_hunger_days(const Simulation& simulation)
 {
     auto hunger_days = 0;
@@ -48,6 +57,8 @@ VillageObjectiveTracker::VillageObjectiveTracker()
     statuses_[objective_index(VillageObjectiveId::HaveWoodcutter)] = make_status(VillageObjectiveId::HaveWoodcutter, 0, 1);
     statuses_[objective_index(VillageObjectiveId::HaveFarm)] = make_status(VillageObjectiveId::HaveFarm, 0, 1);
     statuses_[objective_index(VillageObjectiveId::HaveBakery)] = make_status(VillageObjectiveId::HaveBakery, 0, 1);
+    statuses_[objective_index(VillageObjectiveId::HaveQuarry)] = make_status(VillageObjectiveId::HaveQuarry, 0, 1);
+    statuses_[objective_index(VillageObjectiveId::HaveTwoStorehouses)] = make_status(VillageObjectiveId::HaveTwoStorehouses, 0, 2);
     statuses_[objective_index(VillageObjectiveId::Reach15Residents)] = make_status(VillageObjectiveId::Reach15Residents, 0, 15);
     statuses_[objective_index(VillageObjectiveId::Reach25Residents)] = make_status(VillageObjectiveId::Reach25Residents, 0, 25);
     statuses_[objective_index(VillageObjectiveId::Stable25Residents)] = make_status(VillageObjectiveId::Stable25Residents, 0, stable_days_target);
@@ -87,6 +98,14 @@ void VillageObjectiveTracker::update(const Simulation& simulation)
         VillageObjectiveId::HaveBakery,
         building_count(simulation, BuildingKind::Bakery),
         1);
+    statuses_[objective_index(VillageObjectiveId::HaveQuarry)] = make_status(
+        VillageObjectiveId::HaveQuarry,
+        building_count(simulation, "quarry"),
+        1);
+    statuses_[objective_index(VillageObjectiveId::HaveTwoStorehouses)] = make_status(
+        VillageObjectiveId::HaveTwoStorehouses,
+        building_count(simulation, BuildingKind::Storehouse),
+        2);
     statuses_[objective_index(VillageObjectiveId::Reach15Residents)] = make_status(
         VillageObjectiveId::Reach15Residents,
         simulation.total_residents(),
@@ -177,6 +196,10 @@ std::string_view village_objective_label(VillageObjectiveId id)
         return "FARM";
     case VillageObjectiveId::HaveBakery:
         return "BAKERY";
+    case VillageObjectiveId::HaveQuarry:
+        return "QUARRY";
+    case VillageObjectiveId::HaveTwoStorehouses:
+        return "2 STOREHOUSES";
     case VillageObjectiveId::Reach15Residents:
         return "15 RESIDENTS";
     case VillageObjectiveId::Reach25Residents:

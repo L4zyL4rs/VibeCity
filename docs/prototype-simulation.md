@@ -540,7 +540,7 @@ Initial settlement:
 - 3 houses.
 - 15 residents.
 - 1 storehouse or town hall.
-- Starting stock: 90 bread, 8 timber, 2 tools.
+- Starting stock: 90 bread, 8 timber, 5 tools.
 - A few trees near the settlement.
 - Enough path tiles to connect starting buildings.
 
@@ -551,8 +551,10 @@ First player objective:
 3. Build a bakery.
 4. Compare daily bread capacity with settlement demand.
 5. Expand to two production chains.
-6. Keep 25 residents supplied with bread.
-7. Diagnose at least one shortage through the UI.
+6. Build a quarry near rocky stone.
+7. Build a second storehouse using delivered stone.
+8. Keep 25 residents supplied with bread.
+9. Diagnose at least one shortage through the UI.
 
 ## 15. What Is Explicitly Out Of Scope
 

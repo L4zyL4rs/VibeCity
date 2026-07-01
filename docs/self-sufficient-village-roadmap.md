@@ -50,7 +50,9 @@ Already implemented:
 - Construction queue focus facts for the next site, remaining labor, and active builders.
 - Game-layer village objective tracker with stable-fed-days history.
 - Starting village that requires the player to construct the production chain.
-- Command-layer scenario test that constructs a woodcutter, farm, bakery, and houses, then reaches 25 residents and stays fed for several days.
+- Command-layer scenario test that constructs woodcutters, farms, bakeries,
+  houses, a quarry, and a second storehouse, then reaches 25 residents and
+  stays fed for several days.
 - SDL client with placement, inspector, economy summary, logistics reservation summary, objective summary, transport overlay, and drag path placement.
 - SDL client shows construction queue focus and per-site construction progress.
 - Catalog-driven construction menu shows each building's material and labor
@@ -79,8 +81,7 @@ Main gaps:
 - Client responsibilities are now split enough for near-term UI work, but the inspector can still become crowded quickly.
 - Icons and hover tooltips are still absent; current labels must remain
   self-explanatory without them.
-- The scripted 25-resident route still does not force quarry use; stone is
-  currently an expansion constraint for additional storehouses.
+- Stone now gates the current milestone through a required second storehouse.
 
 ## Implementation Slices
 
@@ -235,6 +236,8 @@ Programming work:
   - have a woodcutter
   - have a farm
   - have a bakery
+  - have a quarry
+  - have two storehouses
   - reach 15 residents
   - reach 25 residents
   - run 5 stable days at 25 residents
@@ -256,7 +259,8 @@ Tests:
 - Objective state advances when the required building exists.
 - Objective state advances when resident count reaches threshold.
 - Stable-days objective resets on hunger.
-- The self-sufficient village scenario completes the 25-resident and stable-days objectives.
+- The self-sufficient village scenario completes the quarry, second-storehouse,
+  25-resident, and stable-days objectives.
 
 Done when:
 
@@ -507,20 +511,18 @@ Done when:
 ## Suggested Order
 
 1. Run the next manual village playtest against road-following transport and
-   the new quarry/stone layer.
-2. Verify that rocky terrain, stone deposits, quarry placement, and storehouse
-   stone costs are understandable.
-3. Decide whether stone should gate one required step in the 25-resident route
-   or remain an expansion-only material for now.
-4. Decide whether the village milestone needs a richer completion summary.
-5. Use benchmark history before further logistics/pathfinding changes.
+   the required quarry/stone storehouse step.
+2. Verify that rocky terrain, stone deposits, quarry placement, storehouse
+   stone costs, and stone deliveries are understandable.
+3. Decide whether the village milestone needs a richer completion summary.
+4. Use benchmark history before further logistics/pathfinding changes.
 
 ## First Concrete Next Task
 
 Run the updated playtest from `docs/playtest-checklist.md` and verify that cargo
 can be followed along roads, the `16 / 17` growth reserve explains the
-single-chain population ceiling, and quarry/stone placement reads clearly enough
-for a later stone-gated route.
+single-chain population ceiling, and the quarry-to-storehouse stone leg reads
+clearly enough for a larger village route.
 
 ## Follow-On Milestone
 

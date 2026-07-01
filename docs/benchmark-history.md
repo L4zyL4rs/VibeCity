@@ -266,3 +266,24 @@ Notes:
 
 - The large-case counters are unchanged from the fertile-farm placement sample.
 - The new quarry behavior is covered by core tests rather than this benchmark.
+
+### 2026-07-01 Stone-Gated Village Objective
+
+The village objective tracker now requires a quarry and two completed
+storehouses, and the scripted milestone route constructs a second storehouse
+using delivered stone. The benchmark scenarios still do not run that full
+milestone route, so their sanity counters remain unchanged.
+
+Representative default-build sample:
+
+| Case | Ticks | Milliseconds | Ticks/s | Buildings | Active Jobs | Transported | Resource Tiles | Resource Quantity | Constructed |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| starting village 30d | 43,200 | 21.65 | 1,995,604 | 4 | 0 | 60 | 5,320 | 34,156 | 0 |
+| construction village 30d | 43,200 | 94.59 | 456,713 | 9 | 0 | 1,759 | 5,298 | 34,023 | 5 |
+| 100 buildings 10d | 14,400 | 1,987.61 | 7,245 | 100 | 45 | 91,184 | 5,020 | 32,169 | 0 |
+
+Notes:
+
+- Starting stock now includes five tools instead of two, but the benchmark CSV
+  does not report stored tools.
+- Use the command-layer milestone test for quarry/storehouse route coverage.

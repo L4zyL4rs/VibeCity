@@ -13,6 +13,8 @@ enum class VillageObjectiveId : std::uint8_t {
     HaveWoodcutter,
     HaveFarm,
     HaveBakery,
+    HaveQuarry,
+    HaveTwoStorehouses,
     Reach15Residents,
     Reach25Residents,
     Stable25Residents,
