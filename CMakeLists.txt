@@ -5,7 +5,32 @@ project(VibeCity
     LANGUAGES CXX
 )
 
-find_package(PkgConfig)
+option(VIBECITY_BUILD_CLIENT "Build the SDL2 windowed client when SDL2 is available" ON)
+
+set(VIBECITY_SDL2_TARGET "")
+set(VIBECITY_SDL2_SOURCE "")
+
+if(VIBECITY_BUILD_CLIENT)
+    find_package(SDL2 CONFIG QUIET)
+    if(TARGET SDL2::SDL2)
+        set(VIBECITY_SDL2_TARGET SDL2::SDL2)
+        set(VIBECITY_SDL2_SOURCE "SDL2 CMake package")
+    elseif(TARGET SDL2::SDL2-static)
+        set(VIBECITY_SDL2_TARGET SDL2::SDL2-static)
+        set(VIBECITY_SDL2_SOURCE "SDL2 CMake package")
+    endif()
+
+    if(NOT VIBECITY_SDL2_TARGET)
+        find_package(PkgConfig QUIET)
+        if(PkgConfig_FOUND)
+            pkg_check_modules(SDL2 QUIET IMPORTED_TARGET sdl2)
+            if(TARGET PkgConfig::SDL2)
+                set(VIBECITY_SDL2_TARGET PkgConfig::SDL2)
+                set(VIBECITY_SDL2_SOURCE "pkg-config")
+            endif()
+        endif()
+    endif()
+endif()
 
 file(GLOB BUILDING_DEFINITION_FILES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/data/buildings/*.vbd"
@@ -124,11 +149,9 @@ target_link_libraries(vibecity_game_tests
 
 add_test(NAME vibecity_game_tests COMMAND vibecity_game_tests)
 
-if(PkgConfig_FOUND)
-    pkg_check_modules(SDL2 QUIET IMPORTED_TARGET sdl2)
-endif()
+if(VIBECITY_SDL2_TARGET)
+    message(STATUS "SDL2 found via ${VIBECITY_SDL2_SOURCE}; building vibecity_client")
 
-if(SDL2_FOUND)
     add_executable(vibecity_client
         src/client/BuildMenu.cpp
         src/client/ClientMode.cpp
@@ -144,7 +167,7 @@ if(SDL2_FOUND)
     target_link_libraries(vibecity_client
         PRIVATE
             vibecity_game
-            PkgConfig::SDL2
+            ${VIBECITY_SDL2_TARGET}
     )
 
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
@@ -177,7 +200,7 @@ if(SDL2_FOUND)
     target_link_libraries(vibecity_client_tests
         PRIVATE
             vibecity_game
-            PkgConfig::SDL2
+            ${VIBECITY_SDL2_TARGET}
     )
 
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
@@ -190,6 +213,13 @@ if(SDL2_FOUND)
     endif()
 
     add_test(NAME vibecity_client_tests COMMAND vibecity_client_tests)
+elseif(VIBECITY_BUILD_CLIENT)
+    message(WARNING
+        "SDL2 not found; skipping vibecity_client target. "
+        "Install the SDL2 development package, or set SDL2_DIR/CMAKE_PREFIX_PATH "
+        "so CMake can find SDL2Config.cmake. On pkg-config systems, ensure "
+        "`pkg-config --modversion sdl2` works."
+    )
 else()
-    message(STATUS "SDL2 not found; skipping vibecity_client target")
+    message(STATUS "VIBECITY_BUILD_CLIENT=OFF; skipping vibecity_client target")
 endif()

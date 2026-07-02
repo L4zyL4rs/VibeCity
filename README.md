@@ -48,6 +48,11 @@ If SDL2 is available, CMake also builds the first windowed client:
 ./build/vibecity_client
 ```
 
+If the client target is missing, check the CMake configure output. The build
+first tries SDL2's CMake package and then `pkg-config sdl2`; if both fail, it
+prints a warning and skips the client. Install the SDL2 development package or
+set `SDL2_DIR` / `CMAKE_PREFIX_PATH` so CMake can find `SDL2Config.cmake`.
+
 Client controls:
 
 - `1`: select
