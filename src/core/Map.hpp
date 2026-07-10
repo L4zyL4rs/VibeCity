@@ -83,13 +83,69 @@ struct TerrainTile {
 enum class MapResourceId : std::uint8_t {
     Forest,
     Stone,
+    Clay,
     Count
 };
 
 inline constexpr Quantity forest_tile_capacity = 6;
 inline constexpr Quantity stone_tile_capacity = 8;
+inline constexpr Quantity clay_tile_capacity = 10;
 static_assert(forest_tile_capacity <= 255);
 static_assert(stone_tile_capacity <= 255);
+static_assert(clay_tile_capacity <= 255);
+
+struct PatchGenerationSettings {
+    bool enabled = true;
+    int start_x = 0;
+    int start_y = 0;
+    int spacing_x = 1;
+    int spacing_y = 1;
+    int radius = 0;
+    std::uint32_t skip_mod = 0;
+};
+
+struct WorldGenerationSettings {
+    std::uint32_t seed = 0;
+    PatchGenerationSettings fertile{
+        .enabled = true,
+        .start_x = 18,
+        .start_y = 20,
+        .spacing_x = 28,
+        .spacing_y = 24,
+        .radius = 10,
+        .skip_mod = 17
+    };
+    PatchGenerationSettings rocky{
+        .enabled = true,
+        .start_x = 20,
+        .start_y = 8,
+        .spacing_x = 28,
+        .spacing_y = 28,
+        .radius = 5,
+        .skip_mod = 7
+    };
+    PatchGenerationSettings forest{
+        .enabled = true,
+        .start_x = 8,
+        .start_y = 8,
+        .spacing_x = 16,
+        .spacing_y = 16,
+        .radius = 5,
+        .skip_mod = 11
+    };
+    PatchGenerationSettings clay{
+        .enabled = true,
+        .start_x = 12,
+        .start_y = 14,
+        .spacing_x = 24,
+        .spacing_y = 24,
+        .radius = 4,
+        .skip_mod = 6
+    };
+    bool starter_fertile_strip = true;
+    bool stone_deposits = true;
+    std::uint32_t stone_skip_mod = 5;
+};
 
 struct MapResourceDeposit {
     GridPosition position;
@@ -108,6 +164,8 @@ struct MapResourceDeposit {
         return "forest";
     case MapResourceId::Stone:
         return "stone";
+    case MapResourceId::Clay:
+        return "clay";
     case MapResourceId::Count:
         return "unknown";
     }
@@ -122,6 +180,8 @@ struct MapResourceDeposit {
         return forest_tile_capacity;
     case MapResourceId::Stone:
         return stone_tile_capacity;
+    case MapResourceId::Clay:
+        return clay_tile_capacity;
     case MapResourceId::Count:
         return 0;
     }
@@ -137,6 +197,8 @@ struct MapResourceDeposit {
         return terrain == TerrainId::Grass || terrain == TerrainId::Fertile;
     case MapResourceId::Stone:
         return terrain == TerrainId::Rocky;
+    case MapResourceId::Clay:
+        return terrain == TerrainId::Grass || terrain == TerrainId::Fertile;
     case MapResourceId::Count:
         return false;
     }
@@ -235,8 +297,11 @@ public:
         GridPosition destination_position,
         Footprint destination_footprint) const;
 
+    void generate_world(const WorldGenerationSettings& settings = {});
+    void generate_terrain(const WorldGenerationSettings& settings);
     void generate_default_terrain();
     bool set_terrain(GridPosition position, TerrainId terrain);
+    void generate_map_resources(const WorldGenerationSettings& settings);
     void generate_default_map_resources();
     bool set_map_resource(GridPosition position, MapResourceId resource, Quantity quantity);
     bool harvest_map_resource_within_radius(

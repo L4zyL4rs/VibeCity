@@ -40,6 +40,14 @@ GameSession::GameSession(std::shared_ptr<const BuildingCatalog> catalog)
     objectives_.update(simulation_);
 }
 
+GameSession::GameSession(
+    WorldGenerationSettings world_generation,
+    std::shared_ptr<const BuildingCatalog> catalog)
+    : simulation_(world_generation, std::move(catalog))
+{
+    objectives_.update(simulation_);
+}
+
 Simulation& GameSession::simulation()
 {
     return simulation_;

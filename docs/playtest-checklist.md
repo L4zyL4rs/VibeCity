@@ -118,17 +118,19 @@ When I ask for detailed input, please report these points:
 - Stone/quarries: can you find rocky stone deposits, place a quarry only on
   suitable terrain, and understand its collection radius and remaining local
   stone supply?
+- Clay/brickyards: can you identify clay deposits, place a brickyard near
+  usable clay, and understand that it also needs firewood to make bricks?
 - Terrain/resources: can you distinguish normal grass, fertile terrain, rocky
-  terrain, forests, and stone deposits without guessing?
+  terrain, forests, stone deposits, and clay deposits without guessing?
 - Hover info: does the status line make the tile terrain, resource amount,
   path/building occupancy, and placement blocker clear enough?
 - Farm placement: is it clear that farms require fertile terrain, and are
   fertile patches easy enough to find without being trivial?
-- Placement: when hovering a woodcutter or quarry before placement, is the
-  collection radius, reachable resource count, and footprint-cleared resource
-  marker clear?
+- Placement: when hovering a woodcutter, quarry, or brickyard before placement,
+  is the collection radius, reachable resource count, and footprint-cleared
+  resource marker clear?
 - Depletion: after several production cycles, can you identify which nearby
-  forest or stone tiles were consumed?
+  forest, stone, or clay tiles were consumed?
 - Construction: could you tell which site was next and whether builders were working?
 - Pacing: which speed did you use, and where did waiting feel too slow or too fast?
 - Controls: any accidental mode switches, placement mistakes, camera issues, or unclear buttons.

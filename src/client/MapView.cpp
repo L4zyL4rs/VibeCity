@@ -222,6 +222,27 @@ void draw_map_resources(
                 };
                 set_color(renderer, Color{142, 145, 140, 255});
                 SDL_RenderFillRect(renderer, &block);
+            } else if (*resource == MapResourceId::Clay) {
+                const auto density = static_cast<int>(
+                    34 * quantity / std::max<Quantity>(1, clay_tile_capacity));
+                set_color(renderer, Color{
+                    static_cast<std::uint8_t>(82 + density),
+                    static_cast<std::uint8_t>(64 + density / 2),
+                    static_cast<std::uint8_t>(54 + density / 3),
+                    255
+                });
+                SDL_RenderFillRect(renderer, &rect);
+
+                const auto patch_width = std::max(2, camera.tile_size - 5);
+                const auto patch_height = std::max(2, camera.tile_size / 2);
+                auto patch = SDL_Rect{
+                    .x = rect.x + (rect.w - patch_width) / 2,
+                    .y = rect.y + (rect.h - patch_height) / 2,
+                    .w = patch_width,
+                    .h = patch_height
+                };
+                set_color(renderer, Color{166, 106, 82, 255});
+                SDL_RenderFillRect(renderer, &patch);
             }
         }
     }

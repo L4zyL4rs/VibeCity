@@ -101,6 +101,9 @@ struct SimulationState {
 class Simulation {
 public:
     explicit Simulation(std::shared_ptr<const BuildingCatalog> catalog = default_building_catalog());
+    explicit Simulation(
+        WorldGenerationSettings world_generation,
+        std::shared_ptr<const BuildingCatalog> catalog = default_building_catalog());
 
     BuildingId add_building(BuildingKind kind);
     BuildingId add_building_at(BuildingKind kind, GridPosition position);

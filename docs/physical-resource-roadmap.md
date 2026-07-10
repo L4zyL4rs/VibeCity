@@ -28,12 +28,13 @@ understand when production stops or must move elsewhere.
 
 ## Implemented: Terrain Foundation
 
-- New maps generate deterministic fertile and rocky terrain bands.
+- New maps generate deterministic fertile and rocky terrain bands from explicit
+  world-generation settings.
 - Terrain is stored as authoritative simulation data and persisted in saves.
 - Shallow water is supported as blocked terrain for roads and buildings, though
   it is not generated in the starter map yet.
 - Map resources validate their terrain support: forest on grass/fertile tiles
-  and stone on rocky tiles.
+  and clay on grass/fertile tiles, stone on rocky tiles.
 - Stone deposits are generated on rocky terrain and rendered separately from
   forest.
 - Hovering map tiles reports terrain, resource quantity, path/building
@@ -65,6 +66,20 @@ understand when production stops or must move elsewhere.
 - The build menu reports terrain surcharges, and build-hover status reports the
   actual material cost for the currently hovered tile.
 
+## Implemented: Clay And Generation Controls
+
+- World generation now accepts seed and patch settings for fertile terrain,
+  rocky terrain, forest groves, clay deposits, and stone deposits.
+- Scenarios can disable clay or stone generation without changing save/load
+  code; generated terrain and deposits remain authoritative saved state.
+- Clay is a finite map resource on grass/fertile terrain and has its own map
+  rendering, hover text, and placement collection overlay.
+- Bricks are a transported resource with palette, inspector, storage, and
+  save/load support.
+- The default catalog includes a data-defined brickyard that gathers clay and
+  consumes firewood to produce bricks.
+- Storehouses can store bricks.
+
 ## Implemented: Logistics Inspection
 
 - Selected buildings show active incoming and outgoing reservations.
@@ -77,9 +92,10 @@ understand when production stops or must move elsewhere.
 
 ## Next Programming Slices
 
-1. Clay deposits and brickyards using the same terrain/resource contract.
-2. Better deposit generation controls by scenario or seed.
-3. Scenario-level resource and terrain tuning for the village playtest.
+1. Scenario-level resource and terrain tuning for the village playtest.
+2. Decide whether bricks gate a road upgrade, storage upgrade, or next village
+   objective.
+3. Better generation controls for water and broader map shapes.
 
 ## Deliberate Limits
 
@@ -89,6 +105,7 @@ understand when production stops or must move elsewhere.
 - Roads and construction clear trees immediately without labor or recovered
   timber.
 - Demolition does not refund materials or regrow cleared terrain.
-- Map generation is deterministic but not yet configurable by seed or scenario.
+- Map generation is configurable, but there is not yet an external scenario
+  data file format for world-generation settings.
 - Stone currently gates the second storehouse in the village milestone, but
   terrain build-cost surcharges are still intentionally small.

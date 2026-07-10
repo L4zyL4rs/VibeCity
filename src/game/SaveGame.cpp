@@ -19,7 +19,7 @@ namespace {
 constexpr std::array<std::uint8_t, 8> save_magic{
     'V', 'I', 'B', 'E', 'C', 'I', 'T', 'Y'
 };
-constexpr std::uint32_t save_version = 6;
+constexpr std::uint32_t save_version = 7;
 constexpr std::size_t save_header_size = save_magic.size() + sizeof(std::uint32_t)
     + sizeof(std::uint64_t) + sizeof(std::uint64_t);
 constexpr std::uint64_t max_save_bytes = 64 * 1024 * 1024;

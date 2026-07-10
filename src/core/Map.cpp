@@ -16,14 +16,25 @@ constexpr std::array<GridPosition, 4> neighbor_offsets{{
     GridPosition{0, -1}
 }};
 
-std::uint32_t tile_hash(GridPosition position)
+std::uint32_t tile_hash(GridPosition position, std::uint32_t seed = 0)
 {
     auto value = static_cast<std::uint32_t>(position.x) * 0x9e3779b9U;
     value ^= static_cast<std::uint32_t>(position.y) * 0x85ebca6bU;
+    value ^= seed * 0x27d4eb2dU;
     value ^= value >> 16U;
     value *= 0x7feb352dU;
     value ^= value >> 15U;
     return value;
+}
+
+bool skipped_by_hash(GridPosition position, std::uint32_t seed, std::uint32_t skip_mod)
+{
+    return skip_mod != 0 && tile_hash(position, seed) % skip_mod == 0U;
+}
+
+bool patch_settings_are_valid(const PatchGenerationSettings& settings)
+{
+    return settings.spacing_x > 0 && settings.spacing_y > 0 && settings.radius >= 0;
 }
 
 }
@@ -52,6 +63,9 @@ std::optional<MapResourceId> map_resource_id_from_string(std::string_view id)
     }
     if (id == map_resource_name(MapResourceId::Stone)) {
         return MapResourceId::Stone;
+    }
+    if (id == map_resource_name(MapResourceId::Clay)) {
+        return MapResourceId::Clay;
     }
     return std::nullopt;
 }
@@ -615,7 +629,17 @@ std::vector<GridPosition> TileMap::path_between_buildings(
     return {};
 }
 
-void TileMap::generate_default_terrain()
+void TileMap::generate_world(const WorldGenerationSettings& settings)
+{
+    for (auto& resource_tile : map_resource_tiles_) {
+        resource_tile.resource = MapResourceId::Count;
+        resource_tile.resource_quantity = 0;
+    }
+    generate_terrain(settings);
+    generate_map_resources(settings);
+}
+
+void TileMap::generate_terrain(const WorldGenerationSettings& settings)
 {
     std::fill(terrain_tiles_.begin(), terrain_tiles_.end(), TerrainId::Grass);
     for (int y = 0; y < height_; ++y) {
@@ -629,55 +653,60 @@ void TileMap::generate_default_terrain()
         }
     }
 
-    constexpr auto fertile_spacing_x = 28;
-    constexpr auto fertile_spacing_y = 24;
-    constexpr auto fertile_radius = 10;
-    constexpr auto fertile_radius_squared = fertile_radius * fertile_radius;
-    for (int center_y = 20; center_y < height_; center_y += fertile_spacing_y) {
-        for (int center_x = 18; center_x < width_; center_x += fertile_spacing_x) {
-            for (int y = center_y - fertile_radius; y <= center_y + fertile_radius; ++y) {
-                for (int x = center_x - fertile_radius; x <= center_x + fertile_radius; ++x) {
-                    const auto position = GridPosition{x, y};
-                    const auto dx = x - center_x;
-                    const auto dy = y - center_y;
-                    if (!in_bounds(position)
-                        || dx * dx + dy * dy > fertile_radius_squared
-                        || tile_hash(position) % 17U == 0U) {
-                        continue;
+    if (settings.fertile.enabled && patch_settings_are_valid(settings.fertile)) {
+        const auto fertile_radius_squared = settings.fertile.radius * settings.fertile.radius;
+        for (int center_y = settings.fertile.start_y; center_y < height_; center_y += settings.fertile.spacing_y) {
+            for (int center_x = settings.fertile.start_x; center_x < width_; center_x += settings.fertile.spacing_x) {
+                for (int y = center_y - settings.fertile.radius; y <= center_y + settings.fertile.radius; ++y) {
+                    for (int x = center_x - settings.fertile.radius; x <= center_x + settings.fertile.radius; ++x) {
+                        const auto position = GridPosition{x, y};
+                        const auto dx = x - center_x;
+                        const auto dy = y - center_y;
+                        if (!in_bounds(position)
+                            || dx * dx + dy * dy > fertile_radius_squared
+                            || skipped_by_hash(position, settings.seed, settings.fertile.skip_mod)) {
+                            continue;
+                        }
+                        set_terrain(position, TerrainId::Fertile);
                     }
-                    set_terrain(position, TerrainId::Fertile);
                 }
             }
         }
     }
 
-    for (int y = 1; y <= 3 && y < height_; ++y) {
-        for (int x = 1; x < std::min(width_, 40); ++x) {
-            set_terrain(GridPosition{x, y}, TerrainId::Fertile);
+    if (settings.starter_fertile_strip) {
+        for (int y = 1; y <= 3 && y < height_; ++y) {
+            for (int x = 1; x < std::min(width_, 40); ++x) {
+                set_terrain(GridPosition{x, y}, TerrainId::Fertile);
+            }
         }
     }
 
-    constexpr auto rocky_spacing_x = 28;
-    constexpr auto rocky_spacing_y = 28;
-    constexpr auto rocky_radius = 5;
-    constexpr auto rocky_radius_squared = rocky_radius * rocky_radius;
-    for (int center_y = 8; center_y < height_; center_y += rocky_spacing_y) {
-        for (int center_x = 20; center_x < width_; center_x += rocky_spacing_x) {
-            for (int y = center_y - rocky_radius; y <= center_y + rocky_radius; ++y) {
-                for (int x = center_x - rocky_radius; x <= center_x + rocky_radius; ++x) {
-                    const auto position = GridPosition{x, y};
-                    const auto dx = x - center_x;
-                    const auto dy = y - center_y;
-                    if (!in_bounds(position)
-                        || dx * dx + dy * dy > rocky_radius_squared
-                        || tile_hash(position) % 7U == 0U) {
-                        continue;
+    if (settings.rocky.enabled && patch_settings_are_valid(settings.rocky)) {
+        const auto rocky_radius_squared = settings.rocky.radius * settings.rocky.radius;
+        for (int center_y = settings.rocky.start_y; center_y < height_; center_y += settings.rocky.spacing_y) {
+            for (int center_x = settings.rocky.start_x; center_x < width_; center_x += settings.rocky.spacing_x) {
+                for (int y = center_y - settings.rocky.radius; y <= center_y + settings.rocky.radius; ++y) {
+                    for (int x = center_x - settings.rocky.radius; x <= center_x + settings.rocky.radius; ++x) {
+                        const auto position = GridPosition{x, y};
+                        const auto dx = x - center_x;
+                        const auto dy = y - center_y;
+                        if (!in_bounds(position)
+                            || dx * dx + dy * dy > rocky_radius_squared
+                            || skipped_by_hash(position, settings.seed, settings.rocky.skip_mod)) {
+                            continue;
+                        }
+                        set_terrain(position, TerrainId::Rocky);
                     }
-                    set_terrain(position, TerrainId::Rocky);
                 }
             }
         }
     }
+}
+
+void TileMap::generate_default_terrain()
+{
+    generate_terrain(WorldGenerationSettings{});
 }
 
 bool TileMap::set_terrain(GridPosition position, TerrainId terrain)
@@ -701,50 +730,88 @@ bool TileMap::set_terrain(GridPosition position, TerrainId terrain)
     return true;
 }
 
-void TileMap::generate_default_map_resources()
+void TileMap::generate_map_resources(const WorldGenerationSettings& settings)
 {
-    constexpr auto grove_spacing = 16;
-    constexpr auto grove_offset = 8;
-    constexpr auto grove_radius = 5;
-    constexpr auto grove_radius_squared = grove_radius * grove_radius;
+    for (auto& resource_tile : map_resource_tiles_) {
+        resource_tile.resource = MapResourceId::Count;
+        resource_tile.resource_quantity = 0;
+    }
 
-    for (int center_y = grove_offset; center_y < height_; center_y += grove_spacing) {
-        for (int center_x = grove_offset; center_x < width_; center_x += grove_spacing) {
-            for (int y = center_y - grove_radius; y <= center_y + grove_radius; ++y) {
-                for (int x = center_x - grove_radius; x <= center_x + grove_radius; ++x) {
-                    const auto position = GridPosition{x, y};
-                    const auto dx = x - center_x;
-                    const auto dy = y - center_y;
-                    if (!in_bounds(position)
-                        || dx * dx + dy * dy > grove_radius_squared
-                        || tile_hash(position) % 11U == 0U
-                        || !terrain_supports_map_resource(
-                            terrain_at(position),
-                            MapResourceId::Forest)) {
-                        continue;
+    if (settings.forest.enabled && patch_settings_are_valid(settings.forest)) {
+        const auto grove_radius_squared = settings.forest.radius * settings.forest.radius;
+        for (int center_y = settings.forest.start_y; center_y < height_; center_y += settings.forest.spacing_y) {
+            for (int center_x = settings.forest.start_x; center_x < width_; center_x += settings.forest.spacing_x) {
+                for (int y = center_y - settings.forest.radius; y <= center_y + settings.forest.radius; ++y) {
+                    for (int x = center_x - settings.forest.radius; x <= center_x + settings.forest.radius; ++x) {
+                        const auto position = GridPosition{x, y};
+                        const auto dx = x - center_x;
+                        const auto dy = y - center_y;
+                        if (!in_bounds(position)
+                            || dx * dx + dy * dy > grove_radius_squared
+                            || skipped_by_hash(position, settings.seed, settings.forest.skip_mod)
+                            || !terrain_supports_map_resource(
+                                terrain_at(position),
+                                MapResourceId::Forest)) {
+                            continue;
+                        }
+                        set_map_resource(
+                            position,
+                            MapResourceId::Forest,
+                            forest_tile_capacity);
                     }
-                    set_map_resource(
-                        position,
-                        MapResourceId::Forest,
-                        forest_tile_capacity);
                 }
             }
         }
     }
 
-    for (int y = 0; y < height_; ++y) {
-        for (int x = 0; x < width_; ++x) {
-            const auto position = GridPosition{x, y};
-            if (terrain_at(position) != TerrainId::Rocky
-                || tile_hash(position) % 5U == 0U) {
-                continue;
+    if (settings.clay.enabled && patch_settings_are_valid(settings.clay)) {
+        const auto clay_radius_squared = settings.clay.radius * settings.clay.radius;
+        for (int center_y = settings.clay.start_y; center_y < height_; center_y += settings.clay.spacing_y) {
+            for (int center_x = settings.clay.start_x; center_x < width_; center_x += settings.clay.spacing_x) {
+                for (int y = center_y - settings.clay.radius; y <= center_y + settings.clay.radius; ++y) {
+                    for (int x = center_x - settings.clay.radius; x <= center_x + settings.clay.radius; ++x) {
+                        const auto position = GridPosition{x, y};
+                        const auto dx = x - center_x;
+                        const auto dy = y - center_y;
+                        if (!in_bounds(position)
+                            || dx * dx + dy * dy > clay_radius_squared
+                            || skipped_by_hash(position, settings.seed, settings.clay.skip_mod)
+                            || !terrain_supports_map_resource(
+                                terrain_at(position),
+                                MapResourceId::Clay)
+                            || map_resource_quantity(position) > 0) {
+                            continue;
+                        }
+                        set_map_resource(
+                            position,
+                            MapResourceId::Clay,
+                            clay_tile_capacity);
+                    }
+                }
             }
-            set_map_resource(
-                position,
-                MapResourceId::Stone,
-                stone_tile_capacity);
         }
     }
+
+    if (settings.stone_deposits) {
+        for (int y = 0; y < height_; ++y) {
+            for (int x = 0; x < width_; ++x) {
+                const auto position = GridPosition{x, y};
+                if (terrain_at(position) != TerrainId::Rocky
+                    || skipped_by_hash(position, settings.seed, settings.stone_skip_mod)) {
+                    continue;
+                }
+                set_map_resource(
+                    position,
+                    MapResourceId::Stone,
+                    stone_tile_capacity);
+            }
+        }
+    }
+}
+
+void TileMap::generate_default_map_resources()
+{
+    generate_map_resources(WorldGenerationSettings{});
 }
 
 bool TileMap::set_map_resource(

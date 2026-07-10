@@ -71,6 +71,9 @@ struct SessionIoResult {
 class GameSession {
 public:
     explicit GameSession(std::shared_ptr<const BuildingCatalog> catalog = default_building_catalog());
+    explicit GameSession(
+        WorldGenerationSettings world_generation,
+        std::shared_ptr<const BuildingCatalog> catalog = default_building_catalog());
 
     [[nodiscard]] Simulation& simulation();
     [[nodiscard]] const Simulation& simulation() const;

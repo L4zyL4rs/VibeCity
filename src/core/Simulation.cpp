@@ -47,13 +47,19 @@ BuildingInstance make_inactive_building(BuildingId id)
 }
 
 Simulation::Simulation(std::shared_ptr<const BuildingCatalog> catalog)
+    : Simulation(WorldGenerationSettings{}, std::move(catalog))
+{
+}
+
+Simulation::Simulation(
+    WorldGenerationSettings world_generation,
+    std::shared_ptr<const BuildingCatalog> catalog)
     : catalog_(std::move(catalog))
 {
     if (catalog_ == nullptr) {
         throw std::invalid_argument("simulation requires a building catalog");
     }
-    map_.generate_default_terrain();
-    map_.generate_default_map_resources();
+    map_.generate_world(world_generation);
 }
 
 BuildingId Simulation::add_building(BuildingKind kind)

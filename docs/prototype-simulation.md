@@ -116,8 +116,10 @@ Prototype map resources:
 
 - Forest on grass or fertile terrain.
 - Stone on rocky terrain.
+- Clay on grass or fertile terrain.
 
 Forests can be harvested by woodcutters. Stone can be harvested by quarries.
+Clay can be harvested by brickyards and fired into bricks with firewood.
 
 ### 4.2 Buildings And Access
 

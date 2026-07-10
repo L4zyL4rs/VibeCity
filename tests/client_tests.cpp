@@ -39,11 +39,14 @@ void build_menu_lists_catalog_buildings()
     const auto catalog = vibecity::default_building_catalog();
     const auto kinds = vibecity::client::build_menu_kinds(*catalog);
     const auto quarry = catalog->find_kind("quarry");
+    const auto brickyard = catalog->find_kind("brickyard");
 
     VIBECITY_CHECK(quarry.has_value());
-    VIBECITY_CHECK(kinds.size() == 6);
+    VIBECITY_CHECK(brickyard.has_value());
+    VIBECITY_CHECK(kinds.size() == 7);
     VIBECITY_CHECK(kinds.front() == vibecity::BuildingKind::House);
     VIBECITY_CHECK(std::find(kinds.begin(), kinds.end(), *quarry) != kinds.end());
+    VIBECITY_CHECK(std::find(kinds.begin(), kinds.end(), *brickyard) != kinds.end());
     for (const auto kind : kinds) {
         VIBECITY_CHECK(!catalog->definition(kind).internal_construction_site);
     }
@@ -132,6 +135,12 @@ void build_menu_formats_construction_materials()
         == "NEEDS 12 TIMBER + 1 TOOLS");
     VIBECITY_CHECK(vibecity::client::operation_summary_text(catalog->definition(*quarry))
         == "HARVESTS STONE -> 4 STONE / 8H");
+    const auto brickyard = catalog->find_kind("brickyard");
+    VIBECITY_CHECK(brickyard.has_value());
+    VIBECITY_CHECK(vibecity::client::construction_cost_text(catalog->definition(*brickyard))
+        == "NEEDS 16 TIMBER + 1 TOOLS");
+    VIBECITY_CHECK(vibecity::client::operation_summary_text(catalog->definition(*brickyard))
+        == "HARVESTS CLAY + 2 FIREWOOD -> 6 BRICKS / 12H");
 }
 
 void build_menu_hit_testing_respects_rows_gaps_and_scroll()
@@ -268,6 +277,18 @@ void map_hover_text_reports_tile_contents()
         simulation,
         stone->position);
     VIBECITY_CHECK(stone_text.find("rocky stone:") != std::string::npos);
+
+    const auto clay = std::find_if(
+        deposits.begin(),
+        deposits.end(),
+        [](const vibecity::MapResourceDeposit& deposit) {
+            return deposit.resource == vibecity::MapResourceId::Clay;
+        });
+    VIBECITY_CHECK(clay != deposits.end());
+    const auto clay_text = vibecity::client::tile_inspection_text(
+        simulation,
+        clay->position);
+    VIBECITY_CHECK(clay_text.find("clay:") != std::string::npos);
 }
 
 void placement_blocker_text_reports_common_blocks()

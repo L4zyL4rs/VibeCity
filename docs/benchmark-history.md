@@ -309,3 +309,26 @@ Notes:
 - Save/load validation now accepts construction-site material capacities derived
   from the site's terrain footprint rather than only the target definition's
   base cost.
+
+### 2026-07-10 Clay And World Generation Settings
+
+Clay deposits now generate on grass/fertile terrain, bricks are a core
+transported resource, and the default catalog includes a brickyard that gathers
+clay and consumes firewood. New simulations can also pass explicit world
+generation settings for seed, terrain patch layout, forest/clay patch layout,
+and stone generation.
+
+Representative default-build sample:
+
+| Case | Ticks | Milliseconds | Ticks/s | Buildings | Active Jobs | Transported | Resource Tiles | Resource Quantity | Constructed |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| starting village 30d | 43,200 | 19.14 | 2,256,568 | 4 | 0 | 60 | 6,036 | 41,316 | 0 |
+| construction village 30d | 43,200 | 99.98 | 432,073 | 9 | 0 | 1,759 | 6,014 | 41,183 | 5 |
+| 100 buildings 10d | 14,400 | 2,053.00 | 7,014 | 100 | 45 | 91,184 | 5,702 | 38,989 | 0 |
+
+Notes:
+
+- Resource tile and quantity counters increased because clay deposits now count
+  alongside forests and stone.
+- The benchmark scenarios do not construct brickyards yet, so transported
+  totals remain unchanged.

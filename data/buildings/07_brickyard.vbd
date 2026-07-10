@@ -1,0 +1,35 @@
+[building]
+id = brickyard
+name = Brickyard
+footprint = 2, 2
+worker_slots = 2
+resident_capacity = 0
+worker_supply = 0
+consumes_bread = false
+requests_storage_inputs = false
+internal_construction_site = false
+source_policy = recipe_outputs
+map_color = 166, 92, 64
+construction_labor_minutes = 5760
+
+[construction]
+timber = 16
+tools = 1
+
+[storage]
+firewood = 16
+bricks = 36
+
+[recipe]
+cycle_minutes = 720
+
+[gathering]
+map_resource = clay
+radius = 6
+units_per_cycle = 1
+
+[inputs]
+firewood = 2
+
+[outputs]
+bricks = 6

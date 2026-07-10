@@ -78,6 +78,7 @@ timber
 firewood
 stone
 tools
+bricks
 ```
 
 `[construction]` declares material costs. `[storage]` declares per-resource
@@ -120,7 +121,8 @@ radius = 6
 units_per_cycle = 1
 ```
 
-- `map_resource`: Stable map-resource ID. Currently `forest` and `stone`.
+- `map_resource`: Stable map-resource ID. Currently `forest`, `stone`, and
+  `clay`.
 - `radius`: Manhattan collection radius measured from the building footprint.
 - `units_per_cycle`: Quantity removed from the nearest in-range tiles.
 

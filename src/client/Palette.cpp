@@ -23,6 +23,8 @@ Color resource_color(ResourceId resource)
         return Color{146, 148, 142, 255};
     case ResourceId::Tools:
         return Color{168, 176, 184, 255};
+    case ResourceId::Bricks:
+        return Color{176, 92, 64, 255};
     case ResourceId::Count:
         return Color{210, 214, 204, 255};
     }

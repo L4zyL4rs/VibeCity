@@ -68,6 +68,56 @@ void default_map_resources_are_deterministic()
         [](const vibecity::MapResourceDeposit& deposit) {
             return deposit.resource == vibecity::MapResourceId::Stone;
         }));
+    VIBECITY_CHECK(std::any_of(
+        first_deposits.begin(),
+        first_deposits.end(),
+        [](const vibecity::MapResourceDeposit& deposit) {
+            return deposit.resource == vibecity::MapResourceId::Clay;
+        }));
+}
+
+void world_generation_settings_control_seed_and_resources()
+{
+    auto settings = vibecity::WorldGenerationSettings{};
+    settings.seed = 123;
+
+    auto first = vibecity::TileMap{64, 64};
+    auto second = vibecity::TileMap{64, 64};
+    first.generate_world(settings);
+    second.generate_world(settings);
+    VIBECITY_CHECK(first.terrain_tiles() == second.terrain_tiles());
+    VIBECITY_CHECK(first.map_resource_deposits() == second.map_resource_deposits());
+
+    auto different_settings = settings;
+    different_settings.seed = 124;
+    auto different = vibecity::TileMap{64, 64};
+    different.generate_world(different_settings);
+    VIBECITY_CHECK(first.terrain_tiles() != different.terrain_tiles()
+        || first.map_resource_deposits() != different.map_resource_deposits());
+
+    auto no_clay_settings = settings;
+    no_clay_settings.clay.enabled = false;
+    auto no_clay = vibecity::TileMap{64, 64};
+    no_clay.generate_world(no_clay_settings);
+    const auto no_clay_deposits = no_clay.map_resource_deposits();
+    VIBECITY_CHECK(std::none_of(
+        no_clay_deposits.begin(),
+        no_clay_deposits.end(),
+        [](const vibecity::MapResourceDeposit& deposit) {
+            return deposit.resource == vibecity::MapResourceId::Clay;
+        }));
+
+    auto no_stone_settings = settings;
+    no_stone_settings.stone_deposits = false;
+    auto no_stone = vibecity::TileMap{64, 64};
+    no_stone.generate_world(no_stone_settings);
+    const auto no_stone_deposits = no_stone.map_resource_deposits();
+    VIBECITY_CHECK(std::none_of(
+        no_stone_deposits.begin(),
+        no_stone_deposits.end(),
+        [](const vibecity::MapResourceDeposit& deposit) {
+            return deposit.resource == vibecity::MapResourceId::Stone;
+        }));
 }
 
 void terrain_blocks_paths_and_buildings()
@@ -121,6 +171,10 @@ void map_resources_follow_supported_terrain()
         grass,
         vibecity::MapResourceId::Forest,
         vibecity::forest_tile_capacity));
+    VIBECITY_CHECK(map.set_map_resource(
+        grass,
+        vibecity::MapResourceId::Clay,
+        vibecity::clay_tile_capacity));
     VIBECITY_CHECK(!map.set_map_resource(
         grass,
         vibecity::MapResourceId::Stone,
@@ -130,6 +184,10 @@ void map_resources_follow_supported_terrain()
     VIBECITY_CHECK(!map.set_map_resource(
         water,
         vibecity::MapResourceId::Forest,
+        1));
+    VIBECITY_CHECK(!map.set_map_resource(
+        water,
+        vibecity::MapResourceId::Clay,
         1));
 }
 
@@ -1022,6 +1080,43 @@ void quarry_harvests_finite_nearby_stone()
     VIBECITY_CHECK(instance.blocking_reason == vibecity::BlockingReason::NoNearbyMapResource);
 }
 
+void brickyard_harvests_clay_and_firewood_into_bricks()
+{
+    vibecity::Simulation simulation;
+
+    const auto brickyard_kind = simulation.building_catalog().find_kind("brickyard");
+    VIBECITY_CHECK(brickyard_kind.has_value());
+    const auto& brickyard_definition = simulation.definition(*brickyard_kind);
+    VIBECITY_CHECK(brickyard_definition.gathering.has_value());
+    VIBECITY_CHECK(brickyard_definition.gathering->resource == vibecity::MapResourceId::Clay);
+
+    const auto house = simulation.add_building_at(
+        vibecity::BuildingKind::House,
+        vibecity::GridPosition{1, 1});
+    const auto brickyard = simulation.add_building_at(
+        *brickyard_kind,
+        vibecity::GridPosition{3, 1});
+    for (int x = 1; x <= 5; ++x) {
+        VIBECITY_CHECK(simulation.add_path(vibecity::GridPosition{x, 0}));
+    }
+    VIBECITY_CHECK(simulation.set_map_resource(
+        vibecity::GridPosition{5, 2},
+        vibecity::MapResourceId::Clay,
+        vibecity::clay_tile_capacity));
+    simulation.set_residents(house, 5);
+    VIBECITY_CHECK(simulation.building(brickyard).inventory.add(
+        vibecity::ResourceId::Firewood,
+        2));
+
+    simulation.run_for(720);
+
+    const auto& instance = simulation.building(brickyard);
+    VIBECITY_CHECK(simulation.map().map_resource_quantity(vibecity::GridPosition{5, 2}) == 9);
+    VIBECITY_CHECK(instance.inventory.quantity(vibecity::ResourceId::Firewood) == 0);
+    VIBECITY_CHECK(instance.inventory.quantity(vibecity::ResourceId::Bricks) == 6);
+    VIBECITY_CHECK(simulation.stats().produced[vibecity::resource_index(vibecity::ResourceId::Bricks)] == 6);
+}
+
 void construction_site_fetches_materials_and_completes()
 {
     vibecity::Simulation simulation;
@@ -1147,6 +1242,7 @@ void output_storage_full_blocks_production()
 int main()
 {
     default_map_resources_are_deterministic();
+    world_generation_settings_control_seed_and_resources();
     terrain_blocks_paths_and_buildings();
     map_resources_follow_supported_terrain();
     building_placement_can_require_terrain();
@@ -1181,6 +1277,7 @@ int main()
     woodcutter_harvests_finite_nearby_forest();
     woodcutter_ignores_forest_outside_collection_radius();
     quarry_harvests_finite_nearby_stone();
+    brickyard_harvests_clay_and_firewood_into_bricks();
     construction_site_fetches_materials_and_completes();
     terrain_adjusted_construction_waits_for_extra_material();
     construction_summary_reports_queue_focus();

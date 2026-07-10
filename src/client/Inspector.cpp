@@ -28,6 +28,8 @@ std::string_view resource_display_name(ResourceId resource)
         return "STONE";
     case ResourceId::Tools:
         return "TOOLS";
+    case ResourceId::Bricks:
+        return "BRICKS";
     case ResourceId::Count:
         return "UNK";
     }
@@ -41,6 +43,8 @@ std::string_view map_resource_display_name(MapResourceId resource)
         return "FOREST";
     case MapResourceId::Stone:
         return "STONE";
+    case MapResourceId::Clay:
+        return "CLAY";
     case MapResourceId::Count:
         return "UNKNOWN";
     }
