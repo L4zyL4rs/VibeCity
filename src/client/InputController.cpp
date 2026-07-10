@@ -83,6 +83,11 @@ std::string placement_hover_status(
         status += " ";
     }
     status += definition.name;
+    status += " ";
+    status += construction_cost_text(construction_materials_for_footprint(
+        definition,
+        simulation.map(),
+        tile));
 
     if (definition.gathering.has_value()) {
         status += " ";

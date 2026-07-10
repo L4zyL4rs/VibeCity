@@ -14,9 +14,10 @@ namespace vibecity {
 namespace {
 
 using Sections = std::map<std::string, std::map<std::string, std::string>>;
-constexpr std::array<std::string_view, 8> allowed_sections{
+constexpr std::array<std::string_view, 9> allowed_sections{
     "building",
     "construction",
+    "terrain_construction",
     "storage",
     "recipe",
     "gathering",
@@ -245,6 +246,55 @@ ResourceArray take_resource_section(
     return result;
 }
 
+bool has_any_materials(const ResourceArray& amounts)
+{
+    return std::any_of(amounts.begin(), amounts.end(), [](Quantity quantity) {
+        return quantity > 0;
+    });
+}
+
+TerrainConstructionMaterials take_terrain_construction_section(
+    Sections& sections,
+    const std::filesystem::path& path)
+{
+    auto result = TerrainConstructionMaterials{};
+    auto found = sections.find("terrain_construction");
+    if (found == sections.end()) {
+        return result;
+    }
+
+    for (const auto& [key, value] : found->second) {
+        const auto separator = key.find('.');
+        if (separator == std::string::npos
+            || separator == 0
+            || separator + 1 >= key.size()
+            || key.find('.', separator + 1) != std::string::npos) {
+            throw std::runtime_error(
+                path.string()
+                + ": terrain construction keys must be terrain.resource");
+        }
+
+        const auto terrain = terrain_id_from_string(std::string_view{key}.substr(0, separator));
+        if (!terrain.has_value() || *terrain == TerrainId::Count) {
+            throw std::runtime_error(path.string() + ": unknown terrain ID: " + key);
+        }
+
+        const auto resource = resource_id_from_string(std::string_view{key}.substr(separator + 1));
+        if (!resource.has_value()) {
+            throw std::runtime_error(path.string() + ": unknown resource ID: " + key);
+        }
+
+        const auto quantity = parse_integer(value, path);
+        if (quantity < 0) {
+            throw std::runtime_error(path.string() + ": terrain construction amount cannot be negative");
+        }
+        result[terrain_index(*terrain)][resource_index(*resource)] = quantity;
+    }
+
+    found->second.clear();
+    return result;
+}
+
 BuildingKind known_kind(std::string_view id)
 {
     if (id == "house") {
@@ -332,6 +382,8 @@ BuildingDefinition parse_definition(const std::filesystem::path& path)
     }
 
     definition.construction_materials = take_resource_section(sections, "construction", path);
+    definition.terrain_construction_materials =
+        take_terrain_construction_section(sections, path);
     definition.storage = take_resource_section(sections, "storage", path);
     const auto inputs = take_resource_section(sections, "inputs", path);
     const auto outputs = take_resource_section(sections, "outputs", path);
@@ -408,7 +460,11 @@ BuildingDefinition parse_definition(const std::filesystem::path& path)
             || definition.resident_capacity != 0
             || definition.worker_supply != 0
             || definition.required_terrain.has_value()
-            || definition.construction_labor_minutes != 0) {
+            || definition.construction_labor_minutes != 0
+            || std::any_of(
+                definition.terrain_construction_materials.begin(),
+                definition.terrain_construction_materials.end(),
+                has_any_materials)) {
             throw std::runtime_error(path.string() + ": invalid internal construction site");
         }
     } else if (definition.construction_labor_minutes <= 0) {
@@ -507,6 +563,9 @@ std::uint64_t catalog_fingerprint(const std::vector<BuildingDefinition>& definit
         hash_integer(hash, definition->worker_supply);
         hash_integer(hash, static_cast<std::uint8_t>(definition->consumes_bread));
         hash_resource_array(hash, definition->construction_materials);
+        for (const auto& terrain_materials : definition->terrain_construction_materials) {
+            hash_resource_array(hash, terrain_materials);
+        }
         hash_integer(hash, definition->construction_labor_minutes);
         hash_resource_array(hash, definition->storage);
         hash_integer(hash, static_cast<std::uint8_t>(definition->recipe.has_value()));

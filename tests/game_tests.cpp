@@ -42,6 +42,22 @@ const vibecity::VillageObjectiveStatus& objective_status(const vibecity::GameSes
     return game.objectives().statuses()[static_cast<std::size_t>(id)];
 }
 
+vibecity::GridPosition first_buildable_house_site_on(
+    const vibecity::Simulation& simulation,
+    vibecity::TerrainId terrain)
+{
+    for (int y = 0; y < simulation.map().height(); ++y) {
+        for (int x = 0; x < simulation.map().width(); ++x) {
+            const auto position = vibecity::GridPosition{x, y};
+            if (simulation.map().terrain_at(position) == terrain
+                && simulation.can_place_building_at(vibecity::BuildingKind::House, position)) {
+                return position;
+            }
+        }
+    }
+    throw std::runtime_error("could not find buildable house site");
+}
+
 std::vector<std::uint8_t> read_bytes(const std::filesystem::path& path)
 {
     auto input = std::ifstream{path, std::ios::binary | std::ios::ate};
@@ -398,6 +414,30 @@ void save_load_preserves_demolished_buildings()
     std::filesystem::remove(path);
 }
 
+void save_load_preserves_terrain_adjusted_construction_site()
+{
+    const auto path = std::filesystem::temp_directory_path() / "vibecity-terrain-construction.vcs";
+    vibecity::GameSession game;
+
+    const auto rocky_site = first_buildable_house_site_on(
+        game.simulation(),
+        vibecity::TerrainId::Rocky);
+    const auto site = require_building(game, vibecity::PlaceConstructionCommand{
+        .target_kind = vibecity::BuildingKind::House,
+        .position = rocky_site
+    });
+    VIBECITY_CHECK(game.simulation().building(site).inventory.capacity(vibecity::ResourceId::Stone) == 1);
+    VIBECITY_CHECK(game.save_to_file(path).success);
+
+    vibecity::GameSession loaded;
+    VIBECITY_CHECK(loaded.load_from_file(path).success);
+    VIBECITY_CHECK(loaded.simulation().building(site).kind == vibecity::BuildingKind::ConstructionSite);
+    VIBECITY_CHECK(loaded.simulation().building(site).inventory.capacity(vibecity::ResourceId::Timber) == 12);
+    VIBECITY_CHECK(loaded.simulation().building(site).inventory.capacity(vibecity::ResourceId::Stone) == 1);
+
+    std::filesystem::remove(path);
+}
+
 void invalid_save_is_rejected_without_replacing_session()
 {
     const auto directory = std::filesystem::temp_directory_path();
@@ -617,6 +657,7 @@ int main()
     save_load_round_trip_preserves_deterministic_session();
     save_load_preserves_objective_history();
     save_load_preserves_demolished_buildings();
+    save_load_preserves_terrain_adjusted_construction_site();
     invalid_save_is_rejected_without_replacing_session();
     external_building_definition_runs_and_persists();
     single_production_chain_cannot_reach_25_residents();

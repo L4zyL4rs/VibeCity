@@ -54,6 +54,17 @@ understand when production stops or must move elsewhere.
 - Save format version 6 rejects older resource-array layouts rather than
   silently misreading them.
 
+## Implemented: Terrain Cost Slice
+
+- Building definitions can declare per-terrain construction material surcharges
+  with `terrain.resource` keys.
+- Construction sites compute their required material inventory from the actual
+  placement footprint and persist those per-site requirements through save/load.
+- Houses, bakeries, woodcutters, and storehouses now pay one extra stone per
+  rocky footprint tile.
+- The build menu reports terrain surcharges, and build-hover status reports the
+  actual material cost for the currently hovered tile.
+
 ## Implemented: Logistics Inspection
 
 - Selected buildings show active incoming and outgoing reservations.
@@ -66,10 +77,9 @@ understand when production stops or must move elsewhere.
 
 ## Next Programming Slices
 
-1. Terrain build-cost modifiers rather than treating every buildable suitable
-   tile identically.
-2. Clay deposits and brickyards using the same terrain/resource contract.
-3. Better deposit generation controls by scenario or seed.
+1. Clay deposits and brickyards using the same terrain/resource contract.
+2. Better deposit generation controls by scenario or seed.
+3. Scenario-level resource and terrain tuning for the village playtest.
 
 ## Deliberate Limits
 
@@ -81,4 +91,4 @@ understand when production stops or must move elsewhere.
 - Demolition does not refund materials or regrow cleared terrain.
 - Map generation is deterministic but not yet configurable by seed or scenario.
 - Stone currently gates the second storehouse in the village milestone, but
-  most construction materials still use simple delivered quantities.
+  terrain build-cost surcharges are still intentionally small.

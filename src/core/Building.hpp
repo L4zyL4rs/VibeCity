@@ -48,6 +48,8 @@ enum class ResourceSourcePolicy : std::uint8_t {
     AllStored
 };
 
+using TerrainConstructionMaterials = std::array<ResourceArray, terrain_count>;
+
 struct Recipe {
     ResourceArray inputs{};
     ResourceArray outputs{};
@@ -70,6 +72,7 @@ struct BuildingDefinition {
     int worker_supply = 0;
     bool consumes_bread = false;
     ResourceArray construction_materials{};
+    TerrainConstructionMaterials terrain_construction_materials{};
     Tick construction_labor_minutes = 0;
     ResourceArray storage{};
     std::optional<Recipe> recipe;
@@ -133,10 +136,15 @@ struct BuildingInstance {
 [[nodiscard]] std::string_view building_kind_name(BuildingKind kind);
 [[nodiscard]] std::shared_ptr<const BuildingCatalog> default_building_catalog();
 [[nodiscard]] std::string_view blocking_reason_text(BlockingReason reason);
+[[nodiscard]] ResourceArray construction_materials_for_footprint(
+    const BuildingDefinition& definition,
+    const TileMap& map,
+    GridPosition position);
 [[nodiscard]] BuildingInstance make_building(BuildingId id, const BuildingDefinition& definition);
 [[nodiscard]] BuildingInstance make_construction_site(
     BuildingId id,
     const BuildingDefinition& construction_site,
-    const BuildingDefinition& target);
+    const BuildingDefinition& target,
+    const ResourceArray& construction_materials);
 
 }

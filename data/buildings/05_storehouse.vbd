@@ -17,6 +17,9 @@ timber = 24
 stone = 12
 tools = 2
 
+[terrain_construction]
+rocky.stone = 1
+
 [storage]
 grain = 100
 bread = 100

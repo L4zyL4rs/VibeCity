@@ -2,6 +2,7 @@
 
 #include "core/Resource.hpp"
 
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string_view>
@@ -30,6 +31,13 @@ enum class TerrainId : std::uint8_t {
     ShallowWater,
     Count
 };
+
+inline constexpr auto terrain_count = static_cast<std::size_t>(TerrainId::Count);
+
+[[nodiscard]] constexpr std::size_t terrain_index(TerrainId terrain)
+{
+    return static_cast<std::size_t>(terrain);
+}
 
 struct TerrainTile {
     GridPosition position;

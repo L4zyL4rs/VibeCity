@@ -1,9 +1,21 @@
 #include "core/Building.hpp"
 
 #include <algorithm>
+#include <limits>
 #include <stdexcept>
 
 namespace vibecity {
+namespace {
+
+void add_material(Quantity& target, Quantity amount)
+{
+    if (amount < 0 || target > std::numeric_limits<Quantity>::max() - amount) {
+        throw std::overflow_error("construction material cost overflow");
+    }
+    target += amount;
+}
+
+}
 
 BuildingCatalog::BuildingCatalog()
 {
@@ -96,6 +108,39 @@ std::string_view blocking_reason_text(BlockingReason reason)
     return "unknown";
 }
 
+ResourceArray construction_materials_for_footprint(
+    const BuildingDefinition& definition,
+    const TileMap& map,
+    GridPosition position)
+{
+    auto materials = definition.construction_materials;
+    if (definition.footprint.width <= 0 || definition.footprint.height <= 0) {
+        return materials;
+    }
+
+    for (int y = position.y; y < position.y + definition.footprint.height; ++y) {
+        for (int x = position.x; x < position.x + definition.footprint.width; ++x) {
+            const auto tile = GridPosition{x, y};
+            if (!map.in_bounds(tile)) {
+                continue;
+            }
+
+            const auto terrain = map.terrain_at(tile);
+            if (terrain == TerrainId::Count) {
+                continue;
+            }
+
+            const auto& terrain_materials =
+                definition.terrain_construction_materials[terrain_index(terrain)];
+            for (std::size_t index = 0; index < resource_count; ++index) {
+                add_material(materials[index], terrain_materials[index]);
+            }
+        }
+    }
+
+    return materials;
+}
+
 BuildingInstance make_building(BuildingId id, const BuildingDefinition& definition)
 {
     return BuildingInstance{
@@ -111,7 +156,8 @@ BuildingInstance make_building(BuildingId id, const BuildingDefinition& definiti
 BuildingInstance make_construction_site(
     BuildingId id,
     const BuildingDefinition& construction_site,
-    const BuildingDefinition& target)
+    const BuildingDefinition& target,
+    const ResourceArray& construction_materials)
 {
     if (!construction_site.internal_construction_site) {
         throw std::invalid_argument("catalog construction site definition is not internal");
@@ -120,7 +166,7 @@ BuildingInstance make_construction_site(
         .id = id,
         .kind = construction_site.kind,
         .position = std::nullopt,
-        .inventory = Inventory(target.construction_materials),
+        .inventory = Inventory(construction_materials),
         .construction_target = target.kind,
         .construction_labor_required = target.construction_labor_minutes,
         .source_mask = construction_site.source_mask

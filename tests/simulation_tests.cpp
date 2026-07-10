@@ -21,6 +21,22 @@ void clear_map_resources(vibecity::Simulation& simulation)
     }
 }
 
+vibecity::GridPosition first_buildable_house_site_on(
+    vibecity::Simulation& simulation,
+    vibecity::TerrainId terrain)
+{
+    for (int y = 0; y < simulation.map().height(); ++y) {
+        for (int x = 0; x < simulation.map().width(); ++x) {
+            const auto position = vibecity::GridPosition{x, y};
+            if (simulation.map().terrain_at(position) == terrain
+                && simulation.can_place_building_at(vibecity::BuildingKind::House, position)) {
+                return position;
+            }
+        }
+    }
+    throw std::runtime_error("could not find buildable house site");
+}
+
 void default_map_resources_are_deterministic()
 {
     const auto first = vibecity::Simulation{};
@@ -134,6 +150,36 @@ void building_placement_can_require_terrain()
         vibecity::BuildingKind::Farm,
         vibecity::GridPosition{8, 1});
     VIBECITY_CHECK(simulation.building(farm).kind == vibecity::BuildingKind::Farm);
+}
+
+void construction_materials_include_terrain_surcharges()
+{
+    auto simulation = vibecity::Simulation{};
+    const auto rocky_site =
+        first_buildable_house_site_on(simulation, vibecity::TerrainId::Rocky);
+    const auto grass_site =
+        first_buildable_house_site_on(simulation, vibecity::TerrainId::Grass);
+    const auto& house_definition = simulation.definition(vibecity::BuildingKind::House);
+
+    const auto rocky_materials = vibecity::construction_materials_for_footprint(
+        house_definition,
+        simulation.map(),
+        rocky_site);
+    const auto grass_materials = vibecity::construction_materials_for_footprint(
+        house_definition,
+        simulation.map(),
+        grass_site);
+
+    VIBECITY_CHECK(rocky_materials[vibecity::resource_index(vibecity::ResourceId::Timber)] == 12);
+    VIBECITY_CHECK(rocky_materials[vibecity::resource_index(vibecity::ResourceId::Stone)] == 1);
+    VIBECITY_CHECK(grass_materials[vibecity::resource_index(vibecity::ResourceId::Timber)] == 12);
+    VIBECITY_CHECK(grass_materials[vibecity::resource_index(vibecity::ResourceId::Stone)] == 0);
+
+    const auto site = simulation.place_construction_at(
+        vibecity::BuildingKind::House,
+        rocky_site);
+    VIBECITY_CHECK(simulation.building(site).inventory.capacity(vibecity::ResourceId::Timber) == 12);
+    VIBECITY_CHECK(simulation.building(site).inventory.capacity(vibecity::ResourceId::Stone) == 1);
 }
 
 void paths_and_buildings_clear_map_resources()
@@ -999,6 +1045,30 @@ void construction_site_fetches_materials_and_completes()
     VIBECITY_CHECK(simulation.stats().transported[vibecity::resource_index(vibecity::ResourceId::Timber)] == 8);
 }
 
+void terrain_adjusted_construction_waits_for_extra_material()
+{
+    auto simulation = vibecity::Simulation{};
+    const auto worker_house = simulation.add_building(vibecity::BuildingKind::House);
+    const auto rocky_site =
+        first_buildable_house_site_on(simulation, vibecity::TerrainId::Rocky);
+    const auto site = simulation.place_construction_at(
+        vibecity::BuildingKind::House,
+        rocky_site);
+
+    simulation.set_residents(worker_house, 5);
+    VIBECITY_CHECK(simulation.building(site).inventory.add(vibecity::ResourceId::Timber, 12));
+    simulation.run_for(20);
+    VIBECITY_CHECK(simulation.building(site).kind == vibecity::BuildingKind::ConstructionSite);
+    VIBECITY_CHECK(simulation.building(site).blocking_reason
+        == vibecity::BlockingReason::NoReachableSource);
+
+    VIBECITY_CHECK(simulation.building(site).inventory.add(vibecity::ResourceId::Stone, 1));
+    simulation.run_for(1'000);
+
+    VIBECITY_CHECK(simulation.building(site).kind == vibecity::BuildingKind::House);
+    VIBECITY_CHECK(simulation.stats().constructed_buildings == 1);
+}
+
 void construction_summary_reports_queue_focus()
 {
     vibecity::Simulation simulation;
@@ -1080,6 +1150,7 @@ int main()
     terrain_blocks_paths_and_buildings();
     map_resources_follow_supported_terrain();
     building_placement_can_require_terrain();
+    construction_materials_include_terrain_surcharges();
     paths_and_buildings_clear_map_resources();
     path_and_building_removal_free_tiles_without_regrowing_resources();
     harvesting_prefers_nearest_then_topmost_resource();
@@ -1111,6 +1182,7 @@ int main()
     woodcutter_ignores_forest_outside_collection_radius();
     quarry_harvests_finite_nearby_stone();
     construction_site_fetches_materials_and_completes();
+    terrain_adjusted_construction_waits_for_extra_material();
     construction_summary_reports_queue_focus();
     construction_site_reports_missing_materials();
     output_storage_full_blocks_production();

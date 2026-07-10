@@ -16,6 +16,9 @@ construction_labor_minutes = 5760
 timber = 14
 tools = 1
 
+[terrain_construction]
+rocky.stone = 1
+
 [storage]
 grain = 24
 firewood = 12

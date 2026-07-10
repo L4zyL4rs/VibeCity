@@ -36,6 +36,13 @@ std::string fit_text(std::string value, std::size_t maximum_characters)
     return value;
 }
 
+bool has_any_material(const ResourceArray& materials)
+{
+    return std::any_of(materials.begin(), materials.end(), [](Quantity amount) {
+        return amount > 0;
+    });
+}
+
 std::string terrain_label(TerrainId terrain)
 {
     switch (terrain) {
@@ -53,7 +60,29 @@ std::string terrain_label(TerrainId terrain)
     return "UNKNOWN";
 }
 
-std::vector<std::string> construction_cost_lines(const BuildingDefinition& definition)
+std::string material_list_text(const ResourceArray& materials)
+{
+    auto has_material = false;
+    auto output = std::ostringstream{};
+
+    for (std::size_t index = 0; index < resource_count; ++index) {
+        const auto amount = materials[index];
+        if (amount <= 0) {
+            continue;
+        }
+        output << (has_material ? " + " : "")
+               << amount << " "
+               << uppercase(resource_name(static_cast<ResourceId>(index)));
+        has_material = true;
+    }
+
+    if (!has_material) {
+        return "LABOR ONLY";
+    }
+    return output.str();
+}
+
+std::vector<std::string> wrapped_construction_cost_lines(const ResourceArray& materials)
 {
     constexpr auto maximum_characters = std::size_t{40};
     auto lines = std::vector<std::string>{};
@@ -61,7 +90,7 @@ std::vector<std::string> construction_cost_lines(const BuildingDefinition& defin
     auto has_material = false;
 
     for (std::size_t index = 0; index < resource_count; ++index) {
-        const auto amount = definition.construction_materials[index];
+        const auto amount = materials[index];
         if (amount <= 0) {
             continue;
         }
@@ -85,6 +114,34 @@ std::vector<std::string> construction_cost_lines(const BuildingDefinition& defin
     if (lines.size() > 2) {
         lines.resize(2);
         lines.back() = fit_text(lines.back(), maximum_characters);
+    }
+    return lines;
+}
+
+std::optional<std::string> terrain_cost_summary_line(const BuildingDefinition& definition)
+{
+    for (std::size_t terrain = 0; terrain < terrain_count; ++terrain) {
+        const auto& materials = definition.terrain_construction_materials[terrain];
+        if (!has_any_material(materials)) {
+            continue;
+        }
+
+        auto line = terrain_label(static_cast<TerrainId>(terrain))
+            + " +" + material_list_text(materials) + "/TILE";
+        return fit_text(line, 40);
+    }
+    return std::nullopt;
+}
+
+std::vector<std::string> construction_cost_lines(const BuildingDefinition& definition)
+{
+    auto lines = wrapped_construction_cost_lines(definition.construction_materials);
+    if (const auto terrain_line = terrain_cost_summary_line(definition)) {
+        if (lines.size() >= 2) {
+            lines.back() = *terrain_line;
+        } else {
+            lines.push_back(*terrain_line);
+        }
     }
     return lines;
 }
@@ -148,11 +205,16 @@ std::vector<BuildingKind> build_menu_kinds(const BuildingCatalog& catalog)
 
 std::string construction_cost_text(const BuildingDefinition& definition)
 {
+    return construction_cost_text(definition.construction_materials);
+}
+
+std::string construction_cost_text(const ResourceArray& materials)
+{
     auto output = std::ostringstream{};
     output << "NEEDS";
     auto has_material = false;
     for (std::size_t index = 0; index < resource_count; ++index) {
-        const auto amount = definition.construction_materials[index];
+        const auto amount = materials[index];
         if (amount <= 0) {
             continue;
         }

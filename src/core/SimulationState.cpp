@@ -184,7 +184,10 @@ Simulation Simulation::from_state(
             throw std::invalid_argument("saved building violates terrain placement");
         }
         const auto expected_storage = definition.internal_construction_site
-            ? state_definition.construction_materials
+            ? construction_materials_for_footprint(
+                state_definition,
+                restored_map,
+                *building.position)
             : state_definition.storage;
         if (building.inventory.capacities() != expected_storage) {
             throw std::invalid_argument("saved inventory capacities do not match building definition");

@@ -97,11 +97,13 @@ BuildingId Simulation::place_construction(BuildingKind target_kind)
     }
 
     const auto id = next_building_id_++;
+    const auto position = auto_place_building(id, target);
     auto site = make_construction_site(
         id,
         definition(BuildingKind::ConstructionSite),
-        target);
-    site.position = auto_place_building(id, target);
+        target,
+        construction_materials_for_footprint(target, map_, position));
+    site.position = position;
     buildings_.push_back(site);
     return id;
 }
@@ -122,7 +124,8 @@ BuildingId Simulation::place_construction_at(BuildingKind target_kind, GridPosit
     auto site = make_construction_site(
         id,
         definition(BuildingKind::ConstructionSite),
-        target);
+        target,
+        construction_materials_for_footprint(target, map_, position));
     site.position = position;
     buildings_.push_back(site);
     return id;
@@ -937,9 +940,9 @@ std::vector<ResourceRequest> Simulation::collect_resource_requests() const
         const auto& building = definition(instance.kind);
 
         if (building.internal_construction_site && instance.construction_target.has_value()) {
-            const auto& target = definition(*instance.construction_target);
             for (std::size_t index = 0; index < resource_count; ++index) {
-                const auto required = target.construction_materials[index];
+                const auto required =
+                    instance.inventory.capacity(static_cast<ResourceId>(index));
                 if (required <= 0) {
                     continue;
                 }
@@ -1094,10 +1097,10 @@ bool Simulation::construction_materials_delivered(const BuildingInstance& site) 
         return false;
     }
 
-    const auto& target = definition(*site.construction_target);
     for (std::size_t index = 0; index < resource_count; ++index) {
-        const auto required = target.construction_materials[index];
-        if (required > 0 && site.inventory.quantity(static_cast<ResourceId>(index)) < required) {
+        const auto resource = static_cast<ResourceId>(index);
+        const auto required = site.inventory.capacity(resource);
+        if (required > 0 && site.inventory.quantity(resource) < required) {
             return false;
         }
     }

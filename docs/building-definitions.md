@@ -29,6 +29,9 @@ construction_labor_minutes = 1440
 [construction]
 timber = 4
 
+[terrain_construction]
+rocky.stone = 1
+
 [storage]
 timber = 10
 firewood = 20
@@ -85,6 +88,26 @@ Recipe inputs and outputs must fit their corresponding storage capacities.
 `source_policy = recipe_outputs` makes only declared outputs available to other
 buildings. `all_stored` makes every stored resource available.
 
+## Terrain Construction Costs
+
+An optional `[terrain_construction]` section adds material costs for each
+footprint tile that sits on a terrain type:
+
+```ini
+[terrain_construction]
+rocky.stone = 1
+```
+
+Keys use `terrain.resource` syntax. The value is added once per matching tile in
+the building footprint. For example, a 2x2 building with `rocky.stone = 1` costs
+four extra stone when all four footprint tiles are rocky. These costs are
+calculated when the construction site is placed, stored as that site's required
+inventory capacity, and persisted through save/load.
+
+The construction menu shows the base cost and the first terrain surcharge. The
+world hover status shows the actual material cost for the current placement
+tile.
+
 ## Map Gathering
 
 An optional `[gathering]` section makes a recipe consume a finite resource from
@@ -131,7 +154,7 @@ rule still needs C++ work.
 The client construction menu is generated from the active catalog. Custom
 definitions automatically receive a selectable row with their name, color,
 construction materials, footprint, worker or housing capacity, required terrain,
-and labor cost.
+terrain surcharge, and labor cost.
 The first seven listed buildings receive numeric shortcuts.
 
 Save format version 6 records stable IDs and a catalog fingerprint. Changing a

@@ -101,10 +101,19 @@ firewood = 4
 void build_menu_formats_construction_materials()
 {
     const auto catalog = vibecity::default_building_catalog();
+    auto rocky_house_materials = catalog->definition(
+        vibecity::BuildingKind::House).construction_materials;
+    rocky_house_materials[vibecity::resource_index(vibecity::ResourceId::Stone)] += 1;
 
     VIBECITY_CHECK(vibecity::client::construction_cost_text(
             catalog->definition(vibecity::BuildingKind::House))
         == "NEEDS 12 TIMBER");
+    VIBECITY_CHECK(vibecity::client::construction_cost_text(rocky_house_materials)
+        == "NEEDS 12 TIMBER + 1 STONE");
+    VIBECITY_CHECK(catalog->definition(vibecity::BuildingKind::House)
+            .terrain_construction_materials[vibecity::terrain_index(vibecity::TerrainId::Rocky)]
+            [vibecity::resource_index(vibecity::ResourceId::Stone)]
+        == 1);
     VIBECITY_CHECK(vibecity::client::construction_cost_text(
             catalog->definition(vibecity::BuildingKind::Bakery))
         == "NEEDS 14 TIMBER + 1 TOOLS");

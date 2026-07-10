@@ -12,6 +12,9 @@ source_policy = recipe_outputs
 map_color = 112, 132, 82
 construction_labor_minutes = 3600
 
+[terrain_construction]
+rocky.stone = 1
+
 [storage]
 timber = 20
 firewood = 20

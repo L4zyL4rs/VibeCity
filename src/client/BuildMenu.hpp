@@ -19,6 +19,7 @@ struct BuildMenuMetrics {
 };
 
 [[nodiscard]] std::vector<BuildingKind> build_menu_kinds(const BuildingCatalog& catalog);
+[[nodiscard]] std::string construction_cost_text(const ResourceArray& materials);
 [[nodiscard]] std::string construction_cost_text(const BuildingDefinition& definition);
 [[nodiscard]] std::string operation_summary_text(const BuildingDefinition& definition);
 [[nodiscard]] std::optional<BuildingKind> build_menu_kind_at(

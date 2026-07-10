@@ -287,3 +287,25 @@ Notes:
 - Starting stock now includes five tools instead of two, but the benchmark CSV
   does not report stored tools.
 - Use the command-layer milestone test for quarry/storehouse route coverage.
+
+### 2026-07-10 Terrain Build-Cost Modifiers
+
+Construction sites now store position-dependent material requirements, and
+generic village buildings can add a small stone surcharge on rocky footprint
+tiles. The scripted benchmark routes do not place those construction sites on
+rocky terrain, so their sanity counters remain unchanged.
+
+Representative default-build sample:
+
+| Case | Ticks | Milliseconds | Ticks/s | Buildings | Active Jobs | Transported | Resource Tiles | Resource Quantity | Constructed |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| starting village 30d | 43,200 | 17.96 | 2,405,442 | 4 | 0 | 60 | 5,320 | 34,156 | 0 |
+| construction village 30d | 43,200 | 91.64 | 471,428 | 9 | 0 | 1,759 | 5,298 | 34,023 | 5 |
+| 100 buildings 10d | 14,400 | 1,907.73 | 7,548 | 100 | 45 | 91,184 | 5,020 | 32,169 | 0 |
+
+Notes:
+
+- The reference milestone still completes with all eight objectives.
+- Save/load validation now accepts construction-site material capacities derived
+  from the site's terrain footprint rather than only the target definition's
+  base cost.

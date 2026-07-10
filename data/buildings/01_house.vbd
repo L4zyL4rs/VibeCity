@@ -15,5 +15,8 @@ construction_labor_minutes = 2880
 [construction]
 timber = 12
 
+[terrain_construction]
+rocky.stone = 1
+
 [storage]
 bread = 10
