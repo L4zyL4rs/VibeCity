@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <sstream>
 #include <string>
+#include <string_view>
 
 namespace vibecity::client {
 namespace {
@@ -120,28 +121,126 @@ ScreenPoint interpolate(ScreenPoint start, ScreenPoint end, float progress)
     };
 }
 
-Color terrain_color(TerrainId terrain)
+Color with_alpha(Color color, std::uint8_t alpha)
 {
+    color.a = alpha;
+    return color;
+}
+
+Color terrain_color(TerrainId terrain, MapLens lens)
+{
+    auto color = Color{30, 35, 33, 255};
     switch (terrain) {
     case TerrainId::Grass:
-        return Color{30, 35, 33, 255};
+        color = Color{30, 35, 33, 255};
+        break;
     case TerrainId::Fertile:
-        return Color{36, 52, 36, 255};
+        color = Color{36, 52, 36, 255};
+        break;
     case TerrainId::Rocky:
-        return Color{54, 54, 50, 255};
+        color = Color{54, 54, 50, 255};
+        break;
     case TerrainId::ShallowWater:
-        return Color{32, 58, 74, 255};
+        color = Color{32, 58, 74, 255};
+        break;
     case TerrainId::Count:
-        return Color{30, 35, 33, 255};
+        color = Color{30, 35, 33, 255};
+        break;
     }
-    return Color{30, 35, 33, 255};
+
+    if (lens == MapLens::Resources) {
+        return with_alpha(color, terrain == TerrainId::Grass ? 255 : 92);
+    }
+
+    if (lens == MapLens::Terrain) {
+        switch (terrain) {
+        case TerrainId::Grass:
+            return Color{32, 38, 34, 255};
+        case TerrainId::Fertile:
+            return Color{42, 76, 40, 255};
+        case TerrainId::Rocky:
+            return Color{82, 80, 72, 255};
+        case TerrainId::ShallowWater:
+            return Color{38, 82, 104, 255};
+        case TerrainId::Count:
+            return Color{32, 38, 34, 255};
+        }
+    }
+
+    return color;
+}
+
+Color grid_color(MapLens lens)
+{
+    switch (lens) {
+    case MapLens::Default:
+        return Color{35, 41, 38, 255};
+    case MapLens::Resources:
+        return Color{31, 35, 33, 90};
+    case MapLens::Terrain:
+        return Color{24, 27, 25, 130};
+    }
+    return Color{35, 41, 38, 255};
+}
+
+Color path_color(MapLens lens)
+{
+    switch (lens) {
+    case MapLens::Default:
+        return Color{48, 52, 52, 255};
+    case MapLens::Resources:
+        return Color{44, 47, 46, 120};
+    case MapLens::Terrain:
+        return Color{28, 31, 30, 140};
+    }
+    return Color{48, 52, 52, 255};
+}
+
+std::uint8_t resource_base_alpha(MapLens lens)
+{
+    switch (lens) {
+    case MapLens::Default:
+        return 135;
+    case MapLens::Resources:
+        return 250;
+    case MapLens::Terrain:
+        return 42;
+    }
+    return 135;
+}
+
+std::uint8_t resource_marker_alpha(MapLens lens)
+{
+    switch (lens) {
+    case MapLens::Default:
+        return 220;
+    case MapLens::Resources:
+        return 255;
+    case MapLens::Terrain:
+        return 86;
+    }
+    return 220;
+}
+
+std::uint8_t building_alpha(MapLens lens)
+{
+    switch (lens) {
+    case MapLens::Default:
+        return 255;
+    case MapLens::Resources:
+        return 150;
+    case MapLens::Terrain:
+        return 135;
+    }
+    return 255;
 }
 
 void draw_terrain(
     SDL_Renderer* renderer,
     const TileMap& map,
     Camera camera,
-    TileBounds visible)
+    TileBounds visible,
+    MapLens lens)
 {
     for (int y = visible.first_y; y < visible.end_y; ++y) {
         for (int x = visible.first_x; x < visible.end_x; ++x) {
@@ -152,7 +251,7 @@ void draw_terrain(
             }
 
             auto rect = tile_rect(position, Footprint{1, 1}, camera);
-            set_color(renderer, terrain_color(terrain));
+            set_color(renderer, terrain_color(terrain, lens));
             SDL_RenderFillRect(renderer, &rect);
         }
     }
@@ -162,8 +261,11 @@ void draw_map_resources(
     SDL_Renderer* renderer,
     const TileMap& map,
     Camera camera,
-    TileBounds visible)
+    TileBounds visible,
+    MapLens lens)
 {
+    const auto base_alpha = resource_base_alpha(lens);
+    const auto marker_alpha = resource_marker_alpha(lens);
     for (int y = visible.first_y; y < visible.end_y; ++y) {
         for (int x = visible.first_x; x < visible.end_x; ++x) {
             const auto position = GridPosition{x, y};
@@ -181,7 +283,7 @@ void draw_map_resources(
                     static_cast<std::uint8_t>(42 + density / 4),
                     static_cast<std::uint8_t>(72 + density),
                     static_cast<std::uint8_t>(48 + density / 3),
-                    255
+                    base_alpha
                 });
                 SDL_RenderFillRect(renderer, &rect);
 
@@ -196,7 +298,7 @@ void draw_map_resources(
                     .w = crown_size,
                     .h = crown_size
                 };
-                set_color(renderer, Color{70, 122, 64, 255});
+                set_color(renderer, Color{70, 122, 64, marker_alpha});
                 SDL_RenderFillRect(renderer, &crown);
             } else if (*resource == MapResourceId::Stone) {
                 const auto density = static_cast<int>(
@@ -205,7 +307,7 @@ void draw_map_resources(
                     static_cast<std::uint8_t>(70 + density / 2),
                     static_cast<std::uint8_t>(72 + density / 2),
                     static_cast<std::uint8_t>(72 + density / 2),
-                    255
+                    base_alpha
                 });
                 SDL_RenderFillRect(renderer, &rect);
 
@@ -220,7 +322,7 @@ void draw_map_resources(
                     .w = block_size,
                     .h = block_size
                 };
-                set_color(renderer, Color{142, 145, 140, 255});
+                set_color(renderer, Color{142, 145, 140, marker_alpha});
                 SDL_RenderFillRect(renderer, &block);
             } else if (*resource == MapResourceId::Clay) {
                 const auto density = static_cast<int>(
@@ -229,7 +331,7 @@ void draw_map_resources(
                     static_cast<std::uint8_t>(82 + density),
                     static_cast<std::uint8_t>(64 + density / 2),
                     static_cast<std::uint8_t>(54 + density / 3),
-                    255
+                    base_alpha
                 });
                 SDL_RenderFillRect(renderer, &rect);
 
@@ -241,7 +343,7 @@ void draw_map_resources(
                     .w = patch_width,
                     .h = patch_height
                 };
-                set_color(renderer, Color{166, 106, 82, 255});
+                set_color(renderer, Color{166, 106, 82, marker_alpha});
                 SDL_RenderFillRect(renderer, &patch);
             }
         }
@@ -463,6 +565,32 @@ void zoom_camera_at(Camera& camera, int screen_x, int screen_y, int steps)
     camera.offset_y = static_cast<int>(std::lround(screen_y - map_y * new_size));
 }
 
+std::string_view map_lens_name(MapLens lens)
+{
+    switch (lens) {
+    case MapLens::Default:
+        return "DEFAULT";
+    case MapLens::Resources:
+        return "RESOURCES";
+    case MapLens::Terrain:
+        return "TERRAIN";
+    }
+    return "DEFAULT";
+}
+
+MapLens next_map_lens(MapLens lens)
+{
+    switch (lens) {
+    case MapLens::Default:
+        return MapLens::Resources;
+    case MapLens::Resources:
+        return MapLens::Terrain;
+    case MapLens::Terrain:
+        return MapLens::Default;
+    }
+    return MapLens::Default;
+}
+
 Footprint footprint_for(const Simulation& simulation, const BuildingInstance& building)
 {
     if (simulation.definition(building.kind).internal_construction_site
@@ -626,7 +754,8 @@ Quantity gathering_resource_quantity_for_placement(
 void draw_world(SDL_Renderer* renderer,
     const Simulation& simulation,
     Camera camera,
-    std::optional<BuildingId> selected)
+    std::optional<BuildingId> selected,
+    MapLens lens)
 {
     const auto& map = simulation.map();
     auto viewport_width = map.width() * camera.tile_size;
@@ -639,15 +768,15 @@ void draw_world(SDL_Renderer* renderer,
         GridPosition{0, 0},
         Footprint{map.width(), map.height()},
         camera);
-    set_color(renderer, Color{30, 35, 33, 255});
+    set_color(renderer, terrain_color(TerrainId::Grass, lens));
     SDL_RenderFillRect(renderer, &map_rect);
     set_color(renderer, Color{72, 78, 72, 255});
     SDL_RenderDrawRect(renderer, &map_rect);
 
-    draw_terrain(renderer, map, camera, visible);
+    draw_terrain(renderer, map, camera, visible, lens);
 
     if (camera.tile_size >= 14) {
-        set_color(renderer, Color{35, 41, 38, 255});
+        set_color(renderer, grid_color(lens));
         for (int x = visible.first_x; x <= visible.end_x; ++x) {
             const auto screen_x = camera.offset_x + x * camera.tile_size;
             SDL_RenderDrawLine(
@@ -668,9 +797,9 @@ void draw_world(SDL_Renderer* renderer,
         }
     }
 
-    draw_map_resources(renderer, map, camera, visible);
+    draw_map_resources(renderer, map, camera, visible, lens);
 
-    set_color(renderer, Color{48, 52, 52, 255});
+    set_color(renderer, path_color(lens));
     for (int y = visible.first_y; y < visible.end_y; ++y) {
         for (int x = visible.first_x; x < visible.end_x; ++x) {
             const auto position = GridPosition{x, y};
@@ -696,7 +825,7 @@ void draw_world(SDL_Renderer* renderer,
             continue;
         }
 
-        set_color(renderer, building_color(simulation, building));
+        set_color(renderer, with_alpha(building_color(simulation, building), building_alpha(lens)));
         SDL_RenderFillRect(renderer, &rect);
 
         if (building.blocking_reason != BlockingReason::None) {

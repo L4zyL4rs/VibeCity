@@ -14,12 +14,15 @@ namespace vibecity::client {
 
 inline constexpr int hud_height = 52;
 
+enum class MapLens;
+
 [[nodiscard]] std::string clock_text(const Simulation& simulation);
 
 void draw_hud(SDL_Renderer* renderer,
     const Simulation& simulation,
     ClientMode mode,
     std::optional<BuildingKind> build_target,
+    MapLens lens,
     bool running,
     int ticks_per_frame);
 

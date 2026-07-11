@@ -215,6 +215,11 @@ void handle_keydown(GameSession& game, ClientInteractionState& state, SDL_Keycod
         }
         break;
     }
+    case SDLK_l:
+    case SDLK_TAB:
+        state.map_lens = next_map_lens(state.map_lens);
+        state.status = "lens " + std::string{map_lens_name(state.map_lens)};
+        break;
     case SDLK_EQUALS:
     case SDLK_PLUS:
         state.ticks_per_frame = std::min(240, state.ticks_per_frame * 2);

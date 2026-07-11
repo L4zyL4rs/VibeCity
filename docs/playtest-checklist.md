@@ -37,6 +37,7 @@ for 30 days.
 - `+` / `-`: simulation speed
 - Arrow keys or `WASD`: pan
 - Mouse wheel over the map: zoom toward the cursor
+- `L` or `Tab`: cycle default, resource, and terrain map lenses
 - Mouse wheel over the construction menu or inspector: scroll that panel
 - `Esc`: cancel placement or demolition, then clear the current selection
 - `F5`: save to `vibecity-save.vcs`
@@ -122,6 +123,9 @@ When I ask for detailed input, please report these points:
   usable clay, and understand that it also needs firewood to make bricks?
 - Terrain/resources: can you distinguish normal grass, fertile terrain, rocky
   terrain, forests, stone deposits, and clay deposits without guessing?
+- Map lenses: does the resource lens make deposits easier to find, and does
+  the terrain lens make fertile/rocky regions easier to read without hiding
+  roads and buildings too much?
 - Hover info: does the status line make the tile terrain, resource amount,
   path/building occupancy, and placement blocker clear enough?
 - Farm placement: is it clear that farms require fertile terrain, and are

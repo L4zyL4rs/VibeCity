@@ -90,6 +90,17 @@ understand when production stops or must move elsewhere.
 - Selecting a building brightens its active transport routes on the map while
   dimming unrelated transport visuals.
 
+## Implemented: Map Visibility Slice
+
+- The client has default, resource, and terrain map lenses, cycled with `L` or
+  `Tab`.
+- The resource lens brightens finite deposits while muting terrain, buildings,
+  paths, and grid lines.
+- The terrain lens brightens fertile, rocky, and water terrain while muting
+  resource deposits and settlement overlays.
+- The default view keeps all layers visible but tones finite deposits down so
+  future resource types have room without turning the base map into a legend.
+
 ## Next Programming Slices
 
 1. Scenario-level resource and terrain tuning for the village playtest.

@@ -189,6 +189,18 @@ void zoom_keeps_the_cursor_over_the_same_tile()
     VIBECITY_CHECK(rect.y == screen_y);
 }
 
+void map_lens_cycles_through_readable_modes()
+{
+    using vibecity::client::MapLens;
+
+    VIBECITY_CHECK(vibecity::client::map_lens_name(MapLens::Default) == "DEFAULT");
+    VIBECITY_CHECK(vibecity::client::map_lens_name(MapLens::Resources) == "RESOURCES");
+    VIBECITY_CHECK(vibecity::client::map_lens_name(MapLens::Terrain) == "TERRAIN");
+    VIBECITY_CHECK(vibecity::client::next_map_lens(MapLens::Default) == MapLens::Resources);
+    VIBECITY_CHECK(vibecity::client::next_map_lens(MapLens::Resources) == MapLens::Terrain);
+    VIBECITY_CHECK(vibecity::client::next_map_lens(MapLens::Terrain) == MapLens::Default);
+}
+
 void gathering_preview_counts_only_resource_that_survives_placement()
 {
     auto simulation = vibecity::Simulation{};
@@ -475,6 +487,7 @@ int main()
     build_menu_formats_construction_materials();
     build_menu_hit_testing_respects_rows_gaps_and_scroll();
     zoom_keeps_the_cursor_over_the_same_tile();
+    map_lens_cycles_through_readable_modes();
     gathering_preview_counts_only_resource_that_survives_placement();
     map_hover_text_reports_tile_contents();
     placement_blocker_text_reports_common_blocks();

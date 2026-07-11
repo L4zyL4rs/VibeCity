@@ -1,5 +1,6 @@
 #include "client/Hud.hpp"
 
+#include "client/MapView.hpp"
 #include "client/Text.hpp"
 
 #include <algorithm>
@@ -33,6 +34,7 @@ void draw_hud(SDL_Renderer* renderer,
     const Simulation& simulation,
     ClientMode mode,
     std::optional<BuildingKind> build_target,
+    MapLens lens,
     bool running,
     int ticks_per_frame)
 {
@@ -101,12 +103,19 @@ void draw_hud(SDL_Renderer* renderer,
     if (mode == ClientMode::Build && build_target.has_value()) {
         mode_text += " " + simulation.definition(*build_target).name;
     }
-    if (mode_text.size() > 40) {
-        mode_text.resize(40);
+    mode_text += "  LENS: ";
+    mode_text += map_lens_name(lens);
+    if (mode_text.size() > 42) {
+        mode_text.resize(42);
         mode_text.back() = '.';
     }
     draw_text(renderer, 188, 10, mode_text, Color{210, 214, 204, 255}, 2);
-    draw_text(renderer, 188, 30, running ? "SPACE PAUSE   +/- SPEED   WASD PAN" : "SPACE RUN     +/- SPEED   WASD PAN", Color{128, 138, 136, 255}, 2);
+    draw_text(renderer,
+        188,
+        30,
+        running ? "SPACE PAUSE  +/- SPEED  WASD PAN  L LENS" : "SPACE RUN    +/- SPEED  WASD PAN  L LENS",
+        Color{128, 138, 136, 255},
+        2);
     draw_text(renderer,
         700,
         30,

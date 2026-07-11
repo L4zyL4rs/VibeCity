@@ -36,6 +36,8 @@ using vibecity::client::draw_world;
 using vibecity::client::gathering_resource_quantity_for_placement;
 using vibecity::client::handle_event;
 using vibecity::client::InspectorScrollMetrics;
+using vibecity::client::MapLens;
+using vibecity::client::map_lens_name;
 using vibecity::client::mode_name;
 using vibecity::client::selected_summary;
 using vibecity::client::set_color;
@@ -118,6 +120,7 @@ void update_title(SDL_Window* window,
     const vibecity::Simulation& simulation,
     ClientMode mode,
     std::optional<vibecity::BuildingKind> build_target,
+    MapLens lens,
     bool running,
     int ticks_per_frame,
     std::optional<vibecity::BuildingId> selected)
@@ -127,7 +130,8 @@ void update_title(SDL_Window* window,
           << " | day " << simulation.current_day()
           << " | " << (running ? "running" : "paused")
           << " | speed " << ticks_per_frame
-          << " | mode " << mode_name(mode);
+          << " | mode " << mode_name(mode)
+          << " | lens " << map_lens_name(lens);
     if (mode == ClientMode::Build && build_target.has_value()) {
         title << " " << simulation.definition(*build_target).name;
     }
@@ -150,6 +154,7 @@ ClientPanelMetrics draw_map(SDL_Renderer* renderer,
     std::optional<vibecity::GridPosition> hover_tile,
     ClientMode mode,
     std::optional<vibecity::BuildingKind> build_target,
+    MapLens lens,
     bool running,
     int ticks_per_frame,
     int inspector_scroll,
@@ -159,7 +164,7 @@ ClientPanelMetrics draw_map(SDL_Renderer* renderer,
     set_color(renderer, Color{24, 28, 28, 255});
     SDL_RenderClear(renderer);
 
-    draw_world(renderer, simulation, camera, selected);
+    draw_world(renderer, simulation, camera, selected, lens);
     transport_overlay.draw(renderer, camera, selected);
     draw_mode_placement_preview(renderer, simulation, camera, mode, build_target, hover_tile);
     const auto build_menu_metrics = draw_build_menu(
@@ -173,7 +178,7 @@ ClientPanelMetrics draw_map(SDL_Renderer* renderer,
         objectives,
         selected,
         inspector_scroll);
-    draw_hud(renderer, simulation, mode, build_target, running, ticks_per_frame);
+    draw_hud(renderer, simulation, mode, build_target, lens, running, ticks_per_frame);
     draw_status(renderer, status);
     draw_objective_completion_banner(
         renderer,
@@ -313,6 +318,7 @@ int main(int argc, char** argv)
             state.hover_tile,
             state.mode,
             state.build_target,
+            state.map_lens,
             state.running,
             state.ticks_per_frame,
             state.inspector_scroll,
@@ -327,6 +333,7 @@ int main(int argc, char** argv)
             game.simulation(),
             state.mode,
             state.build_target,
+            state.map_lens,
             state.running,
             state.ticks_per_frame,
             state.selected);

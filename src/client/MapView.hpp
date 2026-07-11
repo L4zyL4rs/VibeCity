@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace vibecity::client {
@@ -23,9 +24,17 @@ struct Camera {
     int tile_size = default_tile_size;
 };
 
+enum class MapLens {
+    Default,
+    Resources,
+    Terrain
+};
+
 [[nodiscard]] GridPosition screen_to_map(int screen_x, int screen_y, Camera camera);
 [[nodiscard]] SDL_Rect tile_rect(GridPosition position, Footprint footprint, Camera camera);
 void zoom_camera_at(Camera& camera, int screen_x, int screen_y, int steps);
+[[nodiscard]] std::string_view map_lens_name(MapLens lens);
+[[nodiscard]] MapLens next_map_lens(MapLens lens);
 [[nodiscard]] Footprint footprint_for(const Simulation& simulation, const BuildingInstance& building);
 [[nodiscard]] std::optional<BuildingId> building_at(const Simulation& simulation, GridPosition tile);
 [[nodiscard]] bool can_place_path_preview(const Simulation& simulation, GridPosition tile);
@@ -48,7 +57,8 @@ void zoom_camera_at(Camera& camera, int screen_x, int screen_y, int steps);
 void draw_world(SDL_Renderer* renderer,
     const Simulation& simulation,
     Camera camera,
-    std::optional<BuildingId> selected);
+    std::optional<BuildingId> selected,
+    MapLens lens);
 
 class TransportOverlay {
 public:

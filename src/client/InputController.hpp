@@ -26,6 +26,7 @@ struct ClientInteractionState {
     int build_menu_max_scroll = 0;
     std::string status = "ready";
     Camera camera;
+    MapLens map_lens = MapLens::Default;
     bool quit = false;
 };
 
