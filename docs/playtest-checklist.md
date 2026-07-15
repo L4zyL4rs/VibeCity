@@ -127,6 +127,9 @@ When I ask for detailed input, please report these points:
   that it also needs firewood to make bricks once unlocked?
 - Pottery/granaries: can you identify that potters need clay and firewood, and
   that potters/granaries are locked before pottery is discovered?
+- Pottery experiment: after selecting a path-accessible storehouse with
+  firewood near clay and pressing `P`, is it clear that firewood/clay were
+  consumed, workers are advancing discovery labor, and pottery unlocks?
 - Terrain/resources: can you distinguish normal grass, fertile terrain, rocky
   terrain, shallow water, forests, stone deposits, and clay deposits without
   guessing?

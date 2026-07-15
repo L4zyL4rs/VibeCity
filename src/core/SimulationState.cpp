@@ -44,6 +44,7 @@ SimulationState Simulation::state() const
         .map_resources = map_.map_resource_deposits(),
         .buildings = buildings_,
         .transport_jobs = transport_jobs_,
+        .discovery_projects = discovery_projects_,
         .next_building_id = next_building_id_,
         .next_transport_job_id = next_transport_job_id_,
         .next_auto_building_x = next_auto_building_x_,
@@ -273,6 +274,34 @@ Simulation Simulation::from_state(
     if (state.next_transport_job_id <= previous_job_id) {
         throw std::invalid_argument("invalid next saved transport job ID");
     }
+
+    auto active_projects = std::uint64_t{0};
+    for (auto& project : state.discovery_projects) {
+        if (!enum_less_than(project.project, DiscoveryProjectId::Count)
+            || project.host == 0
+            || project.host > state.buildings.size()
+            || !state.buildings[static_cast<std::size_t>(project.host - 1)].active
+            || project.labor_completed < 0
+            || project.assigned_workers < 0) {
+            throw std::invalid_argument("invalid saved discovery project");
+        }
+
+        const auto& project_definition = discovery_project_definition(project.project);
+        if (project.labor_completed >= project_definition.labor_minutes
+            || project.assigned_workers > project_definition.worker_slots
+            || (state.capabilities & capability_bit(project_definition.grants_capability)) != 0
+            || state.buildings[static_cast<std::size_t>(project.host - 1)].kind
+                != project_definition.required_host) {
+            throw std::invalid_argument("invalid saved discovery project");
+        }
+
+        const auto bit = std::uint64_t{1} << static_cast<std::uint8_t>(project.project);
+        if ((active_projects & bit) != 0) {
+            throw std::invalid_argument("duplicate saved discovery project");
+        }
+        active_projects |= bit;
+    }
+
     for (std::size_t building_index = 0; building_index < state.buildings.size(); ++building_index) {
         const auto& inventory = state.buildings[building_index].inventory;
         for (std::size_t resource = 0; resource < resource_count; ++resource) {
@@ -287,6 +316,7 @@ Simulation Simulation::from_state(
     auto simulation = Simulation{std::move(catalog)};
     simulation.buildings_ = std::move(state.buildings);
     simulation.transport_jobs_ = std::move(state.transport_jobs);
+    simulation.discovery_projects_ = std::move(state.discovery_projects);
     simulation.map_ = std::move(restored_map);
     simulation.logistics_distance_field_ = PathDistanceField{};
     simulation.next_building_id_ = state.next_building_id;

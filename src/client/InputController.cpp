@@ -222,6 +222,17 @@ void handle_keydown(GameSession& game, ClientInteractionState& state, SDL_Keycod
         }
         break;
     }
+    case SDLK_p:
+        if (!state.selected.has_value()) {
+            state.status = "no project host selected";
+        } else {
+            const auto result = game.execute(StartDiscoveryProjectCommand{
+                .project = DiscoveryProjectId::PotteryExperiment,
+                .host = *state.selected
+            });
+            state.status = result.message;
+        }
+        break;
     case SDLK_l:
     case SDLK_TAB:
         state.map_lens = next_map_lens(state.map_lens);

@@ -88,9 +88,9 @@ understand when production stops or must move elsewhere.
 - The default catalog includes a data-defined granary that stores grain and
   bread, requires pottery during construction, and serves as the first explicit
   fired-clay construction sink.
-- Pottery currently exists as gated content. Specialist knowledge and
-  research-project requirements that earn the capability are still planned as
-  the next engine slice.
+- Pottery currently exists as gated content. A first pottery experiment can
+  earn the capability, while richer specialist knowledge and teaching are still
+  planned later.
 
 ## Implemented: Capability Gate Slice
 
@@ -101,8 +101,22 @@ understand when production stops or must move elsewhere.
 - Locked buildings remain visible in the construction menu with a missing
   capability label, but construction commands reject them until the capability
   is present.
-- This is the structural gate only. The player-facing experimentation/project
-  loop that earns those capabilities is still the next slice.
+- This is the structural gate only. Discovery projects that earn capabilities
+  build on top of it.
+
+## Implemented: Pottery Discovery Project Slice
+
+- The first discovery project is `pottery_experiment`.
+- It must be hosted by a path-accessible storehouse.
+- It consumes firewood from that host building and nearby finite clay from the
+  map before work starts.
+- It uses leftover idle worker labor after transport and construction.
+- Completion grants the `pottery` capability and unlocks potters and
+  granaries.
+- Active discovery projects persist through save/load and are shown in
+  headless output and the settlement inspector.
+- The SDL client has a temporary interaction: select a valid project host and
+  press `P` to start the pottery experiment.
 
 ## Implemented: Logistics Inspection
 
@@ -259,18 +273,20 @@ Suggested early-to-medieval ladder:
 
 ## Next Programming Slices
 
-1. Add an experimentation/project loop that costs labor, input goods, workshop
-   access, and time; start with pottery or controlled heat.
-2. Connect the granary to a meaningful food-storage benefit once spoilage,
+1. Add a proper project UI for starting available discovery projects instead
+   of the temporary selected-host shortcut.
+2. Add the brickmaking discovery project, likely requiring pottery, more fuel,
+   and either a potter, kiln, or improved workshop host.
+3. Connect the granary to a meaningful food-storage benefit once spoilage,
    storage quality, or stock targets exist.
-3. Decide whether bricks gate a road upgrade, storage upgrade, water
+4. Decide whether bricks gate a road upgrade, storage upgrade, water
    infrastructure, or the next village objective.
-4. Prototype a tool-condition model where tooling changes productivity before
+5. Prototype a tool-condition model where tooling changes productivity before
    adding more economic chains.
-5. Prototype rough-stone to dressed-stone refinement for medieval
+6. Prototype rough-stone to dressed-stone refinement for medieval
    infrastructure.
-6. Better generation controls for water and broader map shapes.
-7. Keep copper, bronze, and iron out of the active village milestone until
+7. Better generation controls for water and broader map shapes.
+8. Keep copper, bronze, and iron out of the active village milestone until
    pottery, kilns, fuel pressure, and tool maintenance have a playable base.
 
 ## Deliberate Limits

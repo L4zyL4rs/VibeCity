@@ -14,6 +14,11 @@ constexpr int storehouse_pull_priority = 10;
 constexpr Quantity house_bread_target = 10;
 constexpr int distance_field_candidate_threshold = 4;
 constexpr std::size_t worker_connectivity_pair_threshold = 64;
+constexpr Quantity pottery_experiment_firewood = 6;
+constexpr Quantity pottery_experiment_clay = 2;
+constexpr int pottery_experiment_radius = 6;
+constexpr Tick pottery_experiment_labor_minutes = ticks_per_day;
+constexpr int discovery_project_workers_per_project = 2;
 
 bool has_any(const ResourceArray& amounts)
 {
@@ -44,6 +49,37 @@ BuildingInstance make_inactive_building(BuildingId id)
     return building;
 }
 
+ResourceArray pottery_experiment_inputs()
+{
+    auto inputs = empty_resources();
+    inputs[resource_index(ResourceId::Firewood)] = pottery_experiment_firewood;
+    return inputs;
+}
+
+}
+
+const DiscoveryProjectDefinition& discovery_project_definition(DiscoveryProjectId project)
+{
+    static const auto pottery_experiment = DiscoveryProjectDefinition{
+        .project = DiscoveryProjectId::PotteryExperiment,
+        .name = "Pottery Experiment",
+        .grants_capability = CapabilityId::Pottery,
+        .required_host = BuildingKind::Storehouse,
+        .inputs = pottery_experiment_inputs(),
+        .map_resource = MapResourceId::Clay,
+        .map_resource_quantity = pottery_experiment_clay,
+        .map_radius = pottery_experiment_radius,
+        .labor_minutes = pottery_experiment_labor_minutes,
+        .worker_slots = discovery_project_workers_per_project
+    };
+
+    switch (project) {
+    case DiscoveryProjectId::PotteryExperiment:
+        return pottery_experiment;
+    case DiscoveryProjectId::Count:
+        break;
+    }
+    throw std::invalid_argument("invalid discovery project");
 }
 
 Simulation::Simulation(std::shared_ptr<const BuildingCatalog> catalog)
@@ -177,6 +213,11 @@ const std::vector<TransportJob>& Simulation::transport_jobs() const
     return transport_jobs_;
 }
 
+const std::vector<DiscoveryProject>& Simulation::discovery_projects() const
+{
+    return discovery_projects_;
+}
+
 const TileMap& Simulation::map() const
 {
     return map_;
@@ -224,6 +265,9 @@ bool Simulation::demolish_building(BuildingId id)
     }
 
     cancel_transport_jobs_for_building(id);
+    std::erase_if(discovery_projects_, [id](const DiscoveryProject& project) {
+        return project.host == id;
+    });
     *instance = make_inactive_building(id);
     worker_assignment_dirty_ = true;
     return true;
@@ -235,6 +279,78 @@ void Simulation::grant_capability(CapabilityId capability)
         throw std::invalid_argument("invalid capability");
     }
     capabilities_ |= capability_bit(capability);
+}
+
+void Simulation::start_discovery_project(DiscoveryProjectId project, BuildingId host)
+{
+    const auto& project_definition = discovery_project_definition(project);
+    if (has_capability(project_definition.grants_capability)) {
+        throw std::invalid_argument("capability already discovered");
+    }
+    if (std::any_of(
+            discovery_projects_.begin(),
+            discovery_projects_.end(),
+            [project](const DiscoveryProject& active) {
+                return active.project == project;
+            })) {
+        throw std::invalid_argument("discovery project is already active");
+    }
+
+    auto& host_building = building(host);
+    if (!host_building.position.has_value()) {
+        throw std::invalid_argument("discovery project host is not placed");
+    }
+    if (host_building.kind != project_definition.required_host) {
+        throw std::invalid_argument("discovery project requires a storehouse host");
+    }
+
+    const auto& host_definition = definition(host_building.kind);
+    if (!map_.has_path_access(*host_building.position, host_definition.footprint)) {
+        throw std::invalid_argument("discovery project host needs path access");
+    }
+
+    for (std::size_t index = 0; index < resource_count; ++index) {
+        const auto quantity = project_definition.inputs[index];
+        if (quantity <= 0) {
+            continue;
+        }
+        const auto resource = static_cast<ResourceId>(index);
+        if (host_building.inventory.available(resource) < quantity) {
+            throw std::invalid_argument("discovery project is missing hosted inputs");
+        }
+    }
+
+    if (map_.map_resource_quantity_within_radius(
+            *host_building.position,
+            host_definition.footprint,
+            project_definition.map_resource,
+            project_definition.map_radius)
+        < project_definition.map_resource_quantity) {
+        throw std::invalid_argument("discovery project is missing nearby map resource");
+    }
+
+    for (std::size_t index = 0; index < resource_count; ++index) {
+        const auto quantity = project_definition.inputs[index];
+        if (quantity > 0) {
+            host_building.inventory.remove(static_cast<ResourceId>(index), quantity);
+            stats_.consumed[index] += quantity;
+        }
+    }
+    if (!map_.harvest_map_resource_within_radius(
+            *host_building.position,
+            host_definition.footprint,
+            project_definition.map_resource,
+            project_definition.map_radius,
+            project_definition.map_resource_quantity)) {
+        throw std::runtime_error("discovery project map resource consumption failed");
+    }
+
+    discovery_projects_.push_back(DiscoveryProject{
+        .project = project,
+        .host = host,
+        .labor_completed = 0,
+        .assigned_workers = 0
+    });
 }
 
 bool Simulation::has_capability(CapabilityId capability) const
@@ -404,6 +520,7 @@ void Simulation::tick()
     advance_transport_jobs();
     run_production();
     run_construction();
+    run_discovery_projects();
 
     ++current_tick_;
 
@@ -613,6 +730,24 @@ LogisticsSummary Simulation::logistics_summary() const
         }
     }
 
+    return summary;
+}
+
+DiscoveryProjectSummary Simulation::discovery_project_summary() const
+{
+    auto summary = DiscoveryProjectSummary{};
+    summary.active_projects = static_cast<int>(discovery_projects_.size());
+    for (const auto& project : discovery_projects_) {
+        const auto& project_definition = discovery_project_definition(project.project);
+        summary.active_workers += project.assigned_workers;
+        if (!summary.next_project.has_value()) {
+            summary.next_project = project.project;
+            summary.next_host = project.host;
+            summary.next_labor_remaining = std::max<Tick>(
+                0,
+                project_definition.labor_minutes - project.labor_completed);
+        }
+    }
     return summary;
 }
 
@@ -930,6 +1065,56 @@ void Simulation::run_construction()
             complete_construction(site);
         }
     }
+}
+
+void Simulation::run_discovery_projects()
+{
+    auto available_workers = std::max(0, idle_workers_ - static_cast<int>(transport_jobs_.size()));
+    for (const auto& building : buildings_) {
+        available_workers -= building.assigned_builders;
+    }
+    available_workers = std::max(0, available_workers);
+
+    for (auto& project : discovery_projects_) {
+        project.assigned_workers = 0;
+        if (available_workers <= 0) {
+            continue;
+        }
+
+        const auto* host = find_building(project.host);
+        if (host == nullptr) {
+            continue;
+        }
+
+        const auto& project_definition = discovery_project_definition(project.project);
+        const auto remaining_labor = project_definition.labor_minutes - project.labor_completed;
+        if (remaining_labor <= 0) {
+            continue;
+        }
+
+        const auto workers = std::min({
+            project_definition.worker_slots,
+            available_workers,
+            static_cast<int>(std::min<Tick>(remaining_labor, project_definition.worker_slots))
+        });
+        if (workers <= 0) {
+            continue;
+        }
+
+        project.assigned_workers = workers;
+        project.labor_completed += workers;
+        available_workers -= workers;
+    }
+
+    for (const auto& project : discovery_projects_) {
+        const auto& project_definition = discovery_project_definition(project.project);
+        if (project.labor_completed >= project_definition.labor_minutes) {
+            grant_capability(project_definition.grants_capability);
+        }
+    }
+    std::erase_if(discovery_projects_, [this](const DiscoveryProject& project) {
+        return has_capability(discovery_project_definition(project.project).grants_capability);
+    });
 }
 
 void Simulation::consume_daily_bread()

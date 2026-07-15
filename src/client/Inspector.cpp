@@ -218,6 +218,22 @@ std::string duration_text(Tick minutes)
     return std::to_string(minutes) + " MINUTES";
 }
 
+std::string capability_summary_line(const Simulation& simulation)
+{
+    auto output = std::ostringstream{};
+    auto wrote_capability = false;
+    for (std::size_t index = 0; index < capability_count; ++index) {
+        const auto capability = static_cast<CapabilityId>(index);
+        if (!simulation.has_capability(capability)) {
+            continue;
+        }
+        output << (wrote_capability ? ", " : "")
+               << capability_name(capability);
+        wrote_capability = true;
+    }
+    return wrote_capability ? output.str() : "NONE";
+}
+
 std::string objective_progress_line(const VillageObjectiveStatus& status)
 {
     auto output = std::ostringstream{};
@@ -390,6 +406,30 @@ int draw_economy_summary(SDL_Renderer* renderer,
         }
     }
 
+    const auto projects = simulation.discovery_project_summary();
+    if (projects.active_projects > 0) {
+        y += 8;
+        draw_text(renderer, x, y, "DISCOVERY", text, 2);
+        y += 24;
+        draw_text(renderer, x, y,
+            std::string{"PROJECTS: "} + std::to_string(projects.active_projects)
+                + "  WORKERS: " + std::to_string(projects.active_workers),
+            muted, 1);
+        y += 16;
+        if (projects.next_project.has_value()) {
+            draw_text(renderer, x, y,
+                std::string{"NEXT: "}
+                    + std::string{discovery_project_definition(*projects.next_project).name},
+                muted, 2);
+            y += 20;
+            draw_text(renderer, x, y,
+                std::string{"LABOR REMAINING: "}
+                    + duration_text(projects.next_labor_remaining),
+                muted, 1);
+            y += 20;
+        }
+    }
+
     const auto logistics = simulation.logistics_summary();
     if (logistics.active_jobs > 0
         || resource_total(logistics.reserved_incoming) > 0
@@ -419,6 +459,11 @@ int draw_economy_summary(SDL_Renderer* renderer,
     }
 
     y = draw_objective_summary(renderer, objectives, x, y, text, muted);
+
+    draw_text(renderer, x, y, "CAPABILITIES", text, 2);
+    y += 24;
+    draw_text(renderer, x, y, capability_summary_line(simulation), muted, 2);
+    y += 28;
 
     const auto totals = simulation.total_inventory();
     draw_text(renderer, x, y, "STORED", text, 2);

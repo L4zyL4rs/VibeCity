@@ -43,6 +43,11 @@ struct AddInventoryCommand {
     Quantity quantity = 0;
 };
 
+struct StartDiscoveryProjectCommand {
+    DiscoveryProjectId project = DiscoveryProjectId::PotteryExperiment;
+    BuildingId host = 0;
+};
+
 struct AdvanceTimeCommand {
     Tick ticks = 0;
 };
@@ -55,6 +60,7 @@ using GameCommand = std::variant<
     PlaceConstructionCommand,
     SetResidentsCommand,
     AddInventoryCommand,
+    StartDiscoveryProjectCommand,
     AdvanceTimeCommand>;
 
 struct CommandResult {

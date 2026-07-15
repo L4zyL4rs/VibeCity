@@ -46,6 +46,34 @@ struct LogisticsSummary {
     ResourceArray in_transit{};
 };
 
+struct DiscoveryProjectDefinition {
+    DiscoveryProjectId project = DiscoveryProjectId::PotteryExperiment;
+    std::string_view name;
+    CapabilityId grants_capability = CapabilityId::Pottery;
+    BuildingKind required_host = BuildingKind::Storehouse;
+    ResourceArray inputs{};
+    MapResourceId map_resource = MapResourceId::Clay;
+    Quantity map_resource_quantity = 0;
+    int map_radius = 0;
+    Tick labor_minutes = 0;
+    int worker_slots = 0;
+};
+
+struct DiscoveryProject {
+    DiscoveryProjectId project = DiscoveryProjectId::PotteryExperiment;
+    BuildingId host = 0;
+    Tick labor_completed = 0;
+    int assigned_workers = 0;
+};
+
+struct DiscoveryProjectSummary {
+    int active_projects = 0;
+    int active_workers = 0;
+    std::optional<DiscoveryProjectId> next_project;
+    std::optional<BuildingId> next_host;
+    Tick next_labor_remaining = 0;
+};
+
 using TransportJobId = std::uint32_t;
 
 enum class TransportJobState : std::uint8_t {
@@ -89,6 +117,7 @@ struct SimulationState {
     std::vector<MapResourceDeposit> map_resources;
     std::vector<BuildingInstance> buildings;
     std::vector<TransportJob> transport_jobs;
+    std::vector<DiscoveryProject> discovery_projects;
     BuildingId next_building_id = 1;
     TransportJobId next_transport_job_id = 1;
     int next_auto_building_x = 1;
@@ -115,6 +144,7 @@ public:
     [[nodiscard]] const BuildingInstance& building(BuildingId id) const;
     [[nodiscard]] const std::vector<BuildingInstance>& buildings() const;
     [[nodiscard]] const std::vector<TransportJob>& transport_jobs() const;
+    [[nodiscard]] const std::vector<DiscoveryProject>& discovery_projects() const;
     [[nodiscard]] const TileMap& map() const;
     [[nodiscard]] const BuildingCatalog& building_catalog() const;
     [[nodiscard]] std::shared_ptr<const BuildingCatalog> building_catalog_ptr() const;
@@ -127,6 +157,7 @@ public:
     bool remove_path(GridPosition position);
     bool demolish_building(BuildingId id);
     void grant_capability(CapabilityId capability);
+    void start_discovery_project(DiscoveryProjectId project, BuildingId host);
     [[nodiscard]] bool has_capability(CapabilityId capability) const;
     [[nodiscard]] CapabilityMask capability_mask() const;
     [[nodiscard]] std::optional<CapabilityId> missing_capability(BuildingKind kind) const;
@@ -155,6 +186,7 @@ public:
     [[nodiscard]] PopulationGrowthBlocker population_growth_blocker() const;
     [[nodiscard]] ConstructionSummary construction_summary() const;
     [[nodiscard]] LogisticsSummary logistics_summary() const;
+    [[nodiscard]] DiscoveryProjectSummary discovery_project_summary() const;
     [[nodiscard]] ResourceArray total_inventory() const;
     [[nodiscard]] const ResourceStats& stats() const;
     [[nodiscard]] SimulationState state() const;
@@ -184,6 +216,7 @@ private:
     void dispatch_logistics();
     void advance_transport_jobs();
     void run_construction();
+    void run_discovery_projects();
     void consume_daily_bread();
     void grow_population();
     [[nodiscard]] std::vector<ResourceRequest> collect_resource_requests() const;
@@ -210,6 +243,7 @@ private:
     // Buildings are append-only so stable ID N remains at index N - 1.
     std::vector<BuildingInstance> buildings_;
     std::vector<TransportJob> transport_jobs_;
+    std::vector<DiscoveryProject> discovery_projects_;
     TileMap map_{128, 128};
     PathDistanceField logistics_distance_field_;
     std::shared_ptr<const BuildingCatalog> catalog_;
@@ -225,5 +259,6 @@ private:
 
 [[nodiscard]] std::string_view transport_job_state_name(TransportJobState state);
 [[nodiscard]] std::string_view population_growth_blocker_text(PopulationGrowthBlocker blocker);
+[[nodiscard]] const DiscoveryProjectDefinition& discovery_project_definition(DiscoveryProjectId project);
 
 }

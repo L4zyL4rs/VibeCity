@@ -104,6 +104,10 @@ CommandResult GameSession::execute(const GameCommand& command)
                 }
                 return ok("inventory added", add_inventory.building);
             },
+            [this](const StartDiscoveryProjectCommand& start_project) {
+                simulation_.start_discovery_project(start_project.project, start_project.host);
+                return ok("discovery project started", start_project.host);
+            },
             [this](const AdvanceTimeCommand& advance_time) {
                 if (advance_time.ticks < 0) {
                     return failed("cannot advance negative ticks");

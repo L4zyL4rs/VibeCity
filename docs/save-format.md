@@ -23,6 +23,7 @@ The save contains all authoritative gameplay state required for deterministic co
 - building inventories, capacities, and reservations
 - residents, workers, hunger, production, and construction progress
 - active transport jobs and selected route durations
+- active discovery projects and their labor progress
 - accumulated production, consumption, transport, and construction statistics
 - unlocked settlement capabilities
 - village objective history
@@ -32,7 +33,7 @@ Saving writes a temporary file and then replaces the previous save. Loading pars
 
 ## Binary Layout
 
-Version 9 is an explicitly little-endian binary format:
+Version 10 is an explicitly little-endian binary format:
 
 1. Eight-byte `VIBECITY` magic.
 2. Unsigned 32-bit format version.
@@ -44,6 +45,8 @@ The checksum detects accidental corruption; it is not a security or authenticity
 
 Buildings and transport-job resources use stable string IDs in the payload.
 Unlocked capabilities also use stable string IDs in the payload.
+Discovery projects use stable string IDs and keep their host building ID plus
+labor progress.
 Fixed-size resource arrays remain in the documented core resource order: grain,
 bread, timber, firewood, stone, tools, bricks, pottery. The payload also stores a
 deterministic fingerprint of every simulation-relevant building field.
@@ -59,6 +62,7 @@ The loader rejects:
 - overlapping paths and buildings
 - invalid, duplicate, or overlapping terrain and map-resource deposits
 - invalid or duplicate capability IDs
+- invalid or duplicate active discovery projects
 - inventory quantities or reservations outside capacity
 - transport jobs whose reservations do not match inventories
 - building state that does not match the current building definitions
@@ -66,7 +70,7 @@ The loader rejects:
 
 ## Version Policy
 
-There is no migration layer yet. Versions 1 through 8 are rejected. Any incompatible
+There is no migration layer yet. Versions 1 through 9 are rejected. Any incompatible
 payload change must increment the save version and either add an explicit
 migration or reject older saves with a clear error. Simulation-relevant building
 definition changes are detected by the catalog fingerprint without silently

@@ -400,3 +400,23 @@ Notes:
 - The generic 100-building case is slower in this sample but still in the same
   order of magnitude; it should be treated as a new baseline, not a regression
   diagnosis, until repeated measurements are taken.
+
+### 2026-07-15 Pottery Discovery Project Slice
+
+Discovery projects are now persistent simulation state and run a lightweight
+per-tick labor pass. The current benchmark scenarios do not start discovery
+projects, so this sample mainly checks idle overhead.
+
+Representative default-build sample:
+
+| Case | Ticks | Milliseconds | Ticks/s | Buildings | Active Jobs | Transported | Resource Tiles | Resource Quantity | Constructed |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| starting village 30d | 43,200 | 21.59 | 2,001,044 | 4 | 0 | 60 | 479 | 3,268 | 0 |
+| construction village 30d | 43,200 | 104.10 | 415,001 | 9 | 0 | 1,759 | 461 | 3,159 | 5 |
+| 100 buildings 10d | 14,400 | 2,059.37 | 6,992 | 100 | 45 | 91,184 | 5,702 | 38,989 | 0 |
+
+Notes:
+
+- The reference milestone still completes with all eight objectives.
+- The 100-building case is close to the previous baseline; no obvious
+  discovery-project overhead shows up when no project is active.

@@ -56,4 +56,31 @@ inline std::optional<CapabilityId> capability_id_from_string(std::string_view id
     return std::nullopt;
 }
 
+enum class DiscoveryProjectId : std::uint8_t {
+    PotteryExperiment,
+    Count
+};
+
+inline constexpr auto discovery_project_count =
+    static_cast<std::size_t>(DiscoveryProjectId::Count);
+
+constexpr std::array<std::string_view, discovery_project_count> discovery_project_names{
+    "pottery_experiment"
+};
+
+constexpr std::string_view discovery_project_name(DiscoveryProjectId project)
+{
+    return discovery_project_names[static_cast<std::size_t>(project)];
+}
+
+inline std::optional<DiscoveryProjectId> discovery_project_id_from_string(std::string_view id)
+{
+    for (std::size_t index = 0; index < discovery_project_names.size(); ++index) {
+        if (discovery_project_names[index] == id) {
+            return static_cast<DiscoveryProjectId>(index);
+        }
+    }
+    return std::nullopt;
+}
+
 }

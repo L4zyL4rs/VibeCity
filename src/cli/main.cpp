@@ -67,6 +67,43 @@ void print_transport_jobs(const vibecity::Simulation& simulation)
     }
 }
 
+void print_capabilities(const vibecity::Simulation& simulation)
+{
+    bool printed_any = false;
+    for (std::size_t index = 0; index < vibecity::capability_count; ++index) {
+        const auto capability = static_cast<vibecity::CapabilityId>(index);
+        if (!simulation.has_capability(capability)) {
+            continue;
+        }
+        if (printed_any) {
+            std::cout << ", ";
+        }
+        std::cout << vibecity::capability_name(capability);
+        printed_any = true;
+    }
+    if (!printed_any) {
+        std::cout << "none";
+    }
+}
+
+void print_discovery_projects(const vibecity::Simulation& simulation)
+{
+    if (simulation.discovery_projects().empty()) {
+        std::cout << "none\n";
+        return;
+    }
+
+    for (const auto& project : simulation.discovery_projects()) {
+        const auto& definition = vibecity::discovery_project_definition(project.project);
+        std::cout << definition.name
+                  << " host=#" << project.host
+                  << " workers=" << project.assigned_workers
+                  << " labor=" << project.labor_completed
+                  << "/" << definition.labor_minutes
+                  << "\n";
+    }
+}
+
 void print_objectives(const vibecity::VillageObjectiveTracker& objectives)
 {
     std::cout << "completed=" << objectives.completed_count()
@@ -180,6 +217,10 @@ int main(int argc, char** argv)
         std::cout << "\nTransported: ";
         print_resource_array(simulation.stats().transported);
         std::cout << "\nConstructed buildings: " << simulation.stats().constructed_buildings;
+        std::cout << "\nCapabilities: ";
+        print_capabilities(simulation);
+        std::cout << "\nDiscovery projects:\n";
+        print_discovery_projects(simulation);
         std::cout << "\nStored: ";
         print_resource_array(simulation.total_inventory());
         std::cout << "\nObjectives:\n";

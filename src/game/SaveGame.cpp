@@ -19,7 +19,7 @@ namespace {
 constexpr std::array<std::uint8_t, 8> save_magic{
     'V', 'I', 'B', 'E', 'C', 'I', 'T', 'Y'
 };
-constexpr std::uint32_t save_version = 9;
+constexpr std::uint32_t save_version = 10;
 constexpr std::size_t save_header_size = save_magic.size() + sizeof(std::uint32_t)
     + sizeof(std::uint64_t) + sizeof(std::uint64_t);
 constexpr std::uint64_t max_save_bytes = 64 * 1024 * 1024;
@@ -374,6 +374,14 @@ void write_transport_job(ByteWriter& writer, const TransportJob& job)
     writer.i64(job.delivery_ticks);
 }
 
+void write_discovery_project(ByteWriter& writer, const DiscoveryProject& project)
+{
+    writer.string(discovery_project_name(project.project));
+    writer.u32(project.host);
+    writer.i64(project.labor_completed);
+    writer.i32(project.assigned_workers);
+}
+
 TransportJob read_transport_job(ByteReader& reader)
 {
     const auto id = reader.u32();
@@ -394,6 +402,20 @@ TransportJob read_transport_job(ByteReader& reader)
         .ticks_remaining = reader.i64(),
         .leg_ticks_total = reader.i64(),
         .delivery_ticks = reader.i64()
+    };
+}
+
+DiscoveryProject read_discovery_project(ByteReader& reader)
+{
+    const auto project = discovery_project_id_from_string(reader.string());
+    if (!project.has_value()) {
+        throw std::runtime_error("unknown discovery project stable ID in save");
+    }
+    return DiscoveryProject{
+        .project = *project,
+        .host = reader.u32(),
+        .labor_completed = reader.i64(),
+        .assigned_workers = reader.i32()
     };
 }
 
@@ -418,6 +440,7 @@ void write_simulation(ByteWriter& writer, const Simulation& simulation)
     if (state.paths.size() > std::numeric_limits<std::uint32_t>::max()
         || state.terrain.size() > std::numeric_limits<std::uint32_t>::max()
         || state.map_resources.size() > std::numeric_limits<std::uint32_t>::max()
+        || state.discovery_projects.size() > std::numeric_limits<std::uint32_t>::max()
         || state.buildings.size() > max_saved_buildings
         || state.transport_jobs.size() > max_saved_jobs) {
         throw std::runtime_error("game state is too large to save");
@@ -452,6 +475,11 @@ void write_simulation(ByteWriter& writer, const Simulation& simulation)
     writer.u32(static_cast<std::uint32_t>(state.transport_jobs.size()));
     for (const auto& job : state.transport_jobs) {
         write_transport_job(writer, job);
+    }
+
+    writer.u32(static_cast<std::uint32_t>(state.discovery_projects.size()));
+    for (const auto& project : state.discovery_projects) {
+        write_discovery_project(writer, project);
     }
 }
 
@@ -547,6 +575,15 @@ SimulationState read_simulation(ByteReader& reader, const BuildingCatalog& catal
     state.transport_jobs.reserve(job_count);
     for (auto index = std::uint32_t{0}; index < job_count; ++index) {
         state.transport_jobs.push_back(read_transport_job(reader));
+    }
+
+    const auto active_project_count = reader.u32();
+    if (active_project_count > discovery_project_count) {
+        throw std::runtime_error("too many discovery projects in save");
+    }
+    state.discovery_projects.reserve(active_project_count);
+    for (auto index = std::uint32_t{0}; index < active_project_count; ++index) {
+        state.discovery_projects.push_back(read_discovery_project(reader));
     }
     return state;
 }

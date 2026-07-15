@@ -39,6 +39,8 @@ Already implemented:
 - Production recipes and storage capacities.
 - Persistent settlement capabilities and capability-gated construction menu
   rows for pottery and brickmaking content.
+- A first pottery discovery project that consumes hosted firewood, nearby clay,
+  and idle worker labor before granting the pottery capability.
 - Houses consuming bread daily.
 - Settlement population facts: residents, housing capacity, free housing, and daily bread need.
 - Food pressure facts: stored bread and days of bread remaining.
