@@ -31,8 +31,7 @@ understand when production stops or must move elsewhere.
 - New maps generate deterministic fertile and rocky terrain bands from explicit
   world-generation settings.
 - Terrain is stored as authoritative simulation data and persisted in saves.
-- Shallow water is supported as blocked terrain for roads and buildings, though
-  it is not generated in the starter map yet.
+- Shallow water is supported as blocked terrain for roads and buildings.
 - Map resources validate their terrain support: forest on grass/fertile tiles
   and clay on grass/fertile tiles, stone on rocky tiles.
 - Stone deposits are generated on rocky terrain and rendered separately from
@@ -107,12 +106,23 @@ understand when production stops or must move elsewhere.
   the generic default map.
 - The reference route has authored nearby fertile land for the two farms,
   forest pockets for the two woodcutters, a rocky ridge for the quarry spur,
-  and a visible clay pocket for future brickyard play.
+  a visible clay pocket for future brickyard play, and nearby surface water for
+  future water-service experiments.
 - The SDL client, headless scenario, starting-village benchmarks, and
   command-layer milestone tests all construct the starter scenario with the
   same generation settings.
 - The route-support test asserts that the reference farm, woodcutter, quarry,
   and brickyard opportunities remain viable when generation is retuned.
+
+## Implemented: Surface Water Generation
+
+- World generation settings can now create shallow-water lake patches.
+- World generation settings can now create one deterministic straight or bent
+  shallow-water river.
+- Generated water overrides earlier fertile or rocky terrain and blocks roads,
+  buildings, and finite map resources.
+- The starter scenario uses both a lake patch and a bent river as visible
+  surface-water groundwork without adding hauled water demands yet.
 
 ## Design Direction: Goods, Services, And Maintenance
 
@@ -161,15 +171,13 @@ electricity or industry:
 
 ## Next Programming Slices
 
-1. Add surface-water generation primitives for rivers and lakes without making
-   water a transported household resource yet.
-2. Decide whether bricks gate a road upgrade, storage upgrade, water
+1. Decide whether bricks gate a road upgrade, storage upgrade, water
    infrastructure, or the next village objective.
-3. Prototype a tool-condition model where tooling changes productivity before
+2. Prototype a tool-condition model where tooling changes productivity before
    adding more economic chains.
-4. Prototype rough-stone to dressed-stone refinement for medieval
+3. Prototype rough-stone to dressed-stone refinement for medieval
    infrastructure.
-5. Better generation controls for water and broader map shapes.
+4. Better generation controls for water and broader map shapes.
 
 ## Deliberate Limits
 
@@ -187,5 +195,7 @@ electricity or industry:
   generation is still blob-based and temporary.
 - Water is planned as a local service/network first, not as a hauled daily
   input for every house.
+- Generated water exists as terrain only; it does not yet satisfy wells,
+  buildings, or any service coverage.
 - Tool wear is planned as deterministic condition and productivity pressure,
   not random tool breakage.

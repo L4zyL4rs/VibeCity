@@ -101,8 +101,8 @@ the second bakery is underway.
 
 The exact coordinates are not meant to be final gameplay advice. They are a
 control route matching the automated milestone test. The starter map is now
-authored so fertile land, forest, stone, and clay are deliberately near this
-route while still requiring placement choices.
+authored so fertile land, forest, stone, clay, and surface water are
+deliberately near this route while still requiring placement choices.
 
 ## Feedback To Capture
 
@@ -125,7 +125,11 @@ When I ask for detailed input, please report these points:
 - Clay/brickyards: can you identify clay deposits, place a brickyard near
   usable clay, and understand that it also needs firewood to make bricks?
 - Terrain/resources: can you distinguish normal grass, fertile terrain, rocky
-  terrain, forests, stone deposits, and clay deposits without guessing?
+  terrain, shallow water, forests, stone deposits, and clay deposits without
+  guessing?
+- Surface water: does the nearby water read as a meaningful future constraint,
+  and is it clear that it currently blocks construction without yet supplying
+  houses or workshops?
 - Map lenses: does the resource lens make deposits easier to find, and does
   the terrain lens make fertile/rocky regions easier to read without hiding
   roads and buildings too much?

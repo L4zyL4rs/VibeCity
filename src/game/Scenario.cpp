@@ -95,6 +95,23 @@ WorldGenerationSettings starting_village_world_generation_settings()
         .radius = 5,
         .skip_mod = 4
     };
+    settings.lakes = PatchGenerationSettings{
+        .enabled = true,
+        .start_x = 37,
+        .start_y = 12,
+        .spacing_x = 128,
+        .spacing_y = 128,
+        .radius = 3,
+        .skip_mod = 0
+    };
+    settings.river = RiverGenerationSettings{
+        .enabled = true,
+        .start = GridPosition{44, 0},
+        .bend = GridPosition{38, 12},
+        .end = GridPosition{45, 31},
+        .use_bend = true,
+        .half_width = 0
+    };
     settings.stone_deposits = true;
     settings.stone_skip_mod = 3;
     return settings;

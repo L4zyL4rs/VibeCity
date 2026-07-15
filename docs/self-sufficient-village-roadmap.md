@@ -66,7 +66,8 @@ Already implemented:
 - Quarries now require rocky terrain and harvest finite stone deposits through
   the same data-driven gathering rules as woodcutters.
 - The starting village now uses authored world-generation settings for its
-  fertile land, forest pockets, rocky quarry ridge, and visible clay pocket.
+  fertile land, forest pockets, rocky quarry ridge, visible clay pocket, and
+  nearby surface water.
 - New storehouses require delivered stone, making at least one construction
   material geographic.
 - First client splits: pixel text helpers, core palette helpers, map-view helpers, HUD helpers, inspector helpers, input handling, and client mode definitions live outside `src/client/main.cpp`.

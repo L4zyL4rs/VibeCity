@@ -355,3 +355,26 @@ Notes:
   now use the smaller authored starter map resource layout.
 - The reference milestone still completes with all eight objectives on the
   tuned map.
+
+### 2026-07-15 Surface Water Generation
+
+World generation settings now support shallow-water lake patches and one
+straight or bent shallow-water river. The starter scenario enables both as
+terrain groundwork for future water services, but water is not a transported
+resource and does not affect the current milestone economy. The generated
+100-building benchmark still uses the generic default map with water disabled.
+
+Representative default-build sample:
+
+| Case | Ticks | Milliseconds | Ticks/s | Buildings | Active Jobs | Transported | Resource Tiles | Resource Quantity | Constructed |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| starting village 30d | 43,200 | 19.12 | 2,259,733 | 4 | 0 | 60 | 479 | 3,268 | 0 |
+| construction village 30d | 43,200 | 94.71 | 456,152 | 9 | 0 | 1,759 | 461 | 3,159 | 5 |
+| 100 buildings 10d | 14,400 | 1,959.84 | 7,348 | 100 | 45 | 91,184 | 5,702 | 38,989 | 0 |
+
+Notes:
+
+- Starter scenario resource counters dropped slightly because shallow water
+  overrides a few terrain/resource tiles in the authored map.
+- The reference milestone still completes with all eight objectives on the
+  water-enabled starter map.

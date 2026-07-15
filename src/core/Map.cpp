@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <queue>
 #include <stdexcept>
 #include <tuple>
@@ -35,6 +36,91 @@ bool skipped_by_hash(GridPosition position, std::uint32_t seed, std::uint32_t sk
 bool patch_settings_are_valid(const PatchGenerationSettings& settings)
 {
     return settings.spacing_x > 0 && settings.spacing_y > 0 && settings.radius >= 0;
+}
+
+void apply_terrain_patch(
+    TileMap& map,
+    const PatchGenerationSettings& settings,
+    TerrainId terrain,
+    std::uint32_t seed)
+{
+    if (!settings.enabled || !patch_settings_are_valid(settings)) {
+        return;
+    }
+
+    const auto radius_squared = settings.radius * settings.radius;
+    for (int center_y = settings.start_y; center_y < map.height(); center_y += settings.spacing_y) {
+        for (int center_x = settings.start_x; center_x < map.width(); center_x += settings.spacing_x) {
+            for (int y = center_y - settings.radius; y <= center_y + settings.radius; ++y) {
+                for (int x = center_x - settings.radius; x <= center_x + settings.radius; ++x) {
+                    const auto position = GridPosition{x, y};
+                    const auto dx = x - center_x;
+                    const auto dy = y - center_y;
+                    if (!map.in_bounds(position)
+                        || dx * dx + dy * dy > radius_squared
+                        || skipped_by_hash(position, seed, settings.skip_mod)) {
+                        continue;
+                    }
+                    map.set_terrain(position, terrain);
+                }
+            }
+        }
+    }
+}
+
+void apply_river_tile(TileMap& map, GridPosition center, int half_width)
+{
+    const auto width = std::max(0, half_width);
+    const auto width_squared = width * width;
+    for (int y = center.y - width; y <= center.y + width; ++y) {
+        for (int x = center.x - width; x <= center.x + width; ++x) {
+            const auto position = GridPosition{x, y};
+            const auto dx = x - center.x;
+            const auto dy = y - center.y;
+            if (!map.in_bounds(position)
+                || dx * dx + dy * dy > width_squared) {
+                continue;
+            }
+            map.set_terrain(position, TerrainId::ShallowWater);
+        }
+    }
+}
+
+void apply_river_segment(TileMap& map, GridPosition start, GridPosition end, int half_width)
+{
+    const auto dx = end.x - start.x;
+    const auto dy = end.y - start.y;
+    const auto steps = std::max(std::abs(dx), std::abs(dy));
+    if (steps == 0) {
+        apply_river_tile(map, start, half_width);
+        return;
+    }
+
+    for (int step = 0; step <= steps; ++step) {
+        const auto progress = static_cast<double>(step) / static_cast<double>(steps);
+        const auto position = GridPosition{
+            .x = static_cast<int>(std::lround(
+                static_cast<double>(start.x) + static_cast<double>(dx) * progress)),
+            .y = static_cast<int>(std::lround(
+                static_cast<double>(start.y) + static_cast<double>(dy) * progress))
+        };
+        apply_river_tile(map, position, half_width);
+    }
+}
+
+void apply_river(TileMap& map, const RiverGenerationSettings& settings)
+{
+    if (!settings.enabled || settings.half_width < 0) {
+        return;
+    }
+
+    if (settings.use_bend) {
+        apply_river_segment(map, settings.start, settings.bend, settings.half_width);
+        apply_river_segment(map, settings.bend, settings.end, settings.half_width);
+        return;
+    }
+
+    apply_river_segment(map, settings.start, settings.end, settings.half_width);
 }
 
 }
@@ -653,26 +739,7 @@ void TileMap::generate_terrain(const WorldGenerationSettings& settings)
         }
     }
 
-    if (settings.fertile.enabled && patch_settings_are_valid(settings.fertile)) {
-        const auto fertile_radius_squared = settings.fertile.radius * settings.fertile.radius;
-        for (int center_y = settings.fertile.start_y; center_y < height_; center_y += settings.fertile.spacing_y) {
-            for (int center_x = settings.fertile.start_x; center_x < width_; center_x += settings.fertile.spacing_x) {
-                for (int y = center_y - settings.fertile.radius; y <= center_y + settings.fertile.radius; ++y) {
-                    for (int x = center_x - settings.fertile.radius; x <= center_x + settings.fertile.radius; ++x) {
-                        const auto position = GridPosition{x, y};
-                        const auto dx = x - center_x;
-                        const auto dy = y - center_y;
-                        if (!in_bounds(position)
-                            || dx * dx + dy * dy > fertile_radius_squared
-                            || skipped_by_hash(position, settings.seed, settings.fertile.skip_mod)) {
-                            continue;
-                        }
-                        set_terrain(position, TerrainId::Fertile);
-                    }
-                }
-            }
-        }
-    }
+    apply_terrain_patch(*this, settings.fertile, TerrainId::Fertile, settings.seed);
 
     if (settings.starter_fertile_strip) {
         for (int y = 1; y <= 3 && y < height_; ++y) {
@@ -682,26 +749,9 @@ void TileMap::generate_terrain(const WorldGenerationSettings& settings)
         }
     }
 
-    if (settings.rocky.enabled && patch_settings_are_valid(settings.rocky)) {
-        const auto rocky_radius_squared = settings.rocky.radius * settings.rocky.radius;
-        for (int center_y = settings.rocky.start_y; center_y < height_; center_y += settings.rocky.spacing_y) {
-            for (int center_x = settings.rocky.start_x; center_x < width_; center_x += settings.rocky.spacing_x) {
-                for (int y = center_y - settings.rocky.radius; y <= center_y + settings.rocky.radius; ++y) {
-                    for (int x = center_x - settings.rocky.radius; x <= center_x + settings.rocky.radius; ++x) {
-                        const auto position = GridPosition{x, y};
-                        const auto dx = x - center_x;
-                        const auto dy = y - center_y;
-                        if (!in_bounds(position)
-                            || dx * dx + dy * dy > rocky_radius_squared
-                            || skipped_by_hash(position, settings.seed, settings.rocky.skip_mod)) {
-                            continue;
-                        }
-                        set_terrain(position, TerrainId::Rocky);
-                    }
-                }
-            }
-        }
-    }
+    apply_terrain_patch(*this, settings.rocky, TerrainId::Rocky, settings.seed);
+    apply_terrain_patch(*this, settings.lakes, TerrainId::ShallowWater, settings.seed);
+    apply_river(*this, settings.river);
 }
 
 void TileMap::generate_default_terrain()

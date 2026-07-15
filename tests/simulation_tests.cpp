@@ -120,6 +120,64 @@ void world_generation_settings_control_seed_and_resources()
         }));
 }
 
+void water_generation_creates_lakes_and_rivers()
+{
+    auto settings = vibecity::WorldGenerationSettings{};
+    settings.seed = 42;
+    settings.starter_fertile_strip = false;
+    settings.fertile = vibecity::PatchGenerationSettings{
+        .enabled = true,
+        .start_x = 8,
+        .start_y = 8,
+        .spacing_x = 64,
+        .spacing_y = 64,
+        .radius = 5,
+        .skip_mod = 0
+    };
+    settings.rocky.enabled = false;
+    settings.forest = vibecity::PatchGenerationSettings{
+        .enabled = true,
+        .start_x = 8,
+        .start_y = 8,
+        .spacing_x = 64,
+        .spacing_y = 64,
+        .radius = 5,
+        .skip_mod = 0
+    };
+    settings.clay.enabled = false;
+    settings.lakes = vibecity::PatchGenerationSettings{
+        .enabled = true,
+        .start_x = 8,
+        .start_y = 8,
+        .spacing_x = 64,
+        .spacing_y = 64,
+        .radius = 2,
+        .skip_mod = 0
+    };
+    settings.river = vibecity::RiverGenerationSettings{
+        .enabled = true,
+        .start = vibecity::GridPosition{0, 14},
+        .bend = vibecity::GridPosition{8, 12},
+        .end = vibecity::GridPosition{15, 14},
+        .use_bend = true,
+        .half_width = 1
+    };
+    settings.stone_deposits = false;
+
+    auto map = vibecity::TileMap{32, 32};
+    map.generate_world(settings);
+
+    VIBECITY_CHECK(map.terrain_at(vibecity::GridPosition{8, 8}) == vibecity::TerrainId::ShallowWater);
+    VIBECITY_CHECK(map.terrain_at(vibecity::GridPosition{0, 14}) == vibecity::TerrainId::ShallowWater);
+    VIBECITY_CHECK(map.terrain_at(vibecity::GridPosition{8, 12}) == vibecity::TerrainId::ShallowWater);
+    VIBECITY_CHECK(map.terrain_at(vibecity::GridPosition{15, 14}) == vibecity::TerrainId::ShallowWater);
+    VIBECITY_CHECK(!map.map_resource_at(vibecity::GridPosition{8, 8}).has_value());
+    VIBECITY_CHECK(!map.add_path(vibecity::GridPosition{8, 8}));
+    VIBECITY_CHECK(!map.can_place_building(
+        vibecity::GridPosition{8, 8},
+        vibecity::Footprint{1, 1}));
+}
+
 void terrain_blocks_paths_and_buildings()
 {
     auto map = vibecity::TileMap{8, 8};
@@ -1243,6 +1301,7 @@ int main()
 {
     default_map_resources_are_deterministic();
     world_generation_settings_control_seed_and_resources();
+    water_generation_creates_lakes_and_rivers();
     terrain_blocks_paths_and_buildings();
     map_resources_follow_supported_terrain();
     building_placement_can_require_terrain();

@@ -241,6 +241,11 @@ void starting_village_world_generation_supports_reference_route()
     const auto game = starting_village_session();
     const auto& simulation = game.simulation();
 
+    VIBECITY_CHECK(simulation.map().terrain_at(vibecity::GridPosition{37, 12})
+        == vibecity::TerrainId::ShallowWater);
+    VIBECITY_CHECK(simulation.map().terrain_at(vibecity::GridPosition{38, 12})
+        == vibecity::TerrainId::ShallowWater);
+
     VIBECITY_CHECK(simulation.can_place_building_at(
         vibecity::BuildingKind::Farm,
         vibecity::GridPosition{13, vibecity::starting_village_building_y}));

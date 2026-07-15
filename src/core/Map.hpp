@@ -104,6 +104,15 @@ struct PatchGenerationSettings {
     std::uint32_t skip_mod = 0;
 };
 
+struct RiverGenerationSettings {
+    bool enabled = false;
+    GridPosition start{};
+    GridPosition bend{};
+    GridPosition end{};
+    bool use_bend = false;
+    int half_width = 0;
+};
+
 struct WorldGenerationSettings {
     std::uint32_t seed = 0;
     PatchGenerationSettings fertile{
@@ -142,6 +151,16 @@ struct WorldGenerationSettings {
         .radius = 4,
         .skip_mod = 6
     };
+    PatchGenerationSettings lakes{
+        .enabled = false,
+        .start_x = 48,
+        .start_y = 18,
+        .spacing_x = 48,
+        .spacing_y = 48,
+        .radius = 5,
+        .skip_mod = 0
+    };
+    RiverGenerationSettings river{};
     bool starter_fertile_strip = true;
     bool stone_deposits = true;
     std::uint32_t stone_skip_mod = 5;
