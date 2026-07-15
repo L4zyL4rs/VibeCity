@@ -101,12 +101,63 @@ understand when production stops or must move elsewhere.
 - The default view keeps all layers visible but tones finite deposits down so
   future resource types have room without turning the base map into a legend.
 
+## Design Direction: Goods, Services, And Maintenance
+
+The resource model should become more detailed than a classic city-builder
+input/output chain, but only where the detail creates a clear placement,
+logistics, or scaling decision.
+
+Physical goods are stored, reserved, hauled, and visible. Early examples are
+grain, bread, timber, firewood, stone, clay, bricks, and tools. Later examples
+can include iron ore, charcoal, iron, steel, glass, machinery, and precision
+parts.
+
+Local services affect buildings without necessarily becoming one transported
+unit per consumer per day. Water is the first candidate:
+
+- Early settlements may need access to rivers, lakes, or other surface water
+  before the first wells are practical.
+- Wells can provide local water service to nearby houses and workshops.
+- Aqueducts, canals, cisterns, pipes, or pumps can later extend water capacity
+  and support denser settlement.
+- Houses, bakeries, breweries, tanneries, and similar buildings may require
+  water access, but early play should not become per-house bucket logistics.
+
+Maintenance and capability should add long-term pressure without random
+production failures. Tools are the first candidate:
+
+- Primitive gathering can work with no tools, but poorly.
+- Crude tools improve low-skill extraction and farming.
+- Iron tools enable or strongly improve quarrying, forestry, farming, masonry,
+  and workshop output.
+- Specialized tools should be required for advanced workshops such as
+  blacksmiths or precision crafts.
+- Tool condition should degrade deterministically through work and reduce
+  productivity or block advanced buildings when not maintained.
+
+Material progression should support a long primitive-to-medieval climb before
+electricity or industry:
+
+- Rough stone can support simple construction and foundations.
+- Dressed stone can require a stonemason, tools, and labor, then gate larger
+  buildings, bridges, aqueducts, and civic infrastructure.
+- Clay and firewood can produce bricks for better storage, denser housing,
+  improved roads, or water infrastructure.
+- More specific stone or ore types can wait until regional specialization
+  creates interesting map decisions.
+
 ## Next Programming Slices
 
 1. Scenario-level resource and terrain tuning for the village playtest.
-2. Decide whether bricks gate a road upgrade, storage upgrade, or next village
-   objective.
-3. Better generation controls for water and broader map shapes.
+2. Add surface-water generation primitives for rivers and lakes without making
+   water a transported household resource yet.
+3. Decide whether bricks gate a road upgrade, storage upgrade, water
+   infrastructure, or the next village objective.
+4. Prototype a tool-condition model where tooling changes productivity before
+   adding more economic chains.
+5. Prototype rough-stone to dressed-stone refinement for medieval
+   infrastructure.
+6. Better generation controls for water and broader map shapes.
 
 ## Deliberate Limits
 
@@ -120,3 +171,7 @@ understand when production stops or must move elsewhere.
   data file format for world-generation settings.
 - Stone currently gates the second storehouse in the village milestone, but
   terrain build-cost surcharges are still intentionally small.
+- Water is planned as a local service/network first, not as a hauled daily
+  input for every house.
+- Tool wear is planned as deterministic condition and productivity pressure,
+  not random tool breakage.

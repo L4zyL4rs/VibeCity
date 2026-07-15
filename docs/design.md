@@ -104,6 +104,16 @@ The renderer should not own gameplay logic.
 
 Resources are typed quantities stored in buildings, vehicles, depots, construction sites, districts, or other inventory holders.
 
+The simulation should distinguish physical goods, local services, and
+maintenance state:
+
+- A physical good should exist when storing and transporting it creates an
+  interesting spatial or logistics decision.
+- A local service should exist when placement, coverage, or network capacity is
+  more interesting than hauling individual units to every consumer.
+- A maintenance state should exist when slow degradation, upkeep, or tooling
+  quality creates useful scaling pressure without random stoppages.
+
 Early resources may include:
 
 - Food categories such as grain, bread, vegetables, meat, fish.
@@ -129,6 +139,12 @@ Useful properties:
 - Spoilage or decay rules, if any.
 - Transport requirements.
 - Era availability.
+
+Water should probably start as a local service rather than a per-house hauled
+good: surface water, wells, and later aqueducts or pipes can gate density and
+workshops. Tools should probably start as a condition/productivity system:
+primitive work can continue slowly with poor tools, while advanced workshops
+can require maintained specialized tools.
 
 ### 4.4 Inventories
 
