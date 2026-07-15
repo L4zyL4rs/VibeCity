@@ -65,6 +65,8 @@ Already implemented:
   blockers.
 - Quarries now require rocky terrain and harvest finite stone deposits through
   the same data-driven gathering rules as woodcutters.
+- The starting village now uses authored world-generation settings for its
+  fertile land, forest pockets, rocky quarry ridge, and visible clay pocket.
 - New storehouses require delivered stone, making at least one construction
   material geographic.
 - First client splits: pixel text helpers, core palette helpers, map-view helpers, HUD helpers, inspector helpers, input handling, and client mode definitions live outside `src/client/main.cpp`.
@@ -73,8 +75,9 @@ Already implemented:
 
 Main gaps:
 
-- The first playtest balance pass is implemented, but needs another manual pass
-  now that quarry placement and stone delivery exist.
+- The first playtest balance pass and starter map tuning are implemented, but
+  need another manual pass now that quarry placement, stone delivery, clay, and
+  map lenses exist.
 - Objective completion now has a HUD banner and headless summary, but there is no richer endpoint stats screen.
 - Non-gating benchmark target exists with CSV output and an initial baseline history.
 - Village playtest checklist exists for the first manual usability/pacing pass.

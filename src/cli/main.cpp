@@ -134,7 +134,7 @@ int main(int argc, char** argv)
     using namespace vibecity;
 
     try {
-        GameSession game;
+        GameSession game{starting_village_world_generation_settings()};
         const auto scenario = create_starting_village(game);
         const auto milestone = wants_milestone(argc, argv);
         if (milestone) {

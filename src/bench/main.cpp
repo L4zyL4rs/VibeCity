@@ -115,7 +115,9 @@ void queue_self_sufficient_village(vibecity::GameSession& game)
 
 vibecity::GameSession starting_village()
 {
-    auto game = vibecity::GameSession{};
+    auto game = vibecity::GameSession{
+        vibecity::starting_village_world_generation_settings()
+    };
     [[maybe_unused]] const auto ids = vibecity::create_starting_village(game);
     return game;
 }

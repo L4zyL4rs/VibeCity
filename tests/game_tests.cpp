@@ -42,6 +42,13 @@ const vibecity::VillageObjectiveStatus& objective_status(const vibecity::GameSes
     return game.objectives().statuses()[static_cast<std::size_t>(id)];
 }
 
+vibecity::GameSession starting_village_session()
+{
+    return vibecity::GameSession{
+        vibecity::starting_village_world_generation_settings()
+    };
+}
+
 vibecity::GridPosition first_buildable_house_site_on(
     const vibecity::Simulation& simulation,
     vibecity::TerrainId terrain)
@@ -56,6 +63,41 @@ vibecity::GridPosition first_buildable_house_site_on(
         }
     }
     throw std::runtime_error("could not find buildable house site");
+}
+
+bool inside_footprint(
+    vibecity::GridPosition tile,
+    vibecity::GridPosition position,
+    vibecity::Footprint footprint)
+{
+    return tile.x >= position.x
+        && tile.y >= position.y
+        && tile.x < position.x + footprint.width
+        && tile.y < position.y + footprint.height;
+}
+
+vibecity::Quantity gatherable_resource_quantity(
+    const vibecity::Simulation& simulation,
+    vibecity::BuildingKind kind,
+    vibecity::GridPosition position)
+{
+    const auto& definition = simulation.definition(kind);
+    VIBECITY_CHECK(definition.gathering.has_value());
+
+    auto quantity = vibecity::Quantity{0};
+    const auto& gathering = *definition.gathering;
+    for (const auto tile : simulation.map().tiles_within_radius(
+             position,
+             definition.footprint,
+             gathering.radius)) {
+        if (inside_footprint(tile, position, definition.footprint)) {
+            continue;
+        }
+        if (simulation.map().map_resource_at(tile) == gathering.resource) {
+            quantity += simulation.map().map_resource_quantity(tile);
+        }
+    }
+    return quantity;
 }
 
 std::vector<std::uint8_t> read_bytes(const std::filesystem::path& path)
@@ -194,9 +236,52 @@ void invalid_command_reports_failure()
     VIBECITY_CHECK(!result.success);
 }
 
+void starting_village_world_generation_supports_reference_route()
+{
+    const auto game = starting_village_session();
+    const auto& simulation = game.simulation();
+
+    VIBECITY_CHECK(simulation.can_place_building_at(
+        vibecity::BuildingKind::Farm,
+        vibecity::GridPosition{13, vibecity::starting_village_building_y}));
+    VIBECITY_CHECK(simulation.can_place_building_at(
+        vibecity::BuildingKind::Farm,
+        vibecity::GridPosition{26, vibecity::starting_village_building_y}));
+
+    const auto quarry_kind = simulation.building_catalog().find_kind("quarry");
+    VIBECITY_CHECK(quarry_kind.has_value());
+    VIBECITY_CHECK(simulation.can_place_building_at(
+        *quarry_kind,
+        vibecity::GridPosition{19, 10}));
+
+    VIBECITY_CHECK(gatherable_resource_quantity(
+            simulation,
+            vibecity::BuildingKind::Woodcutter,
+            vibecity::GridPosition{10, vibecity::starting_village_building_y})
+        >= 60);
+    VIBECITY_CHECK(gatherable_resource_quantity(
+            simulation,
+            vibecity::BuildingKind::Woodcutter,
+            vibecity::GridPosition{23, vibecity::starting_village_building_y})
+        >= 60);
+    VIBECITY_CHECK(gatherable_resource_quantity(
+            simulation,
+            *quarry_kind,
+            vibecity::GridPosition{19, 10})
+        >= 24);
+
+    const auto brickyard_kind = simulation.building_catalog().find_kind("brickyard");
+    VIBECITY_CHECK(brickyard_kind.has_value());
+    VIBECITY_CHECK(gatherable_resource_quantity(
+            simulation,
+            *brickyard_kind,
+            vibecity::GridPosition{38, vibecity::starting_village_building_y})
+        >= 30);
+}
+
 void starting_village_runs_through_command_layer()
 {
-    vibecity::GameSession game;
+    auto game = starting_village_session();
     const auto ids = vibecity::create_starting_village(game);
 
     VIBECITY_CHECK(ids.houses.size() == 3);
@@ -220,7 +305,7 @@ void starting_village_runs_through_command_layer()
 
 void objectives_track_starting_village_status()
 {
-    vibecity::GameSession game;
+    auto game = starting_village_session();
 
     VIBECITY_CHECK(game.objectives().completed_count() == 0);
     VIBECITY_CHECK(!game.objectives().all_complete());
@@ -288,7 +373,7 @@ void save_load_round_trip_preserves_deterministic_session()
     const auto continued_original = directory / "vibecity-roundtrip-original-continued.vcs";
     const auto continued_loaded = directory / "vibecity-roundtrip-loaded-continued.vcs";
 
-    vibecity::GameSession original;
+    auto original = starting_village_session();
     const auto ids = vibecity::create_starting_village(original);
     VIBECITY_CHECK(ids.houses.size() == 3);
     require_building(original, vibecity::PlaceConstructionCommand{
@@ -445,7 +530,7 @@ void invalid_save_is_rejected_without_replacing_session()
     const auto corrupt_path = directory / "vibecity-corrupt.vcs";
     const auto version_path = directory / "vibecity-version.vcs";
 
-    vibecity::GameSession source;
+    auto source = starting_village_session();
     [[maybe_unused]] const auto source_ids = vibecity::create_starting_village(source);
     require(source, vibecity::AdvanceTimeCommand{.ticks = 100});
     VIBECITY_CHECK(source.save_to_file(valid_path).success);
@@ -460,7 +545,7 @@ void invalid_save_is_rejected_without_replacing_session()
     version[8] = 8;
     write_bytes(version_path, version);
 
-    vibecity::GameSession target;
+    auto target = starting_village_session();
     const auto target_ids = vibecity::create_starting_village(target);
     const auto tick_before = target.simulation().current_tick();
     const auto buildings_before = target.simulation().buildings().size();
@@ -559,7 +644,7 @@ void external_building_definition_runs_and_persists()
 
 void single_production_chain_cannot_reach_25_residents()
 {
-    vibecity::GameSession game;
+    auto game = starting_village_session();
     [[maybe_unused]] const auto ids = vibecity::create_starting_village(game);
 
     require_building(game, vibecity::PlaceConstructionCommand{
@@ -599,7 +684,7 @@ void single_production_chain_cannot_reach_25_residents()
 
 void self_sufficient_village_reaches_25_residents()
 {
-    vibecity::GameSession game;
+    auto game = starting_village_session();
     const auto ids = vibecity::create_starting_village(game);
     VIBECITY_CHECK(ids.houses.size() == 3);
     const auto milestone = vibecity::queue_reference_village_milestone(game);
@@ -651,6 +736,7 @@ int main()
     command_layer_places_path_and_building();
     command_layer_removes_path_and_demolishes_building();
     invalid_command_reports_failure();
+    starting_village_world_generation_supports_reference_route();
     starting_village_runs_through_command_layer();
     objectives_track_starting_village_status();
     objectives_count_stable_days_and_reset_on_hunger();

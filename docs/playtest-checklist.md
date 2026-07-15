@@ -99,7 +99,10 @@ The quarry and second storehouse are required for the current milestone. The
 food chain should stabilize first; the stone leg is an expansion check after
 the second bakery is underway.
 
-The exact coordinates are not meant to be final gameplay advice. They are a control route matching the automated milestone test.
+The exact coordinates are not meant to be final gameplay advice. They are a
+control route matching the automated milestone test. The starter map is now
+authored so fertile land, forest, stone, and clay are deliberately near this
+route while still requiring placement choices.
 
 ## Feedback To Capture
 

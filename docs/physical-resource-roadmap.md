@@ -101,6 +101,19 @@ understand when production stops or must move elsewhere.
 - The default view keeps all layers visible but tones finite deposits down so
   future resource types have room without turning the base map into a legend.
 
+## Implemented: Starter Scenario Map Tuning
+
+- The starting village now uses explicit world-generation settings instead of
+  the generic default map.
+- The reference route has authored nearby fertile land for the two farms,
+  forest pockets for the two woodcutters, a rocky ridge for the quarry spur,
+  and a visible clay pocket for future brickyard play.
+- The SDL client, headless scenario, starting-village benchmarks, and
+  command-layer milestone tests all construct the starter scenario with the
+  same generation settings.
+- The route-support test asserts that the reference farm, woodcutter, quarry,
+  and brickyard opportunities remain viable when generation is retuned.
+
 ## Design Direction: Goods, Services, And Maintenance
 
 The resource model should become more detailed than a classic city-builder
@@ -148,16 +161,15 @@ electricity or industry:
 
 ## Next Programming Slices
 
-1. Scenario-level resource and terrain tuning for the village playtest.
-2. Add surface-water generation primitives for rivers and lakes without making
+1. Add surface-water generation primitives for rivers and lakes without making
    water a transported household resource yet.
-3. Decide whether bricks gate a road upgrade, storage upgrade, water
+2. Decide whether bricks gate a road upgrade, storage upgrade, water
    infrastructure, or the next village objective.
-4. Prototype a tool-condition model where tooling changes productivity before
+3. Prototype a tool-condition model where tooling changes productivity before
    adding more economic chains.
-5. Prototype rough-stone to dressed-stone refinement for medieval
+4. Prototype rough-stone to dressed-stone refinement for medieval
    infrastructure.
-6. Better generation controls for water and broader map shapes.
+5. Better generation controls for water and broader map shapes.
 
 ## Deliberate Limits
 
@@ -171,6 +183,8 @@ electricity or industry:
   data file format for world-generation settings.
 - Stone currently gates the second storehouse in the village milestone, but
   terrain build-cost surcharges are still intentionally small.
+- The starter scenario has authored terrain/resource placement, but generic map
+  generation is still blob-based and temporary.
 - Water is planned as a local service/network first, not as a hauled daily
   input for every house.
 - Tool wear is planned as deterministic condition and productivity pressure,

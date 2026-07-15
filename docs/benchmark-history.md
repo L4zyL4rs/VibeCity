@@ -332,3 +332,26 @@ Notes:
   alongside forests and stone.
 - The benchmark scenarios do not construct brickyards yet, so transported
   totals remain unchanged.
+
+### 2026-07-15 Starter Scenario Map Tuning
+
+The starting-village scenario now uses authored world-generation settings:
+nearby fertile land for the reference farms, forest pockets for the reference
+woodcutters, a rocky ridge for the quarry spur, and a visible clay pocket for
+future brickyard play. The generated 100-building benchmark still uses the
+generic default map.
+
+Representative default-build sample:
+
+| Case | Ticks | Milliseconds | Ticks/s | Buildings | Active Jobs | Transported | Resource Tiles | Resource Quantity | Constructed |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| starting village 30d | 43,200 | 19.03 | 2,270,552 | 4 | 0 | 60 | 492 | 3,366 | 0 |
+| construction village 30d | 43,200 | 94.74 | 455,996 | 9 | 0 | 1,759 | 474 | 3,257 | 5 |
+| 100 buildings 10d | 14,400 | 1,942.95 | 7,411 | 100 | 45 | 91,184 | 5,702 | 38,989 | 0 |
+
+Notes:
+
+- Starting/construction village resource counters dropped because those cases
+  now use the smaller authored starter map resource layout.
+- The reference milestone still completes with all eight objectives on the
+  tuned map.

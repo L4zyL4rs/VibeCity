@@ -31,6 +31,7 @@ struct ReferenceVillageMilestoneIds {
     BuildingId second_storehouse = 0;
 };
 
+[[nodiscard]] WorldGenerationSettings starting_village_world_generation_settings();
 [[nodiscard]] StartingVillageIds create_starting_village(GameSession& game);
 [[nodiscard]] ReferenceVillageMilestoneIds queue_reference_village_milestone(GameSession& game);
 

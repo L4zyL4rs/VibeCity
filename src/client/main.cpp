@@ -278,7 +278,7 @@ int main(int argc, char** argv)
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
     auto state = ClientInteractionState{};
-    auto game = vibecity::GameSession{};
+    auto game = vibecity::GameSession{vibecity::starting_village_world_generation_settings()};
     const auto scenario = vibecity::create_starting_village(game);
     auto transport_overlay = TransportOverlay{};
     state.selected = scenario.storehouse;

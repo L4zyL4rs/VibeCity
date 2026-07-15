@@ -53,6 +53,53 @@ void add_stock(GameSession& game, BuildingId building, ResourceId resource, Quan
 
 }
 
+WorldGenerationSettings starting_village_world_generation_settings()
+{
+    auto settings = WorldGenerationSettings{};
+    settings.seed = 500;
+    settings.starter_fertile_strip = false;
+
+    settings.fertile = PatchGenerationSettings{
+        .enabled = true,
+        .start_x = 20,
+        .start_y = 22,
+        .spacing_x = 128,
+        .spacing_y = 128,
+        .radius = 12,
+        .skip_mod = 0
+    };
+    settings.rocky = PatchGenerationSettings{
+        .enabled = true,
+        .start_x = 20,
+        .start_y = 10,
+        .spacing_x = 128,
+        .spacing_y = 128,
+        .radius = 6,
+        .skip_mod = 0
+    };
+    settings.forest = PatchGenerationSettings{
+        .enabled = true,
+        .start_x = 10,
+        .start_y = 16,
+        .spacing_x = 14,
+        .spacing_y = 128,
+        .radius = 4,
+        .skip_mod = 5
+    };
+    settings.clay = PatchGenerationSettings{
+        .enabled = true,
+        .start_x = 42,
+        .start_y = 25,
+        .spacing_x = 128,
+        .spacing_y = 128,
+        .radius = 5,
+        .skip_mod = 4
+    };
+    settings.stone_deposits = true;
+    settings.stone_skip_mod = 3;
+    return settings;
+}
+
 StartingVillageIds create_starting_village(GameSession& game)
 {
     auto ids = StartingVillageIds{};
