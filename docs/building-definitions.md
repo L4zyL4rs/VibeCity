@@ -63,9 +63,22 @@ Comments begin with `#`. Empty resource sections may be omitted.
 - `internal_construction_site`: Reserved for the engine's
   `construction_site` definition. Custom buildings must set it to `false`.
 - `source_policy`: `none`, `recipe_outputs`, or `all_stored`.
+- `required_capability`: Optional stable capability ID required before the
+  building can be constructed.
 - `map_color`: Red, green, and blue values from 0 through 255.
 - `construction_labor_minutes`: Builder-minutes required to complete the
   building.
+
+Currently supported capability IDs:
+
+```text
+pottery
+brickmaking
+```
+
+Buildings with a missing capability remain visible in the construction menu as
+locked rows, but placement and construction commands reject them until the
+settlement has that capability.
 
 ## Resource Sections
 
@@ -160,6 +173,6 @@ construction materials, footprint, worker or housing capacity, required terrain,
 terrain surcharge, and labor cost.
 The first seven listed buildings receive numeric shortcuts.
 
-Save format version 6 records stable IDs and a catalog fingerprint. Changing a
+Save format version 9 records stable IDs and a catalog fingerprint. Changing a
 simulation-relevant definition intentionally makes existing saves incompatible
 until a migration is implemented.

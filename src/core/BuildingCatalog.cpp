@@ -371,6 +371,13 @@ BuildingDefinition parse_definition(const std::filesystem::path& path)
     definition.source_policy = parse_source_policy(
         take_required(sections, "building", "source_policy", path),
         path);
+    if (const auto capability_id = take_optional(sections, "building", "required_capability")) {
+        const auto capability = capability_id_from_string(*capability_id);
+        if (!capability.has_value()) {
+            throw std::runtime_error(path.string() + ": invalid required capability");
+        }
+        definition.required_capability = *capability;
+    }
     definition.map_color = parse_color(
         take_required(sections, "building", "map_color", path),
         path);
@@ -460,6 +467,7 @@ BuildingDefinition parse_definition(const std::filesystem::path& path)
             || definition.resident_capacity != 0
             || definition.worker_supply != 0
             || definition.required_terrain.has_value()
+            || definition.required_capability.has_value()
             || definition.construction_labor_minutes != 0
             || std::any_of(
                 definition.terrain_construction_materials.begin(),
@@ -581,6 +589,10 @@ std::uint64_t catalog_fingerprint(const std::vector<BuildingDefinition>& definit
         hash_integer(hash, static_cast<std::uint8_t>(definition->required_terrain.has_value()));
         if (definition->required_terrain.has_value()) {
             hash_integer(hash, static_cast<std::uint8_t>(*definition->required_terrain));
+        }
+        hash_integer(hash, static_cast<std::uint8_t>(definition->required_capability.has_value()));
+        if (definition->required_capability.has_value()) {
+            hash_integer(hash, static_cast<std::uint8_t>(*definition->required_capability));
         }
         hash_integer(hash, static_cast<std::uint8_t>(definition->source_policy));
         hash_integer(hash, static_cast<std::uint8_t>(definition->requests_storage_inputs));

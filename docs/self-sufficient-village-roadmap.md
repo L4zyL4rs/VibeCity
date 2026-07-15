@@ -37,6 +37,8 @@ Already implemented:
 - Buildings: house, farm, bakery, woodcutter, quarry, storehouse, potter,
   brickyard, granary, construction site.
 - Production recipes and storage capacities.
+- Persistent settlement capabilities and capability-gated construction menu
+  rows for pottery and brickmaking content.
 - Houses consuming bread daily.
 - Settlement population facts: residents, housing capacity, free housing, and daily bread need.
 - Food pressure facts: stored bread and days of bread remaining.

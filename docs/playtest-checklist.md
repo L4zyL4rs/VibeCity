@@ -123,9 +123,10 @@ When I ask for detailed input, please report these points:
   suitable terrain, and understand its collection radius and remaining local
   stone supply?
 - Clay/brickyards: can you identify clay deposits, place a brickyard near
-  usable clay, and understand that it also needs firewood to make bricks?
+  usable clay, understand why it is locked before brickmaking, and understand
+  that it also needs firewood to make bricks once unlocked?
 - Pottery/granaries: can you identify that potters need clay and firewood, and
-  that granaries require pottery as a construction material?
+  that potters/granaries are locked before pottery is discovered?
 - Terrain/resources: can you distinguish normal grass, fertile terrain, rocky
   terrain, shallow water, forests, stone deposits, and clay deposits without
   guessing?

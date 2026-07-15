@@ -93,6 +93,7 @@ struct SimulationState {
     TransportJobId next_transport_job_id = 1;
     int next_auto_building_x = 1;
     Tick current_tick = 0;
+    CapabilityMask capabilities = 0;
     bool worker_assignment_dirty = true;
     int idle_workers = 0;
     ResourceStats stats{};
@@ -125,6 +126,11 @@ public:
     bool add_path(GridPosition position);
     bool remove_path(GridPosition position);
     bool demolish_building(BuildingId id);
+    void grant_capability(CapabilityId capability);
+    [[nodiscard]] bool has_capability(CapabilityId capability) const;
+    [[nodiscard]] CapabilityMask capability_mask() const;
+    [[nodiscard]] std::optional<CapabilityId> missing_capability(BuildingKind kind) const;
+    [[nodiscard]] bool building_unlocked(BuildingKind kind) const;
     [[nodiscard]] bool can_place_building_at(BuildingKind kind, GridPosition position) const;
     bool set_map_resource(GridPosition position, MapResourceId resource, Quantity quantity);
     void set_residents(BuildingId id, int residents);
@@ -211,6 +217,7 @@ private:
     TransportJobId next_transport_job_id_ = 1;
     int next_auto_building_x_ = 1;
     Tick current_tick_ = 0;
+    CapabilityMask capabilities_ = 0;
     bool worker_assignment_dirty_ = true;
     int idle_workers_ = 0;
     ResourceStats stats_{};

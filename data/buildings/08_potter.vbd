@@ -9,6 +9,7 @@ consumes_bread = false
 requests_storage_inputs = false
 internal_construction_site = false
 source_policy = recipe_outputs
+required_capability = pottery
 map_color = 164, 106, 74
 construction_labor_minutes = 4320
 

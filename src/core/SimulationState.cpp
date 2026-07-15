@@ -48,6 +48,7 @@ SimulationState Simulation::state() const
         .next_transport_job_id = next_transport_job_id_,
         .next_auto_building_x = next_auto_building_x_,
         .current_tick = current_tick_,
+        .capabilities = capabilities_,
         .worker_assignment_dirty = worker_assignment_dirty_,
         .idle_workers = idle_workers_,
         .stats = stats_
@@ -74,6 +75,7 @@ Simulation Simulation::from_state(
         || state.next_building_id == 0
         || state.next_transport_job_id == 0
         || state.next_auto_building_x < 0
+        || (state.capabilities & ~all_capability_mask()) != 0
         || state.idle_workers < 0
         || state.stats.constructed_buildings < 0) {
         throw std::invalid_argument("invalid saved simulation counters");
@@ -171,6 +173,10 @@ Simulation Simulation::from_state(
         const auto& state_definition = definition.internal_construction_site
             ? catalog->definition(*building.construction_target)
             : definition;
+        if (state_definition.required_capability.has_value()
+            && (state.capabilities & capability_bit(*state_definition.required_capability)) == 0) {
+            throw std::invalid_argument("saved building violates capability requirements");
+        }
         if (restored_map.footprint_has_map_resource(
                 *building.position,
                 state_definition.footprint)) {
@@ -287,6 +293,7 @@ Simulation Simulation::from_state(
     simulation.next_transport_job_id_ = state.next_transport_job_id;
     simulation.next_auto_building_x_ = state.next_auto_building_x;
     simulation.current_tick_ = state.current_tick;
+    simulation.capabilities_ = state.capabilities;
     simulation.worker_assignment_dirty_ = state.worker_assignment_dirty;
     simulation.idle_workers_ = state.idle_workers;
     simulation.stats_ = state.stats;

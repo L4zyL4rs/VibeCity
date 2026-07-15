@@ -299,6 +299,14 @@ std::string operation_summary_text(const BuildingDefinition& definition)
     return "NO PRODUCTION";
 }
 
+std::optional<std::string> required_capability_text(const BuildingDefinition& definition)
+{
+    if (!definition.required_capability.has_value()) {
+        return std::nullopt;
+    }
+    return "LOCKED: " + uppercase(capability_name(*definition.required_capability));
+}
+
 std::optional<BuildingKind> build_menu_kind_at(
     const BuildingCatalog& catalog,
     int screen_y,
@@ -371,6 +379,7 @@ BuildMenuMetrics draw_build_menu(
     const auto kinds = build_menu_kinds(simulation.building_catalog());
     for (std::size_t index = 0; index < kinds.size(); ++index) {
         const auto& definition = simulation.definition(kinds[index]);
+        const auto locked = !simulation.building_unlocked(definition.kind);
         const auto y = clip.y + static_cast<int>(index) * entry_stride - scroll;
         const auto entry = SDL_Rect{
             .x = panel_padding,
@@ -384,11 +393,11 @@ BuildMenuMetrics draw_build_menu(
 
         set_color(renderer, selected == definition.kind
                 ? Color{48, 54, 50, 255}
-                : Color{29, 33, 32, 255});
+                : locked ? Color{24, 27, 27, 255} : Color{29, 33, 32, 255});
         SDL_RenderFillRect(renderer, &entry);
         set_color(renderer, selected == definition.kind
                 ? Color{220, 222, 204, 255}
-                : Color{70, 76, 72, 255});
+                : locked ? Color{56, 60, 58, 255} : Color{70, 76, 72, 255});
         SDL_RenderDrawRect(renderer, &entry);
 
         auto swatch = SDL_Rect{
@@ -411,7 +420,7 @@ BuildMenuMetrics draw_build_menu(
             entry.x + 34,
             entry.y + (name_scale == 2 ? 10 : 14),
             display_name,
-            Color{214, 218, 204, 255},
+            locked ? Color{126, 132, 124, 255} : Color{214, 218, 204, 255},
             name_scale);
         const auto cost_lines = construction_cost_lines(definition);
         for (std::size_t line_index = 0; line_index < cost_lines.size(); ++line_index) {
@@ -420,15 +429,19 @@ BuildMenuMetrics draw_build_menu(
                 entry.x + 8,
                 entry.y + 36 + static_cast<int>(line_index) * 13,
                 cost_lines[line_index],
-                Color{202, 186, 126, 255},
+                locked ? Color{132, 124, 98, 255} : Color{202, 186, 126, 255},
                 1);
         }
+        const auto lock_text = required_capability_text(definition);
         draw_text(
             renderer,
             entry.x + 8,
             entry.y + 62,
-            fit_text(operation_summary_text(definition), 40),
-            Color{160, 178, 154, 255},
+            fit_text(locked && lock_text.has_value()
+                    ? *lock_text
+                    : operation_summary_text(definition),
+                40),
+            locked ? Color{178, 132, 112, 255} : Color{160, 178, 154, 255},
             1);
         draw_text(
             renderer,

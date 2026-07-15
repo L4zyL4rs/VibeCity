@@ -236,6 +236,27 @@ void invalid_command_reports_failure()
     VIBECITY_CHECK(!result.success);
 }
 
+void command_layer_rejects_locked_construction()
+{
+    vibecity::GameSession game;
+    const auto potter = game.simulation().building_catalog().find_kind("potter");
+    VIBECITY_CHECK(potter.has_value());
+
+    auto result = game.execute(vibecity::PlaceConstructionCommand{
+        .target_kind = *potter,
+        .position = vibecity::GridPosition{1, 1}
+    });
+    VIBECITY_CHECK(!result.success);
+
+    game.simulation().grant_capability(vibecity::CapabilityId::Pottery);
+    result = game.execute(vibecity::PlaceConstructionCommand{
+        .target_kind = *potter,
+        .position = vibecity::GridPosition{1, 1}
+    });
+    VIBECITY_CHECK(result.success);
+    VIBECITY_CHECK(result.building.has_value());
+}
+
 void starting_village_world_generation_supports_reference_route()
 {
     const auto game = starting_village_session();
@@ -547,7 +568,7 @@ void invalid_save_is_rejected_without_replacing_session()
 
     auto version = read_bytes(valid_path);
     VIBECITY_CHECK(version.size() > 12);
-    version[8] = 9;
+    version[8] = 10;
     write_bytes(version_path, version);
 
     auto target = starting_village_session();
@@ -573,6 +594,21 @@ void invalid_save_is_rejected_without_replacing_session()
     std::filesystem::remove(valid_path);
     std::filesystem::remove(corrupt_path);
     std::filesystem::remove(version_path);
+}
+
+void save_load_preserves_capabilities()
+{
+    const auto path = std::filesystem::temp_directory_path() / "vibecity-capabilities.vcs";
+    vibecity::GameSession game;
+    game.simulation().grant_capability(vibecity::CapabilityId::Pottery);
+    VIBECITY_CHECK(game.save_to_file(path).success);
+
+    vibecity::GameSession loaded;
+    VIBECITY_CHECK(loaded.load_from_file(path).success);
+    VIBECITY_CHECK(loaded.simulation().has_capability(vibecity::CapabilityId::Pottery));
+    VIBECITY_CHECK(!loaded.simulation().has_capability(vibecity::CapabilityId::Brickmaking));
+
+    std::filesystem::remove(path);
 }
 
 void external_building_definition_runs_and_persists()
@@ -741,6 +777,7 @@ int main()
     command_layer_places_path_and_building();
     command_layer_removes_path_and_demolishes_building();
     invalid_command_reports_failure();
+    command_layer_rejects_locked_construction();
     starting_village_world_generation_supports_reference_route();
     starting_village_runs_through_command_layer();
     objectives_track_starting_village_status();
@@ -750,6 +787,7 @@ int main()
     save_load_preserves_demolished_buildings();
     save_load_preserves_terrain_adjusted_construction_site();
     invalid_save_is_rejected_without_replacing_session();
+    save_load_preserves_capabilities();
     external_building_definition_runs_and_persists();
     single_production_chain_cannot_reach_25_residents();
     self_sufficient_village_reaches_25_residents();

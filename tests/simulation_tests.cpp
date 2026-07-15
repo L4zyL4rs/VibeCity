@@ -1141,6 +1141,7 @@ void quarry_harvests_finite_nearby_stone()
 void brickyard_harvests_clay_and_firewood_into_bricks()
 {
     vibecity::Simulation simulation;
+    simulation.grant_capability(vibecity::CapabilityId::Brickmaking);
 
     const auto brickyard_kind = simulation.building_catalog().find_kind("brickyard");
     VIBECITY_CHECK(brickyard_kind.has_value());
@@ -1178,6 +1179,7 @@ void brickyard_harvests_clay_and_firewood_into_bricks()
 void potter_harvests_clay_and_firewood_into_pottery()
 {
     vibecity::Simulation simulation;
+    simulation.grant_capability(vibecity::CapabilityId::Pottery);
 
     const auto potter_kind = simulation.building_catalog().find_kind("potter");
     VIBECITY_CHECK(potter_kind.has_value());
@@ -1215,6 +1217,7 @@ void potter_harvests_clay_and_firewood_into_pottery()
 void granary_construction_requires_pottery()
 {
     vibecity::Simulation simulation;
+    simulation.grant_capability(vibecity::CapabilityId::Pottery);
 
     const auto granary_kind = simulation.building_catalog().find_kind("granary");
     VIBECITY_CHECK(granary_kind.has_value());
@@ -1232,6 +1235,35 @@ void granary_construction_requires_pottery()
     const auto& site_instance = simulation.building(site);
     VIBECITY_CHECK(site_instance.inventory.capacity(vibecity::ResourceId::Timber) == 18);
     VIBECITY_CHECK(site_instance.inventory.capacity(vibecity::ResourceId::Pottery) == 4);
+}
+
+void capabilities_gate_building_placement()
+{
+    vibecity::Simulation simulation;
+
+    const auto potter_kind = simulation.building_catalog().find_kind("potter");
+    VIBECITY_CHECK(potter_kind.has_value());
+    const auto position = vibecity::GridPosition{1, 1};
+
+    VIBECITY_CHECK(!simulation.has_capability(vibecity::CapabilityId::Pottery));
+    VIBECITY_CHECK(!simulation.building_unlocked(*potter_kind));
+    VIBECITY_CHECK(simulation.missing_capability(*potter_kind)
+        == vibecity::CapabilityId::Pottery);
+    VIBECITY_CHECK(!simulation.can_place_building_at(*potter_kind, position));
+
+    auto threw = false;
+    try {
+        simulation.place_construction_at(*potter_kind, position);
+    } catch (const std::invalid_argument&) {
+        threw = true;
+    }
+    VIBECITY_CHECK(threw);
+
+    simulation.grant_capability(vibecity::CapabilityId::Pottery);
+    VIBECITY_CHECK(simulation.has_capability(vibecity::CapabilityId::Pottery));
+    VIBECITY_CHECK(simulation.building_unlocked(*potter_kind));
+    VIBECITY_CHECK(!simulation.missing_capability(*potter_kind).has_value());
+    VIBECITY_CHECK(simulation.can_place_building_at(*potter_kind, position));
 }
 
 void construction_site_fetches_materials_and_completes()
@@ -1398,6 +1430,7 @@ int main()
     brickyard_harvests_clay_and_firewood_into_bricks();
     potter_harvests_clay_and_firewood_into_pottery();
     granary_construction_requires_pottery();
+    capabilities_gate_building_placement();
     construction_site_fetches_materials_and_completes();
     terrain_adjusted_construction_waits_for_extra_material();
     construction_summary_reports_queue_focus();

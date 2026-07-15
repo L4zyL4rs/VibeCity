@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/Capability.hpp"
 #include "core/Inventory.hpp"
 #include "core/Map.hpp"
 
@@ -92,6 +93,7 @@ struct BuildingDefinition {
     std::optional<Recipe> recipe;
     std::optional<GatheringRule> gathering;
     std::optional<TerrainId> required_terrain;
+    std::optional<CapabilityId> required_capability;
     ResourceSourcePolicy source_policy = ResourceSourcePolicy::None;
     bool requests_storage_inputs = false;
     bool internal_construction_site = false;

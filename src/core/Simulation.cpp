@@ -68,6 +68,9 @@ BuildingId Simulation::add_building(BuildingKind kind)
     if (building.internal_construction_site) {
         throw std::invalid_argument("construction site cannot be placed as a completed building");
     }
+    if (!building_unlocked(kind)) {
+        throw std::invalid_argument("building is locked by missing capability");
+    }
     const auto id = next_building_id_++;
     auto instance = make_building(id, building);
     instance.position = auto_place_building(id, building);
@@ -81,6 +84,9 @@ BuildingId Simulation::add_building_at(BuildingKind kind, GridPosition position)
     const auto& building = definition(kind);
     if (building.internal_construction_site) {
         throw std::invalid_argument("construction site cannot be placed as a completed building");
+    }
+    if (!building_unlocked(kind)) {
+        throw std::invalid_argument("building is locked by missing capability");
     }
     if (!can_place_definition_at(building, position)) {
         throw std::invalid_argument("building cannot be placed at requested position");
@@ -101,6 +107,9 @@ BuildingId Simulation::place_construction(BuildingKind target_kind)
     if (target.internal_construction_site) {
         throw std::invalid_argument("construction site cannot target another construction site");
     }
+    if (!building_unlocked(target_kind)) {
+        throw std::invalid_argument("construction target is locked by missing capability");
+    }
 
     const auto id = next_building_id_++;
     const auto position = auto_place_building(id, target);
@@ -119,6 +128,9 @@ BuildingId Simulation::place_construction_at(BuildingKind target_kind, GridPosit
     const auto& target = definition(target_kind);
     if (target.internal_construction_site) {
         throw std::invalid_argument("construction site cannot target another construction site");
+    }
+    if (!building_unlocked(target_kind)) {
+        throw std::invalid_argument("construction target is locked by missing capability");
     }
 
     if (!can_place_definition_at(target, position)) {
@@ -217,10 +229,49 @@ bool Simulation::demolish_building(BuildingId id)
     return true;
 }
 
+void Simulation::grant_capability(CapabilityId capability)
+{
+    if (capability == CapabilityId::Count) {
+        throw std::invalid_argument("invalid capability");
+    }
+    capabilities_ |= capability_bit(capability);
+}
+
+bool Simulation::has_capability(CapabilityId capability) const
+{
+    if (capability == CapabilityId::Count) {
+        return false;
+    }
+    return (capabilities_ & capability_bit(capability)) != 0;
+}
+
+CapabilityMask Simulation::capability_mask() const
+{
+    return capabilities_;
+}
+
+std::optional<CapabilityId> Simulation::missing_capability(BuildingKind kind) const
+{
+    const auto& building = definition(kind);
+    if (building.required_capability.has_value()
+        && !has_capability(*building.required_capability)) {
+        return building.required_capability;
+    }
+    return std::nullopt;
+}
+
+bool Simulation::building_unlocked(BuildingKind kind) const
+{
+    return !missing_capability(kind).has_value();
+}
+
 bool Simulation::can_place_building_at(BuildingKind kind, GridPosition position) const
 {
     const auto& building = definition(kind);
     if (building.internal_construction_site) {
+        return false;
+    }
+    if (!building_unlocked(kind)) {
         return false;
     }
     return can_place_definition_at(building, position);

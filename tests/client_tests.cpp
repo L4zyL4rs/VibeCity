@@ -159,6 +159,12 @@ void build_menu_formats_construction_materials()
         == "NEEDS 18 TIMBER + 4 POTTERY");
     VIBECITY_CHECK(vibecity::client::operation_summary_text(catalog->definition(*granary))
         == "COLLECTS AND REDISTRIBUTES GOODS");
+    VIBECITY_CHECK(vibecity::client::required_capability_text(catalog->definition(*potter))
+        == "LOCKED: POTTERY");
+    VIBECITY_CHECK(vibecity::client::required_capability_text(catalog->definition(*brickyard))
+        == "LOCKED: BRICKMAKING");
+    VIBECITY_CHECK(!vibecity::client::required_capability_text(
+        catalog->definition(vibecity::BuildingKind::Bakery)).has_value());
 }
 
 void build_menu_hit_testing_respects_rows_gaps_and_scroll()
@@ -342,6 +348,18 @@ void placement_blocker_text_reports_common_blocks()
         simulation,
         vibecity::BuildingKind::Farm,
         vibecity::GridPosition{8, 1}));
+
+    const auto potter = simulation.building_catalog().find_kind("potter");
+    VIBECITY_CHECK(potter.has_value());
+    VIBECITY_CHECK(vibecity::client::building_placement_blocker_text(
+            simulation,
+            *potter,
+            vibecity::GridPosition{1, 1})
+        == "locked: pottery");
+    VIBECITY_CHECK(!vibecity::client::can_place_building_preview(
+        simulation,
+        *potter,
+        vibecity::GridPosition{1, 1}));
 
     VIBECITY_CHECK(vibecity::client::placement_blocker_text(
             simulation,

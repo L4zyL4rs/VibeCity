@@ -695,6 +695,9 @@ std::string building_placement_blocker_text(
     BuildingKind target,
     GridPosition tile)
 {
+    if (const auto missing = simulation.missing_capability(target)) {
+        return "locked: " + std::string{capability_name(*missing)};
+    }
     const auto& definition = simulation.definition(target);
     auto blocker = placement_blocker_text(simulation, tile, definition.footprint);
     if (!blocker.empty()) {

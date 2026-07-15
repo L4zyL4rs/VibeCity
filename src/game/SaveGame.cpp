@@ -19,7 +19,7 @@ namespace {
 constexpr std::array<std::uint8_t, 8> save_magic{
     'V', 'I', 'B', 'E', 'C', 'I', 'T', 'Y'
 };
-constexpr std::uint32_t save_version = 8;
+constexpr std::uint32_t save_version = 9;
 constexpr std::size_t save_header_size = save_magic.size() + sizeof(std::uint32_t)
     + sizeof(std::uint64_t) + sizeof(std::uint64_t);
 constexpr std::uint64_t max_save_bytes = 64 * 1024 * 1024;
@@ -237,6 +237,45 @@ ResourceArray read_resource_array(ByteReader& reader)
     return amounts;
 }
 
+void write_capabilities(ByteWriter& writer, CapabilityMask capabilities)
+{
+    auto count = std::uint32_t{0};
+    for (std::size_t index = 0; index < capability_count; ++index) {
+        if ((capabilities & capability_bit(static_cast<CapabilityId>(index))) != 0) {
+            ++count;
+        }
+    }
+    writer.u32(count);
+    for (std::size_t index = 0; index < capability_count; ++index) {
+        const auto capability = static_cast<CapabilityId>(index);
+        if ((capabilities & capability_bit(capability)) != 0) {
+            writer.string(capability_name(capability));
+        }
+    }
+}
+
+CapabilityMask read_capabilities(ByteReader& reader)
+{
+    const auto count = reader.u32();
+    if (count > capability_count) {
+        throw std::runtime_error("invalid capability count in save");
+    }
+
+    auto capabilities = CapabilityMask{0};
+    for (auto index = std::uint32_t{0}; index < count; ++index) {
+        const auto capability = capability_id_from_string(reader.string());
+        if (!capability.has_value()) {
+            throw std::runtime_error("unknown capability stable ID in save");
+        }
+        const auto bit = capability_bit(*capability);
+        if ((capabilities & bit) != 0) {
+            throw std::runtime_error("duplicate capability stable ID in save");
+        }
+        capabilities |= bit;
+    }
+    return capabilities;
+}
+
 void write_inventory(ByteWriter& writer, const Inventory& inventory)
 {
     const auto state = inventory.state();
@@ -370,6 +409,7 @@ void write_simulation(ByteWriter& writer, const Simulation& simulation)
     writer.i32(state.next_auto_building_x);
     writer.boolean(state.worker_assignment_dirty);
     writer.i32(state.idle_workers);
+    write_capabilities(writer, state.capabilities);
     write_resource_array(writer, state.stats.produced);
     write_resource_array(writer, state.stats.consumed);
     write_resource_array(writer, state.stats.transported);
@@ -426,6 +466,7 @@ SimulationState read_simulation(ByteReader& reader, const BuildingCatalog& catal
     state.next_auto_building_x = reader.i32();
     state.worker_assignment_dirty = reader.boolean();
     state.idle_workers = reader.i32();
+    state.capabilities = read_capabilities(reader);
     state.stats.produced = read_resource_array(reader);
     state.stats.consumed = read_resource_array(reader);
     state.stats.transported = read_resource_array(reader);

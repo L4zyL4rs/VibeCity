@@ -63,8 +63,15 @@ bool point_is_over_build_menu(Uint32 window_id, int x, int y)
 
 void select_build_target(
     ClientInteractionState& state,
+    const Simulation& simulation,
     const BuildingDefinition& definition)
 {
+    if (const auto missing = simulation.missing_capability(definition.kind)) {
+        state.mode = ClientMode::Select;
+        state.build_target = std::nullopt;
+        state.status = "locked: " + std::string{capability_name(*missing)};
+        return;
+    }
     state.mode = ClientMode::Build;
     state.build_target = definition.kind;
     state.status = "building " + definition.name;
@@ -248,7 +255,10 @@ void handle_keydown(GameSession& game, ClientInteractionState& state, SDL_Keycod
             const auto kinds = build_menu_kinds(game.simulation().building_catalog());
             const auto index = static_cast<std::size_t>(key - SDLK_3);
             if (index < kinds.size()) {
-                select_build_target(state, game.simulation().definition(kinds[index]));
+                select_build_target(
+                    state,
+                    game.simulation(),
+                    game.simulation().definition(kinds[index]));
             }
         }
         break;
@@ -334,7 +344,7 @@ void handle_build_menu_mouse_down(
         size.y,
         state.build_menu_scroll);
     if (kind.has_value()) {
-        select_build_target(state, game.simulation().definition(*kind));
+        select_build_target(state, game.simulation(), game.simulation().definition(*kind));
     }
 }
 

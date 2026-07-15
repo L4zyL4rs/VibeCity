@@ -88,9 +88,21 @@ understand when production stops or must move elsewhere.
 - The default catalog includes a data-defined granary that stores grain and
   bread, requires pottery during construction, and serves as the first explicit
   fired-clay construction sink.
-- Pottery currently exists as direct buildable content. Capability-gated
-  discovery, specialist knowledge, and research-project requirements are still
-  planned as the next engine slice.
+- Pottery currently exists as gated content. Specialist knowledge and
+  research-project requirements that earn the capability are still planned as
+  the next engine slice.
+
+## Implemented: Capability Gate Slice
+
+- Settlement capabilities are authoritative simulation state and persist
+  through save/load by stable string ID.
+- Building definitions can declare one `required_capability`.
+- Potters and granaries require `pottery`; brickyards require `brickmaking`.
+- Locked buildings remain visible in the construction menu with a missing
+  capability label, but construction commands reject them until the capability
+  is present.
+- This is the structural gate only. The player-facing experimentation/project
+  loop that earns those capabilities is still the next slice.
 
 ## Implemented: Logistics Inspection
 
@@ -247,21 +259,18 @@ Suggested early-to-medieval ladder:
 
 ## Next Programming Slices
 
-1. Add persistent settlement capabilities and locked-build-menu states so
-   pottery, bricks, and later metalworking can be discovered without abstract
-   research points.
-2. Add an experimentation/project loop that costs labor, input goods, workshop
+1. Add an experimentation/project loop that costs labor, input goods, workshop
    access, and time; start with pottery or controlled heat.
-3. Connect the granary to a meaningful food-storage benefit once spoilage,
+2. Connect the granary to a meaningful food-storage benefit once spoilage,
    storage quality, or stock targets exist.
-4. Decide whether bricks gate a road upgrade, storage upgrade, water
+3. Decide whether bricks gate a road upgrade, storage upgrade, water
    infrastructure, or the next village objective.
-5. Prototype a tool-condition model where tooling changes productivity before
+4. Prototype a tool-condition model where tooling changes productivity before
    adding more economic chains.
-6. Prototype rough-stone to dressed-stone refinement for medieval
+5. Prototype rough-stone to dressed-stone refinement for medieval
    infrastructure.
-7. Better generation controls for water and broader map shapes.
-8. Keep copper, bronze, and iron out of the active village milestone until
+6. Better generation controls for water and broader map shapes.
+7. Keep copper, bronze, and iron out of the active village milestone until
    pottery, kilns, fuel pressure, and tool maintenance have a playable base.
 
 ## Deliberate Limits
