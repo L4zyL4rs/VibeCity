@@ -169,15 +169,84 @@ electricity or industry:
 - More specific stone or ore types can wait until regional specialization
   creates interesting map decisions.
 
+## Design Direction: Historical Capability Ladder
+
+Progression should be capability-based instead of point-gated. A settlement
+does not unlock bronze because a research counter fills; it becomes capable of
+bronze when it has the ores, fuel, furnace, molds, skilled workers, and enough
+surplus labor to experiment and teach the process.
+
+Research can later cost labor, materials, failed production batches, and time
+in workshops. Knowledge may eventually belong to people or buildings: a skilled
+potter, smith, mason, or teacher can spread capabilities to other workers. This
+is intentionally later than the current village milestone, but the economy
+should be shaped so it can support that model.
+
+Suggested early-to-medieval ladder:
+
+- Late Neolithic settled farming:
+  - Key blockers: food surplus, water access, local timber, workable stone,
+    clay, firewood, and storage.
+  - Resources: grain, timber, firewood, rough stone, clay, pottery.
+  - Unlocks: huts, granaries, simple storage, basic stone tools, wells or
+    surface-water dependence, pottery, dirt paths.
+- Pottery and controlled heat:
+  - Key blockers: clay, steady fuel, potter labor, simple kiln.
+  - Resources: pottery, fired clay, possibly tiles.
+  - Unlocks: better food and water storage, cooking vessels, lower spoilage
+    later, kiln-based production, brickmaking groundwork.
+- Bricks, tiles, and lime:
+  - Key blockers: clay throughput, fuel pressure, kiln capacity, labor.
+  - Resources: bricks, roof tiles, lime or mortar later.
+  - Unlocks: larger storehouses, better ovens and chimneys, denser housing,
+    drains, improved roads, wells or cisterns, early masonry support.
+- Copper working:
+  - Key blockers: copper ore, charcoal, furnace temperature, specialist labor.
+  - Resources: copper ore, charcoal, copper.
+  - Unlocks: prestige goods, small fittings, limited tool improvements, first
+    metalworking workshops.
+- Bronze working:
+  - Key blockers: copper, rare tin or trade access, charcoal, casting molds,
+    skilled metalworkers.
+  - Resources: tin, bronze, molds.
+  - Unlocks: durable axes, chisels, saws, knives, fittings, weapons, improved
+    carpentry and stoneworking. Bronze should be powerful but geographically or
+    trade constrained.
+- Iron working:
+  - Key blockers: iron ore, large charcoal demand, bloomery furnace, repeated
+    hammering, smith skill.
+  - Resources: iron ore, bloom iron, wrought iron, iron tools.
+  - Unlocks: cheaper widespread tools, better plows, nails, hinges, fittings,
+    stronger everyday construction. Early iron is not automatically better than
+    bronze; it becomes transformative once production scales.
+- Classical and Roman-style engineering:
+  - Key blockers: bricks or stone, lime mortar, dressed stone, iron tools,
+    surveyor/engineer labor, organized material throughput.
+  - Resources: dressed stone, lime, mortar, tiles, concrete ingredients later.
+  - Unlocks: paved roads, bridges, aqueducts, baths, large warehouses, denser
+    towns, drainage, durable civic infrastructure.
+- Early medieval consolidation:
+  - Key blockers: maintained iron tools, mills, animal power, local lordship or
+    institutional labor organization if politics is ever modeled.
+  - Resources: iron tools, charcoal, wool, hides, milled grain.
+  - Unlocks: watermills, improved agriculture, smithies, churches,
+    fortifications, larger villages and towns.
+
 ## Next Programming Slices
 
-1. Decide whether bricks gate a road upgrade, storage upgrade, water
+1. Prototype clay as pottery before treating bricks as just another
+   construction material.
+2. Add a kiln/potter chain that uses clay and fuel to improve storage or food
+   handling.
+3. Decide whether bricks gate a road upgrade, storage upgrade, water
    infrastructure, or the next village objective.
-2. Prototype a tool-condition model where tooling changes productivity before
+4. Prototype a tool-condition model where tooling changes productivity before
    adding more economic chains.
-3. Prototype rough-stone to dressed-stone refinement for medieval
+5. Prototype rough-stone to dressed-stone refinement for medieval
    infrastructure.
-4. Better generation controls for water and broader map shapes.
+6. Better generation controls for water and broader map shapes.
+7. Keep copper, bronze, and iron out of the active village milestone until
+   pottery, kilns, fuel pressure, and tool maintenance have a playable base.
 
 ## Deliberate Limits
 
@@ -199,3 +268,8 @@ electricity or industry:
   buildings, or any service coverage.
 - Tool wear is planned as deterministic condition and productivity pressure,
   not random tool breakage.
+- Copper, bronze, iron, and classical infrastructure are design targets, not
+  near-term village-playtest scope.
+- Research points should not be the primary gate for production chains.
+  Capabilities should come from materials, buildings, heat, skilled labor,
+  experimentation, and knowledge transfer.

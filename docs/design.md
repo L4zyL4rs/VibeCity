@@ -2,7 +2,9 @@
 
 ## 1. Working Vision
 
-VibeCity is a simulation-first city and nation building game about growing a settlement from a small early-medieval community into an enormous industrial and eventually modern economy.
+VibeCity is a simulation-first city and nation building game about growing a
+settlement from a small pre-medieval or early-medieval community into an
+enormous industrial and eventually modern economy.
 
 The game should appeal to players who enjoy production chains, logistics, spreadsheets, and optimization. The intended audience is comfortable with complexity and should enjoy discovering bottlenecks, planning infrastructure, and making economic systems more efficient over long time spans.
 
@@ -43,9 +45,25 @@ Tables, ledgers, graphs, overlays, inspectors, and trace tools are not secondary
 
 ### Gradual Complexity
 
-The game starts simple around 500 AD or earlier. Early systems should be understandable through direct observation: farms, houses, woodcutters, basic storage, dirt paths, and local labor.
+The game starts simple around 500 AD or earlier, potentially as far back as a
+late Neolithic farming community with basic stone tools and early ceramics.
+Early systems should be understandable through direct observation: farms,
+houses, woodcutters, basic storage, dirt paths, local labor, clay, pottery,
+stone, and surface water.
 
 New eras should add new economic shapes, not only better numbers. Rail, electricity, fossil fuels, chemistry, mass education, electronics, and semiconductors should change what planning means.
+
+### Capabilities Over Points
+
+Technology should mostly be gated by physical capability, not abstract research
+points. A settlement learns to make something because it has the materials,
+fuel, heat, tools, buildings, labor surplus, and skilled people to experiment
+and reproduce the process.
+
+Research can still exist later, but it should look like work: people spend time
+in workshops, consume materials, produce failed or partial batches, and teach
+other workers. Knowledge may eventually belong to people, buildings, or
+institutions instead of being a global flag.
 
 ## 3. Intended Feel
 
@@ -365,48 +383,119 @@ Trace mode should eventually answer:
 
 The simulation does not need to store full history forever. It can keep recent provenance records, sampled traces, or debug-oriented route histories.
 
-## 5. Era Progression
+## 5. Capability Progression
 
-Eras are not just technology tiers. Each era introduces new constraints and planning concepts.
+Eras are not just technology tiers. Each stage introduces new constraints,
+materials, skills, and planning concepts. Progress should feel like building a
+supporting economy, not buying upgrades with abstract points.
 
-### Early Medieval, Around 500 AD
+### Late Neolithic Settlement
 
 Focus:
 
-- Food.
+- Food surplus.
 - Shelter.
 - Timber.
-- Stone.
-- Basic tools.
-- Walking distance.
+- Firewood.
+- Rough stone.
+- Clay and pottery.
+- Surface water or early wells.
 - Dirt paths.
-- Local production.
+- Local labor.
 - Small storage.
 
 Main questions:
 
 - Can people eat?
+- Is food protected from spoilage and pests?
 - Can workers reach their workplace?
 - Can construction materials reach the site?
-- Is enough timber being produced?
+- Is enough timber and firewood being produced?
+- Does the settlement have access to water?
 
-### Medieval
+New capability:
+
+- Basic stone tools.
+- Huts and granaries.
+- Pottery for storage, cooking, and water handling.
+- First controlled-heat production.
+
+### Copper And Bronze Working
+
+Focus:
+
+- Copper ore.
+- Tin access or trade.
+- Charcoal.
+- Furnaces.
+- Casting molds.
+- Specialist metalworkers.
+
+New planning pressure:
+
+- Local resources are no longer enough if tin is absent.
+- Fuel demand rises sharply.
+- Skilled workshops matter more than generic labor.
+- Better tools increase productivity but require a deeper chain.
+
+Bronze should be powerful because it casts well and makes durable axes,
+chisels, saws, knives, fittings, and weapons. It should be blocked by rare tin,
+trade reach, charcoal, molds, and skilled casting.
+
+### Iron Working
+
+Focus:
+
+- Iron ore.
+- Charcoal.
+- Bloomeries.
+- Smithies.
+- Repeated hammering and refining.
+- Tool maintenance.
+
+New planning pressure:
+
+- Iron ore is more common than copper or tin, but useful iron needs more heat,
+  fuel, and labor.
+- Early iron is not automatically superior to bronze.
+- Once smithing scales, iron makes ordinary tools, plows, nails, hinges, and
+  fittings cheaper and more widespread.
+
+### Classical And Roman-Style Engineering
+
+Focus:
+
+- Bricks.
+- Roof tiles.
+- Lime mortar.
+- Dressed stone.
+- Iron tools.
+- Surveying and organized labor.
+- Roads, bridges, aqueducts, drains, baths, and large warehouses.
+
+New planning pressure:
+
+- Material throughput and labor organization become infrastructure problems.
+- Water can become a network and capacity constraint.
+- Dense towns need durable roads, storage, drainage, and public works.
+
+### Early Medieval Consolidation
 
 Focus:
 
 - Specialized workshops.
 - Mills.
-- Better roads.
 - Animal power.
 - Masonry.
+- Maintained iron tools.
 - Larger markets.
-- Trade routes.
+- Local trade routes.
 
 New planning pressure:
 
 - Town centers and villages need coordinated food distribution.
 - More jobs compete for the same labor pool.
-- Storage and transport become visibly important.
+- Storage, maintenance, and transport become visibly important.
 
 ### Early Industrial
 
