@@ -378,3 +378,25 @@ Notes:
   overrides a few terrain/resource tiles in the authored map.
 - The reference milestone still completes with all eight objectives on the
   water-enabled starter map.
+
+### 2026-07-15 Pottery Content Slice
+
+Pottery is now a core transported resource, and the default catalog includes a
+potter and pottery-gated granary. The benchmark scenarios do not construct
+either building yet, so transported totals remain unchanged; this run mainly
+captures the added resource-array slot and catalog content.
+
+Representative default-build sample:
+
+| Case | Ticks | Milliseconds | Ticks/s | Buildings | Active Jobs | Transported | Resource Tiles | Resource Quantity | Constructed |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| starting village 30d | 43,200 | 19.82 | 2,179,375 | 4 | 0 | 60 | 479 | 3,268 | 0 |
+| construction village 30d | 43,200 | 105.11 | 411,004 | 9 | 0 | 1,759 | 461 | 3,159 | 5 |
+| 100 buildings 10d | 14,400 | 2,177.39 | 6,613 | 100 | 45 | 91,184 | 5,702 | 38,989 | 0 |
+
+Notes:
+
+- The reference milestone still completes with all eight objectives.
+- The generic 100-building case is slower in this sample but still in the same
+  order of magnitude; it should be treated as a new baseline, not a regression
+  diagnosis, until repeated measurements are taken.

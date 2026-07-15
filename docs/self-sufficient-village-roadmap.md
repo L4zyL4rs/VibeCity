@@ -32,9 +32,10 @@ The milestone is done when all of these are true:
 
 Already implemented:
 
-- Core resources: grain, bread, timber, firewood, stone, tools.
-- Buildings: house, farm, bakery, woodcutter, quarry, storehouse, construction
-  site.
+- Core resources: grain, bread, timber, firewood, stone, tools, bricks,
+  pottery.
+- Buildings: house, farm, bakery, woodcutter, quarry, storehouse, potter,
+  brickyard, granary, construction site.
 - Production recipes and storage capacities.
 - Houses consuming bread daily.
 - Settlement population facts: residents, housing capacity, free housing, and daily bread need.

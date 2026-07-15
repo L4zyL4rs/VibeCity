@@ -1,0 +1,34 @@
+[building]
+id = potter
+name = Potter
+footprint = 2, 2
+worker_slots = 1
+resident_capacity = 0
+worker_supply = 0
+consumes_bread = false
+requests_storage_inputs = false
+internal_construction_site = false
+source_policy = recipe_outputs
+map_color = 164, 106, 74
+construction_labor_minutes = 4320
+
+[construction]
+timber = 10
+
+[storage]
+firewood = 12
+pottery = 24
+
+[recipe]
+cycle_minutes = 720
+
+[gathering]
+map_resource = clay
+radius = 6
+units_per_cycle = 1
+
+[inputs]
+firewood = 2
+
+[outputs]
+pottery = 4

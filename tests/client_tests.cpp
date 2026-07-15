@@ -40,13 +40,19 @@ void build_menu_lists_catalog_buildings()
     const auto kinds = vibecity::client::build_menu_kinds(*catalog);
     const auto quarry = catalog->find_kind("quarry");
     const auto brickyard = catalog->find_kind("brickyard");
+    const auto potter = catalog->find_kind("potter");
+    const auto granary = catalog->find_kind("granary");
 
     VIBECITY_CHECK(quarry.has_value());
     VIBECITY_CHECK(brickyard.has_value());
-    VIBECITY_CHECK(kinds.size() == 7);
+    VIBECITY_CHECK(potter.has_value());
+    VIBECITY_CHECK(granary.has_value());
+    VIBECITY_CHECK(kinds.size() == 9);
     VIBECITY_CHECK(kinds.front() == vibecity::BuildingKind::House);
     VIBECITY_CHECK(std::find(kinds.begin(), kinds.end(), *quarry) != kinds.end());
     VIBECITY_CHECK(std::find(kinds.begin(), kinds.end(), *brickyard) != kinds.end());
+    VIBECITY_CHECK(std::find(kinds.begin(), kinds.end(), *potter) != kinds.end());
+    VIBECITY_CHECK(std::find(kinds.begin(), kinds.end(), *granary) != kinds.end());
     for (const auto kind : kinds) {
         VIBECITY_CHECK(!catalog->definition(kind).internal_construction_site);
     }
@@ -141,6 +147,18 @@ void build_menu_formats_construction_materials()
         == "NEEDS 16 TIMBER + 1 TOOLS");
     VIBECITY_CHECK(vibecity::client::operation_summary_text(catalog->definition(*brickyard))
         == "HARVESTS CLAY + 2 FIREWOOD -> 6 BRICKS / 12H");
+    const auto potter = catalog->find_kind("potter");
+    VIBECITY_CHECK(potter.has_value());
+    VIBECITY_CHECK(vibecity::client::construction_cost_text(catalog->definition(*potter))
+        == "NEEDS 10 TIMBER");
+    VIBECITY_CHECK(vibecity::client::operation_summary_text(catalog->definition(*potter))
+        == "HARVESTS CLAY + 2 FIREWOOD -> 4 POTTERY / 12H");
+    const auto granary = catalog->find_kind("granary");
+    VIBECITY_CHECK(granary.has_value());
+    VIBECITY_CHECK(vibecity::client::construction_cost_text(catalog->definition(*granary))
+        == "NEEDS 18 TIMBER + 4 POTTERY");
+    VIBECITY_CHECK(vibecity::client::operation_summary_text(catalog->definition(*granary))
+        == "COLLECTS AND REDISTRIBUTES GOODS");
 }
 
 void build_menu_hit_testing_respects_rows_gaps_and_scroll()

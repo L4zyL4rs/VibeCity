@@ -48,6 +48,20 @@ enum class ResourceSourcePolicy : std::uint8_t {
     AllStored
 };
 
+using ResourceSourceMask = std::uint64_t;
+
+constexpr ResourceSourceMask resource_source_bit(ResourceId resource)
+{
+    static_assert(resource_count < std::numeric_limits<ResourceSourceMask>::digits);
+    return ResourceSourceMask{1} << resource_index(resource);
+}
+
+constexpr ResourceSourceMask all_resource_source_mask()
+{
+    static_assert(resource_count < std::numeric_limits<ResourceSourceMask>::digits);
+    return (ResourceSourceMask{1} << resource_count) - 1;
+}
+
 using TerrainConstructionMaterials = std::array<ResourceArray, terrain_count>;
 
 struct Recipe {
@@ -82,7 +96,7 @@ struct BuildingDefinition {
     bool requests_storage_inputs = false;
     bool internal_construction_site = false;
     std::array<std::uint8_t, 3> map_color{128, 128, 128};
-    std::uint8_t source_mask = 0;
+    ResourceSourceMask source_mask = 0;
 };
 
 class BuildingCatalog {
@@ -129,7 +143,7 @@ struct BuildingInstance {
     Tick construction_labor_required = 0;
     Tick construction_labor_completed = 0;
     BlockingReason blocking_reason = BlockingReason::None;
-    std::uint8_t source_mask = 0;
+    ResourceSourceMask source_mask = 0;
 };
 
 [[nodiscard]] const BuildingDefinition& building_definition(BuildingKind kind);

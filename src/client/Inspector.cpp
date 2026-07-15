@@ -30,6 +30,8 @@ std::string_view resource_display_name(ResourceId resource)
         return "TOOLS";
     case ResourceId::Bricks:
         return "BRICKS";
+    case ResourceId::Pottery:
+        return "POTTERY";
     case ResourceId::Count:
         return "UNK";
     }

@@ -1089,7 +1089,7 @@ std::optional<Simulation::SourceSelection> Simulation::find_source_for_request(
 
 bool Simulation::can_source_resource(const BuildingInstance& source, ResourceId resource) const
 {
-    return (source.source_mask & (std::uint8_t{1} << resource_index(resource))) != 0;
+    return (source.source_mask & resource_source_bit(resource)) != 0;
 }
 
 Quantity Simulation::projected_quantity(const BuildingInstance& building, ResourceId resource) const

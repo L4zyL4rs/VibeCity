@@ -495,13 +495,11 @@ BuildingDefinition parse_definition(const std::filesystem::path& path)
         throw std::runtime_error(path.string() + ": gathering requires a recipe");
     }
     if (definition.source_policy == ResourceSourcePolicy::AllStored) {
-        definition.source_mask =
-            static_cast<std::uint8_t>((std::uint16_t{1} << resource_count) - 1);
+        definition.source_mask = all_resource_source_mask();
     } else if (definition.source_policy == ResourceSourcePolicy::RecipeOutputs) {
         for (std::size_t index = 0; index < resource_count; ++index) {
             if (definition.recipe->outputs[index] > 0) {
-                definition.source_mask |=
-                    static_cast<std::uint8_t>(std::uint8_t{1} << index);
+                definition.source_mask |= resource_source_bit(static_cast<ResourceId>(index));
             }
         }
     }

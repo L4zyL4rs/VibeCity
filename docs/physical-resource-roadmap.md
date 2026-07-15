@@ -79,6 +79,19 @@ understand when production stops or must move elsewhere.
   consumes firewood to produce bricks.
 - Storehouses can store bricks.
 
+## Implemented: Pottery Content Slice
+
+- Pottery is a core transported resource with palette, inspector,
+  build-menu, and save/load support.
+- The default catalog includes a data-defined potter that gathers clay and
+  consumes firewood to produce pottery.
+- The default catalog includes a data-defined granary that stores grain and
+  bread, requires pottery during construction, and serves as the first explicit
+  fired-clay construction sink.
+- Pottery currently exists as direct buildable content. Capability-gated
+  discovery, specialist knowledge, and research-project requirements are still
+  planned as the next engine slice.
+
 ## Implemented: Logistics Inspection
 
 - Selected buildings show active incoming and outgoing reservations.
@@ -131,9 +144,9 @@ input/output chain, but only where the detail creates a clear placement,
 logistics, or scaling decision.
 
 Physical goods are stored, reserved, hauled, and visible. Early examples are
-grain, bread, timber, firewood, stone, clay, bricks, and tools. Later examples
-can include iron ore, charcoal, iron, steel, glass, machinery, and precision
-parts.
+grain, bread, timber, firewood, stone, clay, pottery, bricks, and tools. Later
+examples can include iron ore, charcoal, iron, steel, glass, machinery, and
+precision parts.
 
 Local services affect buildings without necessarily becoming one transported
 unit per consumer per day. Water is the first candidate:
@@ -164,8 +177,8 @@ electricity or industry:
 - Rough stone can support simple construction and foundations.
 - Dressed stone can require a stonemason, tools, and labor, then gate larger
   buildings, bridges, aqueducts, and civic infrastructure.
-- Clay and firewood can produce bricks for better storage, denser housing,
-  improved roads, or water infrastructure.
+- Clay and firewood can produce pottery first, then bricks later, for better
+  storage, denser housing, improved roads, or water infrastructure.
 - More specific stone or ore types can wait until regional specialization
   creates interesting map decisions.
 
@@ -234,18 +247,21 @@ Suggested early-to-medieval ladder:
 
 ## Next Programming Slices
 
-1. Prototype clay as pottery before treating bricks as just another
-   construction material.
-2. Add a kiln/potter chain that uses clay and fuel to improve storage or food
-   handling.
-3. Decide whether bricks gate a road upgrade, storage upgrade, water
+1. Add persistent settlement capabilities and locked-build-menu states so
+   pottery, bricks, and later metalworking can be discovered without abstract
+   research points.
+2. Add an experimentation/project loop that costs labor, input goods, workshop
+   access, and time; start with pottery or controlled heat.
+3. Connect the granary to a meaningful food-storage benefit once spoilage,
+   storage quality, or stock targets exist.
+4. Decide whether bricks gate a road upgrade, storage upgrade, water
    infrastructure, or the next village objective.
-4. Prototype a tool-condition model where tooling changes productivity before
+5. Prototype a tool-condition model where tooling changes productivity before
    adding more economic chains.
-5. Prototype rough-stone to dressed-stone refinement for medieval
+6. Prototype rough-stone to dressed-stone refinement for medieval
    infrastructure.
-6. Better generation controls for water and broader map shapes.
-7. Keep copper, bronze, and iron out of the active village milestone until
+7. Better generation controls for water and broader map shapes.
+8. Keep copper, bronze, and iron out of the active village milestone until
    pottery, kilns, fuel pressure, and tool maintenance have a playable base.
 
 ## Deliberate Limits

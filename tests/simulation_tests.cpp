@@ -1175,6 +1175,65 @@ void brickyard_harvests_clay_and_firewood_into_bricks()
     VIBECITY_CHECK(simulation.stats().produced[vibecity::resource_index(vibecity::ResourceId::Bricks)] == 6);
 }
 
+void potter_harvests_clay_and_firewood_into_pottery()
+{
+    vibecity::Simulation simulation;
+
+    const auto potter_kind = simulation.building_catalog().find_kind("potter");
+    VIBECITY_CHECK(potter_kind.has_value());
+    const auto& potter_definition = simulation.definition(*potter_kind);
+    VIBECITY_CHECK(potter_definition.gathering.has_value());
+    VIBECITY_CHECK(potter_definition.gathering->resource == vibecity::MapResourceId::Clay);
+
+    const auto house = simulation.add_building_at(
+        vibecity::BuildingKind::House,
+        vibecity::GridPosition{1, 1});
+    const auto potter = simulation.add_building_at(
+        *potter_kind,
+        vibecity::GridPosition{3, 1});
+    for (int x = 1; x <= 5; ++x) {
+        VIBECITY_CHECK(simulation.add_path(vibecity::GridPosition{x, 0}));
+    }
+    VIBECITY_CHECK(simulation.set_map_resource(
+        vibecity::GridPosition{5, 2},
+        vibecity::MapResourceId::Clay,
+        vibecity::clay_tile_capacity));
+    simulation.set_residents(house, 5);
+    VIBECITY_CHECK(simulation.building(potter).inventory.add(
+        vibecity::ResourceId::Firewood,
+        2));
+
+    simulation.run_for(720);
+
+    const auto& instance = simulation.building(potter);
+    VIBECITY_CHECK(simulation.map().map_resource_quantity(vibecity::GridPosition{5, 2}) == 9);
+    VIBECITY_CHECK(instance.inventory.quantity(vibecity::ResourceId::Firewood) == 0);
+    VIBECITY_CHECK(instance.inventory.quantity(vibecity::ResourceId::Pottery) == 4);
+    VIBECITY_CHECK(simulation.stats().produced[vibecity::resource_index(vibecity::ResourceId::Pottery)] == 4);
+}
+
+void granary_construction_requires_pottery()
+{
+    vibecity::Simulation simulation;
+
+    const auto granary_kind = simulation.building_catalog().find_kind("granary");
+    VIBECITY_CHECK(granary_kind.has_value());
+    const auto& granary_definition = simulation.definition(*granary_kind);
+    VIBECITY_CHECK(granary_definition.construction_materials[
+            vibecity::resource_index(vibecity::ResourceId::Timber)]
+        == 18);
+    VIBECITY_CHECK(granary_definition.construction_materials[
+            vibecity::resource_index(vibecity::ResourceId::Pottery)]
+        == 4);
+
+    const auto site = simulation.place_construction_at(
+        *granary_kind,
+        vibecity::GridPosition{1, 1});
+    const auto& site_instance = simulation.building(site);
+    VIBECITY_CHECK(site_instance.inventory.capacity(vibecity::ResourceId::Timber) == 18);
+    VIBECITY_CHECK(site_instance.inventory.capacity(vibecity::ResourceId::Pottery) == 4);
+}
+
 void construction_site_fetches_materials_and_completes()
 {
     vibecity::Simulation simulation;
@@ -1337,6 +1396,8 @@ int main()
     woodcutter_ignores_forest_outside_collection_radius();
     quarry_harvests_finite_nearby_stone();
     brickyard_harvests_clay_and_firewood_into_bricks();
+    potter_harvests_clay_and_firewood_into_pottery();
+    granary_construction_requires_pottery();
     construction_site_fetches_materials_and_completes();
     terrain_adjusted_construction_waits_for_extra_material();
     construction_summary_reports_queue_focus();

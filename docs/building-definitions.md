@@ -79,6 +79,7 @@ firewood
 stone
 tools
 bricks
+pottery
 ```
 
 `[construction]` declares material costs. `[storage]` declares per-resource

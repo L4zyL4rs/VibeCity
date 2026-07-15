@@ -547,7 +547,7 @@ void invalid_save_is_rejected_without_replacing_session()
 
     auto version = read_bytes(valid_path);
     VIBECITY_CHECK(version.size() > 12);
-    version[8] = 8;
+    version[8] = 9;
     write_bytes(version_path, version);
 
     auto target = starting_village_session();

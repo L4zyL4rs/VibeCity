@@ -135,7 +135,7 @@ maintenance state:
 Early resources may include:
 
 - Food categories such as grain, bread, vegetables, meat, fish.
-- Construction materials such as timber, stone, clay, bricks.
+- Construction materials such as timber, stone, clay, pottery, bricks.
 - Tools.
 - Fuel such as firewood and charcoal.
 - Labor-days or work capacity.

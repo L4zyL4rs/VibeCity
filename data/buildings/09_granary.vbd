@@ -1,0 +1,24 @@
+[building]
+id = granary
+name = Granary
+footprint = 2, 2
+worker_slots = 0
+resident_capacity = 0
+worker_supply = 0
+consumes_bread = false
+requests_storage_inputs = true
+internal_construction_site = false
+source_policy = all_stored
+map_color = 148, 126, 74
+construction_labor_minutes = 7200
+
+[construction]
+timber = 18
+pottery = 4
+
+[terrain_construction]
+rocky.stone = 1
+
+[storage]
+grain = 300
+bread = 120
