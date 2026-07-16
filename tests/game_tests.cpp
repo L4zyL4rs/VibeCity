@@ -348,6 +348,81 @@ void pottery_experiment_requires_physical_inputs()
     VIBECITY_CHECK(!game.simulation().has_capability(vibecity::CapabilityId::Pottery));
 }
 
+void pottery_experiment_reports_start_blockers()
+{
+    vibecity::GameSession game;
+
+    auto status = game.simulation().discovery_project_start_status(
+        vibecity::DiscoveryProjectId::PotteryExperiment,
+        99);
+    VIBECITY_CHECK(status.blocker == vibecity::DiscoveryProjectStartBlocker::InvalidHost);
+
+    require(game, vibecity::PlacePathCommand{.position = vibecity::GridPosition{4, 0}});
+    const auto house = require_building(game, vibecity::PlaceBuildingCommand{
+        .kind = vibecity::BuildingKind::House,
+        .position = vibecity::GridPosition{4, 1}
+    });
+    status = game.simulation().discovery_project_start_status(
+        vibecity::DiscoveryProjectId::PotteryExperiment,
+        house);
+    VIBECITY_CHECK(status.blocker == vibecity::DiscoveryProjectStartBlocker::WrongHost);
+
+    const auto storehouse = require_building(game, vibecity::PlaceBuildingCommand{
+        .kind = vibecity::BuildingKind::Storehouse,
+        .position = vibecity::GridPosition{8, 1}
+    });
+    status = game.simulation().discovery_project_start_status(
+        vibecity::DiscoveryProjectId::PotteryExperiment,
+        storehouse);
+    VIBECITY_CHECK(status.blocker == vibecity::DiscoveryProjectStartBlocker::MissingPathAccess);
+
+    require(game, vibecity::PlacePathCommand{.position = vibecity::GridPosition{8, 0}});
+    require(game, vibecity::AddInventoryCommand{
+        .building = storehouse,
+        .resource = vibecity::ResourceId::Firewood,
+        .quantity = 3
+    });
+    status = game.simulation().discovery_project_start_status(
+        vibecity::DiscoveryProjectId::PotteryExperiment,
+        storehouse);
+    VIBECITY_CHECK(status.blocker == vibecity::DiscoveryProjectStartBlocker::MissingInputs);
+    VIBECITY_CHECK(status.missing_inputs[vibecity::resource_index(vibecity::ResourceId::Firewood)] == 3);
+    VIBECITY_CHECK(status.map_resource_available == 0);
+
+    require(game, vibecity::AddInventoryCommand{
+        .building = storehouse,
+        .resource = vibecity::ResourceId::Firewood,
+        .quantity = 3
+    });
+    status = game.simulation().discovery_project_start_status(
+        vibecity::DiscoveryProjectId::PotteryExperiment,
+        storehouse);
+    VIBECITY_CHECK(status.blocker == vibecity::DiscoveryProjectStartBlocker::MissingMapResource);
+    VIBECITY_CHECK(status.map_resource_available == 0);
+
+    VIBECITY_CHECK(game.simulation().set_map_resource(
+        vibecity::GridPosition{10, 2},
+        vibecity::MapResourceId::Clay,
+        1));
+    status = game.simulation().discovery_project_start_status(
+        vibecity::DiscoveryProjectId::PotteryExperiment,
+        storehouse);
+    VIBECITY_CHECK(status.blocker == vibecity::DiscoveryProjectStartBlocker::MissingMapResource);
+    VIBECITY_CHECK(status.map_resource_available == 1);
+
+    VIBECITY_CHECK(game.simulation().set_map_resource(
+        vibecity::GridPosition{10, 2},
+        vibecity::MapResourceId::Clay,
+        vibecity::clay_tile_capacity));
+    status = game.simulation().discovery_project_start_status(
+        vibecity::DiscoveryProjectId::PotteryExperiment,
+        storehouse);
+    VIBECITY_CHECK(status.blocker == vibecity::DiscoveryProjectStartBlocker::None);
+    VIBECITY_CHECK(game.simulation().can_start_discovery_project(
+        vibecity::DiscoveryProjectId::PotteryExperiment,
+        storehouse));
+}
+
 void discovery_project_cancels_when_host_is_demolished()
 {
     const auto path = std::filesystem::temp_directory_path() / "vibecity-canceled-project.vcs";
@@ -919,6 +994,7 @@ int main()
     command_layer_rejects_locked_construction();
     pottery_experiment_consumes_inputs_and_unlocks_buildings();
     pottery_experiment_requires_physical_inputs();
+    pottery_experiment_reports_start_blockers();
     discovery_project_cancels_when_host_is_demolished();
     starting_village_world_generation_supports_reference_route();
     starting_village_runs_through_command_layer();

@@ -40,6 +40,7 @@ for 30 days.
 - `L` or `Tab`: cycle default, resource, and terrain map lenses
 - Mouse wheel over the construction menu or inspector: scroll that panel
 - `Esc`: cancel placement or demolition, then clear the current selection
+- `P`: start the pottery experiment from the selected storehouse, if ready
 - `F5`: save to `vibecity-save.vcs`
 - `F9`: load from `vibecity-save.vcs`
 
@@ -98,6 +99,15 @@ and settlement daily bread need should make the shortfall visible.
 The quarry and second storehouse are required for the current milestone. The
 food chain should stabilize first; the stone leg is an expansion check after
 the second bakery is underway.
+
+Optional discovery check after the village is stable:
+
+1. Select a storehouse near clay.
+2. Use the selected-building discovery section to identify missing firewood,
+   clay in range, and road-access blockers.
+3. Once it reports the pottery experiment as ready, press `P`.
+4. Confirm the project consumes firewood and clay, shows active labor, and
+   unlocks potters and granaries when finished.
 
 The exact coordinates are not meant to be final gameplay advice. They are a
 control route matching the automated milestone test. The starter map is now

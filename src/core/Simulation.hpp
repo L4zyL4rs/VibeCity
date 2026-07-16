@@ -74,6 +74,23 @@ struct DiscoveryProjectSummary {
     Tick next_labor_remaining = 0;
 };
 
+enum class DiscoveryProjectStartBlocker : std::uint8_t {
+    None,
+    CapabilityAlreadyDiscovered,
+    AlreadyActive,
+    InvalidHost,
+    WrongHost,
+    MissingPathAccess,
+    MissingInputs,
+    MissingMapResource
+};
+
+struct DiscoveryProjectStartStatus {
+    DiscoveryProjectStartBlocker blocker = DiscoveryProjectStartBlocker::None;
+    ResourceArray missing_inputs{};
+    Quantity map_resource_available = 0;
+};
+
 using TransportJobId = std::uint32_t;
 
 enum class TransportJobState : std::uint8_t {
@@ -158,6 +175,12 @@ public:
     bool demolish_building(BuildingId id);
     void grant_capability(CapabilityId capability);
     void start_discovery_project(DiscoveryProjectId project, BuildingId host);
+    [[nodiscard]] DiscoveryProjectStartStatus discovery_project_start_status(
+        DiscoveryProjectId project,
+        BuildingId host) const;
+    [[nodiscard]] bool can_start_discovery_project(
+        DiscoveryProjectId project,
+        BuildingId host) const;
     [[nodiscard]] bool has_capability(CapabilityId capability) const;
     [[nodiscard]] CapabilityMask capability_mask() const;
     [[nodiscard]] std::optional<CapabilityId> missing_capability(BuildingKind kind) const;
@@ -260,5 +283,7 @@ private:
 [[nodiscard]] std::string_view transport_job_state_name(TransportJobState state);
 [[nodiscard]] std::string_view population_growth_blocker_text(PopulationGrowthBlocker blocker);
 [[nodiscard]] const DiscoveryProjectDefinition& discovery_project_definition(DiscoveryProjectId project);
+[[nodiscard]] std::string_view discovery_project_start_blocker_text(
+    DiscoveryProjectStartBlocker blocker);
 
 }

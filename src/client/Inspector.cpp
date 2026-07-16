@@ -234,6 +234,143 @@ std::string capability_summary_line(const Simulation& simulation)
     return wrote_capability ? output.str() : "NONE";
 }
 
+const DiscoveryProject* active_project(
+    const Simulation& simulation,
+    DiscoveryProjectId project_id)
+{
+    for (const auto& project : simulation.discovery_projects()) {
+        if (project.project == project_id) {
+            return &project;
+        }
+    }
+    return nullptr;
+}
+
+std::string discovery_project_requirement_line(const DiscoveryProjectDefinition& project)
+{
+    auto line = std::string{"NEEDS: "} + resource_amounts_text(project.inputs);
+    if (project.map_resource_quantity > 0) {
+        line += " + ";
+        line += std::to_string(project.map_resource_quantity);
+        line += " ";
+        line += map_resource_display_name(project.map_resource);
+        line += " NEARBY";
+    }
+    return truncate_text(line, 48);
+}
+
+std::string discovery_project_status_line(
+    const DiscoveryProjectStartStatus& status)
+{
+    switch (status.blocker) {
+    case DiscoveryProjectStartBlocker::None:
+        return "STATUS: READY AT THIS STOREHOUSE";
+    case DiscoveryProjectStartBlocker::CapabilityAlreadyDiscovered:
+        return "STATUS: POTTERY DISCOVERED";
+    case DiscoveryProjectStartBlocker::AlreadyActive:
+        return "STATUS: PROJECT ALREADY ACTIVE";
+    case DiscoveryProjectStartBlocker::InvalidHost:
+        return "STATUS: SELECT A PLACED STOREHOUSE";
+    case DiscoveryProjectStartBlocker::WrongHost:
+        return "STATUS: NEEDS STOREHOUSE HOST";
+    case DiscoveryProjectStartBlocker::MissingPathAccess:
+        return "STATUS: HOST NEEDS ROAD ACCESS";
+    case DiscoveryProjectStartBlocker::MissingInputs:
+        return "STATUS: HOST MISSING MATERIALS";
+    case DiscoveryProjectStartBlocker::MissingMapResource:
+        return "STATUS: NOT ENOUGH CLAY NEARBY";
+    }
+    return "STATUS: UNKNOWN BLOCKER";
+}
+
+int draw_selected_discovery_project(SDL_Renderer* renderer,
+    const Simulation& simulation,
+    const BuildingInstance& building,
+    int x,
+    int y,
+    Color text,
+    Color muted)
+{
+    const auto project_id = DiscoveryProjectId::PotteryExperiment;
+    const auto& project = discovery_project_definition(project_id);
+    const auto* active = active_project(simulation, project_id);
+    if (active == nullptr && simulation.has_capability(project.grants_capability)) {
+        return y;
+    }
+    if (building.kind != project.required_host
+        && (active == nullptr || active->host != building.id)) {
+        return y;
+    }
+
+    draw_text(renderer, x, y, "DISCOVERY", text, 2);
+    y += 24;
+    draw_text(renderer, x, y, std::string{project.name}, muted, 2);
+    y += 20;
+    draw_text(renderer, x, y, discovery_project_requirement_line(project), muted, 1);
+    y += 16;
+    draw_text(renderer,
+        x,
+        y,
+        std::string{"LABOR: "} + duration_text(project.labor_minutes)
+            + "  WORKERS: " + std::to_string(project.worker_slots),
+        muted,
+        1);
+    y += 16;
+
+    if (active != nullptr) {
+        const auto hosted_here = active->host == building.id;
+        draw_text(renderer,
+            x,
+            y,
+            hosted_here
+                ? "STATUS: ACTIVE HERE"
+                : "STATUS: ACTIVE AT " + short_building_label(simulation, active->host),
+            muted,
+            1);
+        y += 16;
+        draw_text(renderer,
+            x,
+            y,
+            std::string{"LABOR REMAINING: "}
+                + duration_text(std::max<Tick>(0, project.labor_minutes - active->labor_completed)),
+            muted,
+            1);
+        y += 24;
+        return y;
+    }
+
+    const auto start_status = simulation.discovery_project_start_status(project_id, building.id);
+    draw_text(renderer, x, y, discovery_project_status_line(start_status), muted, 1);
+    y += 16;
+
+    if (start_status.blocker == DiscoveryProjectStartBlocker::MissingInputs) {
+        draw_text(renderer,
+            x,
+            y,
+            "MISSING: " + resource_amounts_text(start_status.missing_inputs),
+            muted,
+            1);
+        y += 16;
+    }
+
+    if (start_status.blocker != DiscoveryProjectStartBlocker::WrongHost
+        && start_status.blocker != DiscoveryProjectStartBlocker::InvalidHost
+        && start_status.blocker != DiscoveryProjectStartBlocker::MissingPathAccess
+        && building.kind == project.required_host) {
+        draw_text(renderer,
+            x,
+            y,
+            std::string{map_resource_display_name(project.map_resource)}
+                + " IN RANGE: " + std::to_string(start_status.map_resource_available)
+                + "/" + std::to_string(project.map_resource_quantity),
+            muted,
+            1);
+        y += 16;
+    }
+
+    return y + 8;
+}
+
 std::string objective_progress_line(const VillageObjectiveStatus& status)
 {
     auto output = std::ostringstream{};
@@ -536,6 +673,15 @@ int draw_inspector_content(SDL_Renderer* renderer,
     residents << "RESIDENTS: " << building.residents;
     draw_text(renderer, x, y, residents.str(), muted, 2);
     y += 28;
+
+    y = draw_selected_discovery_project(
+        renderer,
+        simulation,
+        building,
+        x,
+        y,
+        text,
+        muted);
 
     const auto& instance_definition = simulation.definition(building.kind);
     const auto* operating_definition = &instance_definition;

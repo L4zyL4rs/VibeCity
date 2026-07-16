@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <stdexcept>
+#include <string>
 #include <tuple>
 
 namespace vibecity {
@@ -80,6 +81,29 @@ const DiscoveryProjectDefinition& discovery_project_definition(DiscoveryProjectI
         break;
     }
     throw std::invalid_argument("invalid discovery project");
+}
+
+std::string_view discovery_project_start_blocker_text(DiscoveryProjectStartBlocker blocker)
+{
+    switch (blocker) {
+    case DiscoveryProjectStartBlocker::None:
+        return "ready";
+    case DiscoveryProjectStartBlocker::CapabilityAlreadyDiscovered:
+        return "capability already discovered";
+    case DiscoveryProjectStartBlocker::AlreadyActive:
+        return "discovery project is already active";
+    case DiscoveryProjectStartBlocker::InvalidHost:
+        return "discovery project host is invalid";
+    case DiscoveryProjectStartBlocker::WrongHost:
+        return "discovery project requires a storehouse host";
+    case DiscoveryProjectStartBlocker::MissingPathAccess:
+        return "discovery project host needs path access";
+    case DiscoveryProjectStartBlocker::MissingInputs:
+        return "discovery project is missing hosted inputs";
+    case DiscoveryProjectStartBlocker::MissingMapResource:
+        return "discovery project is missing nearby map resource";
+    }
+    return "unknown discovery project blocker";
 }
 
 Simulation::Simulation(std::shared_ptr<const BuildingCatalog> catalog)
@@ -284,51 +308,14 @@ void Simulation::grant_capability(CapabilityId capability)
 void Simulation::start_discovery_project(DiscoveryProjectId project, BuildingId host)
 {
     const auto& project_definition = discovery_project_definition(project);
-    if (has_capability(project_definition.grants_capability)) {
-        throw std::invalid_argument("capability already discovered");
-    }
-    if (std::any_of(
-            discovery_projects_.begin(),
-            discovery_projects_.end(),
-            [project](const DiscoveryProject& active) {
-                return active.project == project;
-            })) {
-        throw std::invalid_argument("discovery project is already active");
+    const auto start_status = discovery_project_start_status(project, host);
+    if (start_status.blocker != DiscoveryProjectStartBlocker::None) {
+        throw std::invalid_argument(std::string{
+            discovery_project_start_blocker_text(start_status.blocker)});
     }
 
     auto& host_building = building(host);
-    if (!host_building.position.has_value()) {
-        throw std::invalid_argument("discovery project host is not placed");
-    }
-    if (host_building.kind != project_definition.required_host) {
-        throw std::invalid_argument("discovery project requires a storehouse host");
-    }
-
     const auto& host_definition = definition(host_building.kind);
-    if (!map_.has_path_access(*host_building.position, host_definition.footprint)) {
-        throw std::invalid_argument("discovery project host needs path access");
-    }
-
-    for (std::size_t index = 0; index < resource_count; ++index) {
-        const auto quantity = project_definition.inputs[index];
-        if (quantity <= 0) {
-            continue;
-        }
-        const auto resource = static_cast<ResourceId>(index);
-        if (host_building.inventory.available(resource) < quantity) {
-            throw std::invalid_argument("discovery project is missing hosted inputs");
-        }
-    }
-
-    if (map_.map_resource_quantity_within_radius(
-            *host_building.position,
-            host_definition.footprint,
-            project_definition.map_resource,
-            project_definition.map_radius)
-        < project_definition.map_resource_quantity) {
-        throw std::invalid_argument("discovery project is missing nearby map resource");
-    }
-
     for (std::size_t index = 0; index < resource_count; ++index) {
         const auto quantity = project_definition.inputs[index];
         if (quantity > 0) {
@@ -351,6 +338,83 @@ void Simulation::start_discovery_project(DiscoveryProjectId project, BuildingId 
         .labor_completed = 0,
         .assigned_workers = 0
     });
+}
+
+DiscoveryProjectStartStatus Simulation::discovery_project_start_status(
+    DiscoveryProjectId project,
+    BuildingId host) const
+{
+    const auto& project_definition = discovery_project_definition(project);
+    auto status = DiscoveryProjectStartStatus{};
+
+    if (has_capability(project_definition.grants_capability)) {
+        status.blocker = DiscoveryProjectStartBlocker::CapabilityAlreadyDiscovered;
+        return status;
+    }
+    if (std::any_of(
+            discovery_projects_.begin(),
+            discovery_projects_.end(),
+            [project](const DiscoveryProject& active) {
+                return active.project == project;
+            })) {
+        status.blocker = DiscoveryProjectStartBlocker::AlreadyActive;
+        return status;
+    }
+
+    const auto* host_building = find_building(host);
+    if (host_building == nullptr || !host_building->position.has_value()) {
+        status.blocker = DiscoveryProjectStartBlocker::InvalidHost;
+        return status;
+    }
+    if (host_building->kind != project_definition.required_host) {
+        status.blocker = DiscoveryProjectStartBlocker::WrongHost;
+        return status;
+    }
+
+    const auto& host_definition = definition(host_building->kind);
+    if (!map_.has_path_access(*host_building->position, host_definition.footprint)) {
+        status.blocker = DiscoveryProjectStartBlocker::MissingPathAccess;
+        return status;
+    }
+
+    status.map_resource_available = map_.map_resource_quantity_within_radius(
+        *host_building->position,
+        host_definition.footprint,
+        project_definition.map_resource,
+        project_definition.map_radius);
+
+    auto missing_inputs = false;
+    for (std::size_t index = 0; index < resource_count; ++index) {
+        const auto required = project_definition.inputs[index];
+        if (required <= 0) {
+            continue;
+        }
+        const auto resource = static_cast<ResourceId>(index);
+        const auto available = host_building->inventory.available(resource);
+        if (available < required) {
+            status.missing_inputs[index] = required - available;
+            missing_inputs = true;
+        }
+    }
+    if (missing_inputs) {
+        status.blocker = DiscoveryProjectStartBlocker::MissingInputs;
+        return status;
+    }
+
+    if (status.map_resource_available < project_definition.map_resource_quantity) {
+        status.blocker = DiscoveryProjectStartBlocker::MissingMapResource;
+        return status;
+    }
+
+    return status;
+}
+
+bool Simulation::can_start_discovery_project(
+    DiscoveryProjectId project,
+    BuildingId host) const
+{
+    return discovery_project_start_status(project, host).blocker
+        == DiscoveryProjectStartBlocker::None;
 }
 
 bool Simulation::has_capability(CapabilityId capability) const

@@ -117,6 +117,8 @@ understand when production stops or must move elsewhere.
   headless output and the settlement inspector.
 - The SDL client has a temporary interaction: select a valid project host and
   press `P` to start the pottery experiment.
+- Selected storehouses show pottery experiment requirements, readiness,
+  active labor, and blockers for missing firewood, road access, or nearby clay.
 
 ## Implemented: Logistics Inspection
 
@@ -273,8 +275,8 @@ Suggested early-to-medieval ladder:
 
 ## Next Programming Slices
 
-1. Add a proper project UI for starting available discovery projects instead
-   of the temporary selected-host shortcut.
+1. Replace the temporary selected-host shortcut with a proper project UI for
+   starting available discovery projects.
 2. Add the brickmaking discovery project, likely requiring pottery, more fuel,
    and either a potter, kiln, or improved workshop host.
 3. Connect the granary to a meaningful food-storage benefit once spoilage,

@@ -5,7 +5,9 @@
 #include "client/Inspector.hpp"
 
 #include <algorithm>
+#include <cstddef>
 #include <filesystem>
+#include <sstream>
 
 namespace vibecity::client {
 namespace {
@@ -107,6 +109,69 @@ std::string placement_hover_status(
     }
 
     return status;
+}
+
+std::string status_resource_amounts_text(const ResourceArray& amounts)
+{
+    auto output = std::ostringstream{};
+    auto wrote_amount = false;
+    for (std::size_t index = 0; index < resource_count; ++index) {
+        if (amounts[index] <= 0) {
+            continue;
+        }
+        output << (wrote_amount ? " + " : "")
+               << amounts[index] << " "
+               << resource_name(static_cast<ResourceId>(index));
+        wrote_amount = true;
+    }
+    return wrote_amount ? output.str() : "materials";
+}
+
+std::string discovery_project_status_text(
+    const Simulation& simulation,
+    DiscoveryProjectId project_id,
+    BuildingId host)
+{
+    const auto& project = discovery_project_definition(project_id);
+    const auto status = simulation.discovery_project_start_status(project_id, host);
+    switch (status.blocker) {
+    case DiscoveryProjectStartBlocker::None:
+        return std::string{project.name} + " ready";
+    case DiscoveryProjectStartBlocker::CapabilityAlreadyDiscovered:
+        return std::string{capability_name(project.grants_capability)} + " already discovered";
+    case DiscoveryProjectStartBlocker::AlreadyActive:
+        return std::string{project.name} + " already active";
+    case DiscoveryProjectStartBlocker::InvalidHost:
+        return std::string{project.name} + " needs a placed host";
+    case DiscoveryProjectStartBlocker::WrongHost:
+        return std::string{project.name} + " needs "
+            + simulation.definition(project.required_host).name;
+    case DiscoveryProjectStartBlocker::MissingPathAccess:
+        return std::string{project.name} + " needs road access";
+    case DiscoveryProjectStartBlocker::MissingInputs:
+        return std::string{project.name} + " missing "
+            + status_resource_amounts_text(status.missing_inputs);
+    case DiscoveryProjectStartBlocker::MissingMapResource:
+        return std::string{project.name} + " needs "
+            + std::to_string(project.map_resource_quantity) + " "
+            + std::string{map_resource_name(project.map_resource)}
+            + " nearby (" + std::to_string(status.map_resource_available) + ")";
+    }
+    return std::string{project.name} + " blocked";
+}
+
+std::string selected_building_status(const Simulation& simulation, BuildingId building_id)
+{
+    const auto& project = discovery_project_definition(DiscoveryProjectId::PotteryExperiment);
+    const auto& building = simulation.building(building_id);
+    if (building.kind != project.required_host
+        || simulation.has_capability(project.grants_capability)) {
+        return "building selected";
+    }
+    return discovery_project_status_text(
+        simulation,
+        DiscoveryProjectId::PotteryExperiment,
+        building_id);
 }
 
 std::string demolition_hover_status(const Simulation& simulation, GridPosition tile)
@@ -226,6 +291,16 @@ void handle_keydown(GameSession& game, ClientInteractionState& state, SDL_Keycod
         if (!state.selected.has_value()) {
             state.status = "no project host selected";
         } else {
+            const auto start_status = game.simulation().discovery_project_start_status(
+                DiscoveryProjectId::PotteryExperiment,
+                *state.selected);
+            if (start_status.blocker != DiscoveryProjectStartBlocker::None) {
+                state.status = discovery_project_status_text(
+                    game.simulation(),
+                    DiscoveryProjectId::PotteryExperiment,
+                    *state.selected);
+                break;
+            }
             const auto result = game.execute(StartDiscoveryProjectCommand{
                 .project = DiscoveryProjectId::PotteryExperiment,
                 .host = *state.selected
@@ -317,7 +392,9 @@ void handle_left_mouse_down(GameSession& game, ClientInteractionState& state, in
     if (state.mode == ClientMode::Select) {
         state.selected = building_at(game.simulation(), tile);
         state.inspector_scroll = 0;
-        state.status = state.selected.has_value() ? "building selected" : "no building selected";
+        state.status = state.selected.has_value()
+            ? selected_building_status(game.simulation(), *state.selected)
+            : "no building selected";
     } else if (state.mode == ClientMode::PlacePath) {
         state.path_dragging = true;
         state.last_path_drag_tile = tile;
