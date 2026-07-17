@@ -147,6 +147,20 @@ std::string truncate_text(std::string text, std::size_t maximum)
     return text;
 }
 
+std::string uppercase_ascii(std::string_view text)
+{
+    auto output = std::string{};
+    output.reserve(text.size());
+    for (const auto character : text) {
+        if (character >= 'a' && character <= 'z') {
+            output.push_back(static_cast<char>(character - 'a' + 'A'));
+        } else {
+            output.push_back(character);
+        }
+    }
+    return output;
+}
+
 const BuildingInstance* find_active_building(const Simulation& simulation, BuildingId id)
 {
     for (const auto& building : simulation.buildings()) {
@@ -247,6 +261,17 @@ const DiscoveryProject* active_project(
     return nullptr;
 }
 
+std::string discovery_project_required_host_name(
+    const Simulation& simulation,
+    const DiscoveryProjectDefinition& project)
+{
+    const auto kind = simulation.building_catalog().find_kind(project.required_host_stable_id);
+    if (!kind.has_value()) {
+        return std::string{project.required_host_stable_id};
+    }
+    return simulation.definition(*kind).name;
+}
+
 std::string discovery_project_requirement_line(const DiscoveryProjectDefinition& project)
 {
     auto line = std::string{"NEEDS: "} + resource_amounts_text(project.inputs);
@@ -261,15 +286,22 @@ std::string discovery_project_requirement_line(const DiscoveryProjectDefinition&
 }
 
 std::string discovery_project_status_line(
+    const DiscoveryProjectDefinition& project,
     const DiscoveryProjectStartStatus& status)
 {
     switch (status.blocker) {
     case DiscoveryProjectStartBlocker::None:
         return "STATUS: READY AT THIS HOST";
     case DiscoveryProjectStartBlocker::CapabilityAlreadyDiscovered:
-        return "STATUS: POTTERY DISCOVERED";
+        return "STATUS: " + uppercase_ascii(capability_name(project.grants_capability)) + " DISCOVERED";
     case DiscoveryProjectStartBlocker::AlreadyActive:
         return "STATUS: PROJECT ALREADY ACTIVE";
+    case DiscoveryProjectStartBlocker::MissingCapability:
+        if (project.required_capability.has_value()) {
+            return "STATUS: NEEDS "
+                + uppercase_ascii(capability_name(*project.required_capability));
+        }
+        return "STATUS: NEEDS PREREQUISITE";
     case DiscoveryProjectStartBlocker::InvalidHost:
         return "STATUS: SELECT A PLACED HOST";
     case DiscoveryProjectStartBlocker::WrongHost:
@@ -331,14 +363,14 @@ int draw_selected_discovery_project(SDL_Renderer* renderer,
     Color text,
     Color muted)
 {
-    const auto project_id = DiscoveryProjectId::PotteryExperiment;
-    const auto& project = discovery_project_definition(project_id);
-    const auto* active = active_project(simulation, project_id);
-    if (active == nullptr && simulation.has_capability(project.grants_capability)) {
+    const auto selected_project = simulation.discovery_project_for_host(building.id);
+    if (!selected_project.has_value()) {
         return y;
     }
-    if (building.kind != project.required_host
-        && (active == nullptr || active->host != building.id)) {
+    const auto project_id = *selected_project;
+    const auto& project = discovery_project_definition(project_id);
+    const auto* active = active_project(simulation, project_id);
+    if (active != nullptr && active->host != building.id) {
         return y;
     }
 
@@ -409,7 +441,7 @@ int draw_selected_discovery_project(SDL_Renderer* renderer,
     }
 
     const auto start_status = simulation.discovery_project_start_status(project_id, building.id);
-    draw_text(renderer, x, y, discovery_project_status_line(start_status), muted, 1);
+    draw_text(renderer, x, y, discovery_project_status_line(project, start_status), muted, 1);
     y += 16;
 
     if (start_status.blocker == DiscoveryProjectStartBlocker::MissingInputs) {
@@ -424,8 +456,8 @@ int draw_selected_discovery_project(SDL_Renderer* renderer,
 
     if (start_status.blocker != DiscoveryProjectStartBlocker::WrongHost
         && start_status.blocker != DiscoveryProjectStartBlocker::InvalidHost
-        && start_status.blocker != DiscoveryProjectStartBlocker::MissingPathAccess
-        && building.kind == project.required_host) {
+        && start_status.blocker != DiscoveryProjectStartBlocker::MissingCapability
+        && start_status.blocker != DiscoveryProjectStartBlocker::MissingPathAccess) {
         draw_text(renderer,
             x,
             y,
@@ -1020,21 +1052,20 @@ std::vector<std::string> discovery_project_detail_lines(
         return lines;
     }
 
-    const auto project_id = DiscoveryProjectId::PotteryExperiment;
+    const auto selected_project = simulation.discovery_project_for_host(selected_building->id);
+    if (!selected_project.has_value()) {
+        return lines;
+    }
+
+    const auto project_id = *selected_project;
     const auto& project = discovery_project_definition(project_id);
     const auto* active = active_project(simulation, project_id);
-    if (active == nullptr && simulation.has_capability(project.grants_capability)) {
-        return lines;
-    }
     if (active != nullptr && active->host != selected_building->id) {
-        return lines;
-    }
-    if (active == nullptr && selected_building->kind != project.required_host) {
         return lines;
     }
 
     lines.push_back(std::string{project.name});
-    lines.push_back("HOST: " + std::string{simulation.definition(project.required_host).name});
+    lines.push_back("HOST: " + discovery_project_required_host_name(simulation, project));
     lines.push_back("ROAD: HOST NEEDS ACCESS");
     lines.push_back("INPUT: " + resource_amounts_text(project.inputs));
     lines.push_back(
@@ -1044,7 +1075,7 @@ std::vector<std::string> discovery_project_detail_lines(
     lines.push_back(
         "LABOR: " + duration_text(project.labor_minutes)
         + ", " + std::to_string(project.worker_slots) + " WORKERS");
-    lines.push_back("UNLOCKS: POTTERY BUILDINGS");
+    lines.push_back("UNLOCKS: " + uppercase_ascii(capability_name(project.grants_capability)));
 
     if (active != nullptr) {
         lines.push_back("STATUS: ACTIVE HERE");
@@ -1073,12 +1104,13 @@ std::vector<std::string> discovery_project_detail_lines(
     }
 
     const auto start_status = simulation.discovery_project_start_status(project_id, selected_building->id);
-    lines.push_back(discovery_project_status_line(start_status));
+    lines.push_back(discovery_project_status_line(project, start_status));
     if (start_status.blocker == DiscoveryProjectStartBlocker::MissingInputs) {
         lines.push_back("MISSING: " + resource_amounts_text(start_status.missing_inputs));
     }
     if (start_status.blocker != DiscoveryProjectStartBlocker::WrongHost
         && start_status.blocker != DiscoveryProjectStartBlocker::InvalidHost
+        && start_status.blocker != DiscoveryProjectStartBlocker::MissingCapability
         && start_status.blocker != DiscoveryProjectStartBlocker::MissingPathAccess) {
         lines.push_back(map_resource_availability_line(simulation, *selected_building, project));
     }

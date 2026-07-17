@@ -352,6 +352,47 @@ vibecity::BuildingId prepare_pottery_project_host(
     return house;
 }
 
+vibecity::BuildingId prepare_brickmaking_project_host(vibecity::GameSession& game)
+{
+    game.simulation().grant_capability(vibecity::CapabilityId::Pottery);
+
+    for (int x = 1; x <= 8; ++x) {
+        require(game, vibecity::PlacePathCommand{.position = vibecity::GridPosition{x, 0}});
+    }
+
+    const auto house = require_building(game, vibecity::PlaceBuildingCommand{
+        .kind = vibecity::BuildingKind::House,
+        .position = vibecity::GridPosition{1, 1}
+    });
+    require(game, vibecity::SetResidentsCommand{
+        .building = house,
+        .residents = 5
+    });
+
+    const auto potter_kind = game.simulation().building_catalog().find_kind("potter");
+    VIBECITY_CHECK(potter_kind.has_value());
+    const auto potter = require_building(game, vibecity::PlaceBuildingCommand{
+        .kind = *potter_kind,
+        .position = vibecity::GridPosition{7, 1}
+    });
+    require(game, vibecity::AddInventoryCommand{
+        .building = potter,
+        .resource = vibecity::ResourceId::Firewood,
+        .quantity = 10
+    });
+    require(game, vibecity::AddInventoryCommand{
+        .building = potter,
+        .resource = vibecity::ResourceId::Pottery,
+        .quantity = 4
+    });
+    VIBECITY_CHECK(game.simulation().set_map_resource(
+        vibecity::GridPosition{7, 3},
+        vibecity::MapResourceId::Clay,
+        vibecity::clay_tile_capacity));
+
+    return potter;
+}
+
 void pottery_experiment_consumes_inputs_and_unlocks_buildings()
 {
     vibecity::GameSession game;
@@ -386,6 +427,65 @@ void pottery_experiment_consumes_inputs_and_unlocks_buildings()
     VIBECITY_CHECK(game.simulation().stats().consumed[
             vibecity::resource_index(vibecity::ResourceId::Firewood)]
         == 6);
+}
+
+void brickmaking_experiment_consumes_inputs_and_unlocks_brickyard()
+{
+    vibecity::GameSession game;
+    const auto potter = prepare_brickmaking_project_host(game);
+    const auto brickyard = game.simulation().building_catalog().find_kind("brickyard");
+    VIBECITY_CHECK(brickyard.has_value());
+    VIBECITY_CHECK(!game.simulation().building_unlocked(*brickyard));
+
+    const auto result = game.execute(vibecity::StartDiscoveryProjectCommand{
+        .project = vibecity::DiscoveryProjectId::BrickmakingExperiment,
+        .host = potter
+    });
+    VIBECITY_CHECK(result.success);
+    VIBECITY_CHECK(game.simulation().discovery_projects().size() == 1);
+
+    const auto& potter_instance = game.simulation().building(potter);
+    VIBECITY_CHECK(potter_instance.position.has_value());
+    const auto clay_before = game.simulation().map().map_resource_quantity_within_radius(
+        *potter_instance.position,
+        game.simulation().definition(potter_instance.kind).footprint,
+        vibecity::MapResourceId::Clay,
+        6);
+
+    require(game, vibecity::AdvanceTimeCommand{.ticks = 1});
+
+    VIBECITY_CHECK(game.simulation().building(potter).inventory.quantity(
+            vibecity::ResourceId::Firewood)
+        == 0);
+    VIBECITY_CHECK(game.simulation().building(potter).inventory.quantity(
+            vibecity::ResourceId::Pottery)
+        == 0);
+    const auto clay_after = game.simulation().map().map_resource_quantity_within_radius(
+        *potter_instance.position,
+        game.simulation().definition(potter_instance.kind).footprint,
+        vibecity::MapResourceId::Clay,
+        6);
+    VIBECITY_CHECK(clay_after <= clay_before - 4);
+    VIBECITY_CHECK(game.simulation().discovery_projects().front().materials_consumed);
+
+    require(game, vibecity::AdvanceTimeCommand{.ticks = vibecity::ticks_per_day});
+
+    VIBECITY_CHECK(game.simulation().has_capability(vibecity::CapabilityId::Brickmaking));
+    VIBECITY_CHECK(game.simulation().building_unlocked(*brickyard));
+    VIBECITY_CHECK(game.simulation().discovery_projects().empty());
+}
+
+void brickmaking_experiment_requires_pottery_capability()
+{
+    vibecity::GameSession game;
+
+    const auto status = game.simulation().discovery_project_start_status(
+        vibecity::DiscoveryProjectId::BrickmakingExperiment,
+        99);
+    VIBECITY_CHECK(status.blocker == vibecity::DiscoveryProjectStartBlocker::MissingCapability);
+    VIBECITY_CHECK(!game.simulation().can_start_discovery_project(
+        vibecity::DiscoveryProjectId::BrickmakingExperiment,
+        99));
 }
 
 void pottery_experiment_requests_physical_inputs()
@@ -1072,6 +1172,8 @@ int main()
     command_layer_rejects_locked_construction();
     command_layer_pauses_and_resumes_building_work();
     pottery_experiment_consumes_inputs_and_unlocks_buildings();
+    brickmaking_experiment_consumes_inputs_and_unlocks_brickyard();
+    brickmaking_experiment_requires_pottery_capability();
     pottery_experiment_requests_physical_inputs();
     pottery_experiment_requires_nearby_clay();
     pottery_experiment_reports_start_blockers();

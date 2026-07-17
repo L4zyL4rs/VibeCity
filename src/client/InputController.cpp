@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <filesystem>
+#include <optional>
 #include <sstream>
 
 namespace vibecity::client {
@@ -127,6 +128,17 @@ std::string status_resource_amounts_text(const ResourceArray& amounts)
     return wrote_amount ? output.str() : "materials";
 }
 
+std::string discovery_project_required_host_name(
+    const Simulation& simulation,
+    const DiscoveryProjectDefinition& project)
+{
+    const auto kind = simulation.building_catalog().find_kind(project.required_host_stable_id);
+    if (!kind.has_value()) {
+        return std::string{project.required_host_stable_id};
+    }
+    return simulation.definition(*kind).name;
+}
+
 std::string discovery_project_status_text(
     const Simulation& simulation,
     DiscoveryProjectId project_id,
@@ -141,11 +153,17 @@ std::string discovery_project_status_text(
         return std::string{capability_name(project.grants_capability)} + " already discovered";
     case DiscoveryProjectStartBlocker::AlreadyActive:
         return std::string{project.name} + " already active";
+    case DiscoveryProjectStartBlocker::MissingCapability:
+        if (project.required_capability.has_value()) {
+            return std::string{project.name} + " needs "
+                + std::string{capability_name(*project.required_capability)};
+        }
+        return std::string{project.name} + " needs prerequisite";
     case DiscoveryProjectStartBlocker::InvalidHost:
         return std::string{project.name} + " needs a placed host";
     case DiscoveryProjectStartBlocker::WrongHost:
         return std::string{project.name} + " needs "
-            + simulation.definition(project.required_host).name;
+            + discovery_project_required_host_name(simulation, project);
     case DiscoveryProjectStartBlocker::MissingPathAccess:
         return std::string{project.name} + " needs road access";
     case DiscoveryProjectStartBlocker::MissingInputs:
@@ -162,15 +180,13 @@ std::string discovery_project_status_text(
 
 std::string selected_building_status(const Simulation& simulation, BuildingId building_id)
 {
-    const auto& project = discovery_project_definition(DiscoveryProjectId::PotteryExperiment);
-    const auto& building = simulation.building(building_id);
-    if (building.kind != project.required_host
-        || simulation.has_capability(project.grants_capability)) {
+    const auto project = simulation.discovery_project_for_host(building_id);
+    if (!project.has_value()) {
         return "building selected";
     }
     return discovery_project_status_text(
         simulation,
-        DiscoveryProjectId::PotteryExperiment,
+        *project,
         building_id);
 }
 
@@ -291,17 +307,20 @@ void handle_keydown(GameSession& game, ClientInteractionState& state, SDL_Keycod
         if (!state.selected.has_value()) {
             state.status = "no project host selected";
         } else {
-            if (!game.simulation().can_start_discovery_project(
-                    DiscoveryProjectId::PotteryExperiment,
-                    *state.selected)) {
+            const auto project = game.simulation().discovery_project_for_host(*state.selected);
+            if (!project.has_value()) {
+                state.status = "no project available";
+                break;
+            }
+            if (!game.simulation().can_start_discovery_project(*project, *state.selected)) {
                 state.status = discovery_project_status_text(
                     game.simulation(),
-                    DiscoveryProjectId::PotteryExperiment,
+                    *project,
                     *state.selected);
                 break;
             }
             const auto result = game.execute(StartDiscoveryProjectCommand{
-                .project = DiscoveryProjectId::PotteryExperiment,
+                .project = *project,
                 .host = *state.selected
             });
             state.status = result.message;

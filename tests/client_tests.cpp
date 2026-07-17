@@ -475,6 +475,47 @@ void discovery_project_detail_lines_show_readable_requirements()
             simulation,
             house)
         .empty());
+
+    VIBECITY_CHECK(simulation.add_path(vibecity::GridPosition{6, 0}));
+    const auto potter_kind = simulation.building_catalog().find_kind("potter");
+    VIBECITY_CHECK(potter_kind.has_value());
+    const auto potter = simulation.add_building_at(
+        *potter_kind,
+        vibecity::GridPosition{6, 1});
+
+    const auto brickmaking_lines = vibecity::client::discovery_project_detail_lines(
+        simulation,
+        potter);
+    VIBECITY_CHECK(std::find(
+            brickmaking_lines.begin(),
+            brickmaking_lines.end(),
+            "Brickmaking Experiment")
+        != brickmaking_lines.end());
+    VIBECITY_CHECK(std::find(
+            brickmaking_lines.begin(),
+            brickmaking_lines.end(),
+            "HOST: Potter")
+        != brickmaking_lines.end());
+    VIBECITY_CHECK(std::find(
+            brickmaking_lines.begin(),
+            brickmaking_lines.end(),
+            "INPUT: 8 FIREWOOD + 4 POTTERY")
+        != brickmaking_lines.end());
+    VIBECITY_CHECK(std::find(
+            brickmaking_lines.begin(),
+            brickmaking_lines.end(),
+            "MAP: 4 CLAY WITHIN 6 TILES")
+        != brickmaking_lines.end());
+    VIBECITY_CHECK(std::find(
+            brickmaking_lines.begin(),
+            brickmaking_lines.end(),
+            "LABOR: 48 HOURS, 2 WORKERS")
+        != brickmaking_lines.end());
+    VIBECITY_CHECK(std::find(
+            brickmaking_lines.begin(),
+            brickmaking_lines.end(),
+            "UNLOCKS: BRICKMAKING")
+        != brickmaking_lines.end());
 }
 
 void escape_cancels_before_clearing_selection()

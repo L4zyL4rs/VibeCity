@@ -21,6 +21,11 @@ constexpr Quantity pottery_experiment_firewood = 6;
 constexpr Quantity pottery_experiment_clay = 2;
 constexpr int pottery_experiment_radius = 6;
 constexpr Tick pottery_experiment_labor_minutes = ticks_per_day;
+constexpr Quantity brickmaking_experiment_firewood = 8;
+constexpr Quantity brickmaking_experiment_pottery = 4;
+constexpr Quantity brickmaking_experiment_clay = 4;
+constexpr int brickmaking_experiment_radius = 6;
+constexpr Tick brickmaking_experiment_labor_minutes = 2 * ticks_per_day;
 constexpr int discovery_project_workers_per_project = 2;
 
 bool has_any(const ResourceArray& amounts)
@@ -60,6 +65,22 @@ ResourceArray pottery_experiment_inputs()
     return inputs;
 }
 
+ResourceArray brickmaking_experiment_inputs()
+{
+    auto inputs = empty_resources();
+    inputs[resource_index(ResourceId::Firewood)] = brickmaking_experiment_firewood;
+    inputs[resource_index(ResourceId::Pottery)] = brickmaking_experiment_pottery;
+    return inputs;
+}
+
+bool discovery_project_host_matches(
+    const BuildingCatalog& catalog,
+    BuildingKind host,
+    const DiscoveryProjectDefinition& project)
+{
+    return catalog.stable_id(host) == project.required_host_stable_id;
+}
+
 }
 
 const DiscoveryProjectDefinition& discovery_project_definition(DiscoveryProjectId project)
@@ -68,7 +89,8 @@ const DiscoveryProjectDefinition& discovery_project_definition(DiscoveryProjectI
         .project = DiscoveryProjectId::PotteryExperiment,
         .name = "Pottery Experiment",
         .grants_capability = CapabilityId::Pottery,
-        .required_host = BuildingKind::House,
+        .required_capability = std::nullopt,
+        .required_host_stable_id = "house",
         .inputs = pottery_experiment_inputs(),
         .map_resource = MapResourceId::Clay,
         .map_resource_quantity = pottery_experiment_clay,
@@ -76,10 +98,25 @@ const DiscoveryProjectDefinition& discovery_project_definition(DiscoveryProjectI
         .labor_minutes = pottery_experiment_labor_minutes,
         .worker_slots = discovery_project_workers_per_project
     };
+    static const auto brickmaking_experiment = DiscoveryProjectDefinition{
+        .project = DiscoveryProjectId::BrickmakingExperiment,
+        .name = "Brickmaking Experiment",
+        .grants_capability = CapabilityId::Brickmaking,
+        .required_capability = CapabilityId::Pottery,
+        .required_host_stable_id = "potter",
+        .inputs = brickmaking_experiment_inputs(),
+        .map_resource = MapResourceId::Clay,
+        .map_resource_quantity = brickmaking_experiment_clay,
+        .map_radius = brickmaking_experiment_radius,
+        .labor_minutes = brickmaking_experiment_labor_minutes,
+        .worker_slots = discovery_project_workers_per_project
+    };
 
     switch (project) {
     case DiscoveryProjectId::PotteryExperiment:
         return pottery_experiment;
+    case DiscoveryProjectId::BrickmakingExperiment:
+        return brickmaking_experiment;
     case DiscoveryProjectId::Count:
         break;
     }
@@ -116,6 +153,8 @@ std::string_view discovery_project_start_blocker_text(DiscoveryProjectStartBlock
         return "capability already discovered";
     case DiscoveryProjectStartBlocker::AlreadyActive:
         return "discovery project is already active";
+    case DiscoveryProjectStartBlocker::MissingCapability:
+        return "discovery project is missing a prerequisite capability";
     case DiscoveryProjectStartBlocker::InvalidHost:
         return "discovery project host is invalid";
     case DiscoveryProjectStartBlocker::WrongHost:
@@ -388,13 +427,18 @@ DiscoveryProjectStartStatus Simulation::discovery_project_start_status(
         status.blocker = DiscoveryProjectStartBlocker::AlreadyActive;
         return status;
     }
+    if (project_definition.required_capability.has_value()
+        && !has_capability(*project_definition.required_capability)) {
+        status.blocker = DiscoveryProjectStartBlocker::MissingCapability;
+        return status;
+    }
 
     const auto* host_building = find_building(host);
     if (host_building == nullptr || !host_building->position.has_value()) {
         status.blocker = DiscoveryProjectStartBlocker::InvalidHost;
         return status;
     }
-    if (host_building->kind != project_definition.required_host) {
+    if (!discovery_project_host_matches(*catalog_, host_building->kind, project_definition)) {
         status.blocker = DiscoveryProjectStartBlocker::WrongHost;
         return status;
     }
@@ -444,6 +488,45 @@ bool Simulation::can_start_discovery_project(
     const auto blocker = discovery_project_start_status(project, host).blocker;
     return blocker == DiscoveryProjectStartBlocker::None
         || blocker == DiscoveryProjectStartBlocker::MissingInputs;
+}
+
+std::optional<DiscoveryProjectId> Simulation::discovery_project_for_host(BuildingId host) const
+{
+    const auto* host_building = find_building(host);
+    if (host_building == nullptr || !host_building->position.has_value()) {
+        return std::nullopt;
+    }
+
+    for (const auto& active : discovery_projects_) {
+        if (active.host == host) {
+            return active.project;
+        }
+    }
+
+    for (std::size_t index = 0; index < discovery_project_count; ++index) {
+        const auto project = static_cast<DiscoveryProjectId>(index);
+        const auto& project_definition = discovery_project_definition(project);
+        if (has_capability(project_definition.grants_capability)) {
+            continue;
+        }
+        if (project_definition.required_capability.has_value()
+            && !has_capability(*project_definition.required_capability)) {
+            continue;
+        }
+        if (std::any_of(
+                discovery_projects_.begin(),
+                discovery_projects_.end(),
+                [project](const DiscoveryProject& active) {
+                    return active.project == project;
+                })) {
+            continue;
+        }
+        if (discovery_project_host_matches(*catalog_, host_building->kind, project_definition)) {
+            return project;
+        }
+    }
+
+    return std::nullopt;
 }
 
 bool Simulation::has_capability(CapabilityId capability) const

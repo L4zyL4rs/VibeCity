@@ -57,7 +57,8 @@ struct DiscoveryProjectDefinition {
     DiscoveryProjectId project = DiscoveryProjectId::PotteryExperiment;
     std::string_view name;
     CapabilityId grants_capability = CapabilityId::Pottery;
-    BuildingKind required_host = BuildingKind::Storehouse;
+    std::optional<CapabilityId> required_capability;
+    std::string_view required_host_stable_id = "storehouse";
     ResourceArray inputs{};
     MapResourceId map_resource = MapResourceId::Clay;
     Quantity map_resource_quantity = 0;
@@ -86,6 +87,7 @@ enum class DiscoveryProjectStartBlocker : std::uint8_t {
     None,
     CapabilityAlreadyDiscovered,
     AlreadyActive,
+    MissingCapability,
     InvalidHost,
     WrongHost,
     MissingPathAccess,
@@ -189,6 +191,8 @@ public:
         BuildingId host) const;
     [[nodiscard]] bool can_start_discovery_project(
         DiscoveryProjectId project,
+        BuildingId host) const;
+    [[nodiscard]] std::optional<DiscoveryProjectId> discovery_project_for_host(
         BuildingId host) const;
     [[nodiscard]] bool has_capability(CapabilityId capability) const;
     [[nodiscard]] CapabilityMask capability_mask() const;

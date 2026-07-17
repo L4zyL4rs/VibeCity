@@ -288,11 +288,15 @@ Simulation Simulation::from_state(
         }
 
         const auto& project_definition = discovery_project_definition(project.project);
+        const auto host_kind = state.buildings[static_cast<std::size_t>(project.host - 1)].kind;
+        const auto required_host_kind = catalog->find_kind(project_definition.required_host_stable_id);
         if (project.labor_completed >= project_definition.labor_minutes
             || project.assigned_workers > project_definition.worker_slots
             || (state.capabilities & capability_bit(project_definition.grants_capability)) != 0
-            || state.buildings[static_cast<std::size_t>(project.host - 1)].kind
-                != project_definition.required_host) {
+            || (project_definition.required_capability.has_value()
+                && (state.capabilities & capability_bit(*project_definition.required_capability)) == 0)
+            || !required_host_kind.has_value()
+            || host_kind != *required_host_kind) {
             throw std::invalid_argument("invalid saved discovery project");
         }
 

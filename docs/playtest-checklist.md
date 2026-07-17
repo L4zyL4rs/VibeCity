@@ -40,7 +40,7 @@ for 30 days.
 - `L` or `Tab`: cycle default, resource, and terrain map lenses
 - Mouse wheel over the construction menu or inspector: scroll that panel
 - `Esc`: cancel placement or demolition, then clear the current selection
-- `P`: start the pottery experiment from the selected house, if ready
+- `P`: start the selected building's available discovery project, if ready
 - `O`: pause or resume work at the selected building
 - `F5`: save to `vibecity-save.vcs`
 - `F9`: load from `vibecity-save.vcs`
@@ -110,6 +110,10 @@ Optional discovery check after the village is stable:
 4. Confirm the project requests firewood delivery to the house, consumes
    firewood and clay once ready, shows active labor, and unlocks potters and
    granaries when finished.
+5. Build a potter near clay, give it road access and the required inputs, then
+   press `P` from the selected potter to start brickmaking.
+6. Confirm brickmaking consumes firewood, pottery, and clay, then unlocks the
+   brickyard.
 
 The exact coordinates are not meant to be final gameplay advice. They are a
 control route matching the automated milestone test. The starter map is now

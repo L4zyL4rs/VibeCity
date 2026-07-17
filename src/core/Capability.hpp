@@ -58,6 +58,7 @@ inline std::optional<CapabilityId> capability_id_from_string(std::string_view id
 
 enum class DiscoveryProjectId : std::uint8_t {
     PotteryExperiment,
+    BrickmakingExperiment,
     Count
 };
 
@@ -65,7 +66,8 @@ inline constexpr auto discovery_project_count =
     static_cast<std::size_t>(DiscoveryProjectId::Count);
 
 constexpr std::array<std::string_view, discovery_project_count> discovery_project_names{
-    "pottery_experiment"
+    "pottery_experiment",
+    "brickmaking_experiment"
 };
 
 constexpr std::string_view discovery_project_name(DiscoveryProjectId project)

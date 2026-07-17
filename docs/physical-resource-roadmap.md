@@ -88,9 +88,9 @@ understand when production stops or must move elsewhere.
 - The default catalog includes a data-defined granary that stores grain and
   bread, requires pottery during construction, and serves as the first explicit
   fired-clay construction sink.
-- Pottery currently exists as gated content. A first pottery experiment can
-  earn the capability, while richer specialist knowledge and teaching are still
-  planned later.
+- Pottery and brickmaking currently exist as gated content. Early discovery
+  projects can earn those capabilities, while richer specialist knowledge and
+  teaching are still planned later.
 
 ## Implemented: Capability Gate Slice
 
@@ -104,23 +104,28 @@ understand when production stops or must move elsewhere.
 - This is the structural gate only. Discovery projects that earn capabilities
   build on top of it.
 
-## Implemented: Pottery Discovery Project Slice
+## Implemented: Discovery Project Slice
 
 - The first discovery project is `pottery_experiment`.
 - It must be hosted by a path-accessible house.
 - It requests firewood delivery to that house, then consumes the firewood and
   nearby finite clay from the map before work starts.
+- The second discovery project is `brickmaking_experiment`.
+- It requires pottery, must be hosted by a path-accessible potter, and consumes
+  firewood, pottery, and nearby finite clay.
 - It uses leftover idle worker labor after transport and construction.
 - Completion grants the `pottery` capability and unlocks potters and
   granaries.
+- Brickmaking completion grants the `brickmaking` capability and unlocks
+  brickyards.
 - Active discovery projects persist through save/load and are shown in
   headless output and the settlement inspector.
 - The SDL client has a temporary interaction: select a valid project host and
-  press `P` to start the pottery experiment.
-- Selected houses show pottery experiment requirements, readiness, active
-  material delivery, labor, and blockers for missing road access or nearby clay.
-- The SDL client also shows a larger pottery experiment detail popup when a
-  relevant house is selected, so requirements are readable before a proper
+  press `P` to start that building's available discovery project.
+- Selected project hosts show requirements, readiness, active material
+  delivery, labor, and blockers for missing road access or nearby clay.
+- The SDL client also shows a larger discovery-project detail popup when a
+  relevant host is selected, so requirements are readable before a proper
   project UI exists.
 
 ## Implemented: Logistics Inspection
@@ -290,18 +295,16 @@ Suggested early-to-medieval ladder:
 
 1. Replace the temporary selected-host shortcut with a proper project UI for
    starting available discovery projects.
-2. Add the brickmaking discovery project, likely requiring pottery, more fuel,
-   and either a potter, kiln, or improved workshop host.
-3. Connect the granary to a meaningful food-storage benefit once spoilage,
+2. Connect the granary to a meaningful food-storage benefit once spoilage,
    storage quality, or stock targets exist.
-4. Decide whether bricks gate a road upgrade, storage upgrade, water
+3. Decide whether bricks gate a road upgrade, storage upgrade, water
    infrastructure, or the next village objective.
-5. Prototype a tool-condition model where tooling changes productivity before
+4. Prototype a tool-condition model where tooling changes productivity before
    adding more economic chains.
-6. Prototype rough-stone to dressed-stone refinement for medieval
+5. Prototype rough-stone to dressed-stone refinement for medieval
    infrastructure.
-7. Better generation controls for water and broader map shapes.
-8. Keep copper, bronze, and iron out of the active village milestone until
+6. Better generation controls for water and broader map shapes.
+7. Keep copper, bronze, and iron out of the active village milestone until
    pottery, kilns, fuel pressure, and tool maintenance have a playable base.
 
 ## Deliberate Limits
