@@ -62,6 +62,7 @@ struct DiscoveryProjectDefinition {
 struct DiscoveryProject {
     DiscoveryProjectId project = DiscoveryProjectId::PotteryExperiment;
     BuildingId host = 0;
+    bool materials_consumed = false;
     Tick labor_completed = 0;
     int assigned_workers = 0;
 };
@@ -173,6 +174,7 @@ public:
     bool add_path(GridPosition position);
     bool remove_path(GridPosition position);
     bool demolish_building(BuildingId id);
+    void set_building_work_enabled(BuildingId id, bool enabled);
     void grant_capability(CapabilityId capability);
     void start_discovery_project(DiscoveryProjectId project, BuildingId host);
     [[nodiscard]] DiscoveryProjectStartStatus discovery_project_start_status(
@@ -248,6 +250,9 @@ private:
         const ResourceRequest& request,
         const PathDistanceField* distance_field);
     [[nodiscard]] bool can_source_resource(const BuildingInstance& source, ResourceId resource) const;
+    [[nodiscard]] bool can_source_for_request(
+        const BuildingInstance& source,
+        const ResourceRequest& request) const;
     [[nodiscard]] Quantity projected_quantity(const BuildingInstance& building, ResourceId resource) const;
     [[nodiscard]] bool construction_materials_delivered(const BuildingInstance& site) const;
     [[nodiscard]] bool create_transport_job(

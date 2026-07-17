@@ -149,7 +149,7 @@ std::string discovery_project_status_text(
     case DiscoveryProjectStartBlocker::MissingPathAccess:
         return std::string{project.name} + " needs road access";
     case DiscoveryProjectStartBlocker::MissingInputs:
-        return std::string{project.name} + " missing "
+        return std::string{project.name} + " can start; needs "
             + status_resource_amounts_text(status.missing_inputs);
     case DiscoveryProjectStartBlocker::MissingMapResource:
         return std::string{project.name} + " needs "
@@ -291,10 +291,9 @@ void handle_keydown(GameSession& game, ClientInteractionState& state, SDL_Keycod
         if (!state.selected.has_value()) {
             state.status = "no project host selected";
         } else {
-            const auto start_status = game.simulation().discovery_project_start_status(
-                DiscoveryProjectId::PotteryExperiment,
-                *state.selected);
-            if (start_status.blocker != DiscoveryProjectStartBlocker::None) {
+            if (!game.simulation().can_start_discovery_project(
+                    DiscoveryProjectId::PotteryExperiment,
+                    *state.selected)) {
                 state.status = discovery_project_status_text(
                     game.simulation(),
                     DiscoveryProjectId::PotteryExperiment,
@@ -304,6 +303,18 @@ void handle_keydown(GameSession& game, ClientInteractionState& state, SDL_Keycod
             const auto result = game.execute(StartDiscoveryProjectCommand{
                 .project = DiscoveryProjectId::PotteryExperiment,
                 .host = *state.selected
+            });
+            state.status = result.message;
+        }
+        break;
+    case SDLK_o:
+        if (!state.selected.has_value()) {
+            state.status = "no building selected";
+        } else {
+            const auto enabled = !game.simulation().building(*state.selected).work_enabled;
+            const auto result = game.execute(SetBuildingWorkEnabledCommand{
+                .building = *state.selected,
+                .enabled = enabled
             });
             state.status = result.message;
         }

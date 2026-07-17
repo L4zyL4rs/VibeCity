@@ -122,7 +122,7 @@ Simulation Simulation::from_state(
         if (building.id != expected_id) {
             throw std::invalid_argument("saved building IDs must be dense");
         }
-        if (!enum_at_most(building.blocking_reason, BlockingReason::NoNearbyMapResource)) {
+        if (!enum_at_most(building.blocking_reason, BlockingReason::WorkDisabled)) {
             throw std::invalid_argument("invalid saved building enum");
         }
         if (building.residents < 0
@@ -137,6 +137,7 @@ Simulation Simulation::from_state(
 
         if (!building.active) {
             if (building.position.has_value()
+                || building.work_enabled
                 || !inventory_is_empty(building.inventory)
                 || building.residents != 0
                 || building.assigned_workers != 0

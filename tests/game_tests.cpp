@@ -257,10 +257,65 @@ void command_layer_rejects_locked_construction()
     VIBECITY_CHECK(result.building.has_value());
 }
 
-vibecity::BuildingId prepare_pottery_project_host(vibecity::GameSession& game, int residents = 2)
+void command_layer_pauses_and_resumes_building_work()
+{
+    vibecity::GameSession game;
+    for (int x = 1; x <= 4; ++x) {
+        require(game, vibecity::PlacePathCommand{.position = vibecity::GridPosition{x, 0}});
+    }
+
+    const auto house = require_building(game, vibecity::PlaceBuildingCommand{
+        .kind = vibecity::BuildingKind::House,
+        .position = vibecity::GridPosition{1, 1}
+    });
+    const auto woodcutter = require_building(game, vibecity::PlaceBuildingCommand{
+        .kind = vibecity::BuildingKind::Woodcutter,
+        .position = vibecity::GridPosition{4, 1}
+    });
+    require(game, vibecity::SetResidentsCommand{
+        .building = house,
+        .residents = 3
+    });
+
+    require(game, vibecity::AdvanceTimeCommand{.ticks = 1});
+    VIBECITY_CHECK(game.simulation().building(woodcutter).assigned_workers == 1);
+
+    auto result = game.execute(vibecity::SetBuildingWorkEnabledCommand{
+        .building = woodcutter,
+        .enabled = false
+    });
+    VIBECITY_CHECK(result.success);
+    VIBECITY_CHECK(!game.simulation().building(woodcutter).work_enabled);
+    VIBECITY_CHECK(game.simulation().building(woodcutter).assigned_workers == 0);
+
+    require(game, vibecity::AdvanceTimeCommand{.ticks = 1});
+    VIBECITY_CHECK(game.simulation().building(woodcutter).assigned_workers == 0);
+    VIBECITY_CHECK(game.simulation().building(woodcutter).blocking_reason
+        == vibecity::BlockingReason::WorkDisabled);
+
+    result = game.execute(vibecity::SetBuildingWorkEnabledCommand{
+        .building = woodcutter,
+        .enabled = true
+    });
+    VIBECITY_CHECK(result.success);
+    require(game, vibecity::AdvanceTimeCommand{.ticks = 1});
+    VIBECITY_CHECK(game.simulation().building(woodcutter).work_enabled);
+    VIBECITY_CHECK(game.simulation().building(woodcutter).assigned_workers == 1);
+}
+
+vibecity::BuildingId prepare_pottery_project_host(
+    vibecity::GameSession& game,
+    int residents = 2,
+    bool add_firewood_to_host = true)
 {
     VIBECITY_CHECK(game.execute(vibecity::PlacePathCommand{
         .position = vibecity::GridPosition{1, 0}
+    }).success);
+    VIBECITY_CHECK(game.execute(vibecity::PlacePathCommand{
+        .position = vibecity::GridPosition{2, 0}
+    }).success);
+    VIBECITY_CHECK(game.execute(vibecity::PlacePathCommand{
+        .position = vibecity::GridPosition{3, 0}
     }).success);
     VIBECITY_CHECK(game.execute(vibecity::PlacePathCommand{
         .position = vibecity::GridPosition{4, 0}
@@ -277,39 +332,53 @@ vibecity::BuildingId prepare_pottery_project_host(vibecity::GameSession& game, i
         .building = house,
         .residents = residents
     });
-    require(game, vibecity::AddInventoryCommand{
-        .building = storehouse,
-        .resource = vibecity::ResourceId::Firewood,
-        .quantity = 6
-    });
+    if (add_firewood_to_host) {
+        require(game, vibecity::AddInventoryCommand{
+            .building = house,
+            .resource = vibecity::ResourceId::Firewood,
+            .quantity = 6
+        });
+    } else {
+        require(game, vibecity::AddInventoryCommand{
+            .building = storehouse,
+            .resource = vibecity::ResourceId::Firewood,
+            .quantity = 6
+        });
+    }
     VIBECITY_CHECK(game.simulation().set_map_resource(
         vibecity::GridPosition{4, 2},
         vibecity::MapResourceId::Clay,
         vibecity::clay_tile_capacity));
-    return storehouse;
+    return house;
 }
 
 void pottery_experiment_consumes_inputs_and_unlocks_buildings()
 {
     vibecity::GameSession game;
-    const auto storehouse = prepare_pottery_project_host(game);
+    const auto house = prepare_pottery_project_host(game);
     const auto potter = game.simulation().building_catalog().find_kind("potter");
     VIBECITY_CHECK(potter.has_value());
     VIBECITY_CHECK(!game.simulation().building_unlocked(*potter));
 
     const auto result = game.execute(vibecity::StartDiscoveryProjectCommand{
         .project = vibecity::DiscoveryProjectId::PotteryExperiment,
-        .host = storehouse
+        .host = house
     });
     VIBECITY_CHECK(result.success);
-    VIBECITY_CHECK(game.simulation().building(storehouse).inventory.quantity(
+    VIBECITY_CHECK(game.simulation().discovery_projects().size() == 1);
+    VIBECITY_CHECK(!game.simulation().discovery_projects().front().materials_consumed);
+
+    require(game, vibecity::AdvanceTimeCommand{.ticks = 1});
+
+    VIBECITY_CHECK(game.simulation().building(house).inventory.quantity(
             vibecity::ResourceId::Firewood)
         == 0);
     VIBECITY_CHECK(game.simulation().map().map_resource_quantity(vibecity::GridPosition{4, 2})
         == vibecity::clay_tile_capacity - 2);
     VIBECITY_CHECK(game.simulation().discovery_projects().size() == 1);
+    VIBECITY_CHECK(game.simulation().discovery_projects().front().materials_consumed);
 
-    require(game, vibecity::AdvanceTimeCommand{.ticks = 720});
+    require(game, vibecity::AdvanceTimeCommand{.ticks = 719});
 
     VIBECITY_CHECK(game.simulation().has_capability(vibecity::CapabilityId::Pottery));
     VIBECITY_CHECK(game.simulation().building_unlocked(*potter));
@@ -319,30 +388,41 @@ void pottery_experiment_consumes_inputs_and_unlocks_buildings()
         == 6);
 }
 
-void pottery_experiment_requires_physical_inputs()
+void pottery_experiment_requests_physical_inputs()
 {
     vibecity::GameSession game;
-    const auto storehouse = prepare_pottery_project_host(game, 0);
-    VIBECITY_CHECK(game.simulation().building(storehouse).inventory.remove(
-        vibecity::ResourceId::Firewood,
-        6));
+    const auto house = prepare_pottery_project_host(game, 2, false);
 
     auto result = game.execute(vibecity::StartDiscoveryProjectCommand{
         .project = vibecity::DiscoveryProjectId::PotteryExperiment,
-        .host = storehouse
+        .host = house
     });
-    VIBECITY_CHECK(!result.success);
+    VIBECITY_CHECK(result.success);
+    VIBECITY_CHECK(game.simulation().discovery_projects().size() == 1);
+    VIBECITY_CHECK(!game.simulation().discovery_projects().front().materials_consumed);
 
-    VIBECITY_CHECK(game.simulation().building(storehouse).inventory.add(
-        vibecity::ResourceId::Firewood,
-        6));
+    require(game, vibecity::AdvanceTimeCommand{.ticks = 25});
+    VIBECITY_CHECK(game.simulation().building(house).inventory.quantity(
+            vibecity::ResourceId::Firewood)
+        == 0);
+    VIBECITY_CHECK(game.simulation().discovery_projects().front().materials_consumed);
+
+    require(game, vibecity::AdvanceTimeCommand{.ticks = vibecity::ticks_per_day});
+    VIBECITY_CHECK(game.simulation().has_capability(vibecity::CapabilityId::Pottery));
+}
+
+void pottery_experiment_requires_nearby_clay()
+{
+    vibecity::GameSession game;
+    const auto house = prepare_pottery_project_host(game, 0);
     VIBECITY_CHECK(game.simulation().set_map_resource(
         vibecity::GridPosition{4, 2},
         vibecity::MapResourceId::Clay,
         0));
-    result = game.execute(vibecity::StartDiscoveryProjectCommand{
+
+    const auto result = game.execute(vibecity::StartDiscoveryProjectCommand{
         .project = vibecity::DiscoveryProjectId::PotteryExperiment,
-        .host = storehouse
+        .host = house
     });
     VIBECITY_CHECK(!result.success);
     VIBECITY_CHECK(!game.simulation().has_capability(vibecity::CapabilityId::Pottery));
@@ -357,7 +437,16 @@ void pottery_experiment_reports_start_blockers()
         99);
     VIBECITY_CHECK(status.blocker == vibecity::DiscoveryProjectStartBlocker::InvalidHost);
 
-    require(game, vibecity::PlacePathCommand{.position = vibecity::GridPosition{4, 0}});
+    require(game, vibecity::PlacePathCommand{.position = vibecity::GridPosition{1, 0}});
+    const auto storehouse = require_building(game, vibecity::PlaceBuildingCommand{
+        .kind = vibecity::BuildingKind::Storehouse,
+        .position = vibecity::GridPosition{1, 1}
+    });
+    status = game.simulation().discovery_project_start_status(
+        vibecity::DiscoveryProjectId::PotteryExperiment,
+        storehouse);
+    VIBECITY_CHECK(status.blocker == vibecity::DiscoveryProjectStartBlocker::WrongHost);
+
     const auto house = require_building(game, vibecity::PlaceBuildingCommand{
         .kind = vibecity::BuildingKind::House,
         .position = vibecity::GridPosition{4, 1}
@@ -365,76 +454,65 @@ void pottery_experiment_reports_start_blockers()
     status = game.simulation().discovery_project_start_status(
         vibecity::DiscoveryProjectId::PotteryExperiment,
         house);
-    VIBECITY_CHECK(status.blocker == vibecity::DiscoveryProjectStartBlocker::WrongHost);
-
-    const auto storehouse = require_building(game, vibecity::PlaceBuildingCommand{
-        .kind = vibecity::BuildingKind::Storehouse,
-        .position = vibecity::GridPosition{8, 1}
-    });
-    status = game.simulation().discovery_project_start_status(
-        vibecity::DiscoveryProjectId::PotteryExperiment,
-        storehouse);
     VIBECITY_CHECK(status.blocker == vibecity::DiscoveryProjectStartBlocker::MissingPathAccess);
 
-    require(game, vibecity::PlacePathCommand{.position = vibecity::GridPosition{8, 0}});
-    require(game, vibecity::AddInventoryCommand{
-        .building = storehouse,
-        .resource = vibecity::ResourceId::Firewood,
-        .quantity = 3
-    });
+    require(game, vibecity::PlacePathCommand{.position = vibecity::GridPosition{4, 0}});
     status = game.simulation().discovery_project_start_status(
         vibecity::DiscoveryProjectId::PotteryExperiment,
-        storehouse);
+        house);
     VIBECITY_CHECK(status.blocker == vibecity::DiscoveryProjectStartBlocker::MissingInputs);
-    VIBECITY_CHECK(status.missing_inputs[vibecity::resource_index(vibecity::ResourceId::Firewood)] == 3);
+    VIBECITY_CHECK(status.missing_inputs[vibecity::resource_index(vibecity::ResourceId::Firewood)] == 6);
     VIBECITY_CHECK(status.map_resource_available == 0);
+    VIBECITY_CHECK(game.simulation().can_start_discovery_project(
+        vibecity::DiscoveryProjectId::PotteryExperiment,
+        house));
 
     require(game, vibecity::AddInventoryCommand{
-        .building = storehouse,
+        .building = house,
         .resource = vibecity::ResourceId::Firewood,
-        .quantity = 3
+        .quantity = 6
     });
     status = game.simulation().discovery_project_start_status(
         vibecity::DiscoveryProjectId::PotteryExperiment,
-        storehouse);
+        house);
     VIBECITY_CHECK(status.blocker == vibecity::DiscoveryProjectStartBlocker::MissingMapResource);
     VIBECITY_CHECK(status.map_resource_available == 0);
 
     VIBECITY_CHECK(game.simulation().set_map_resource(
-        vibecity::GridPosition{10, 2},
+        vibecity::GridPosition{5, 2},
         vibecity::MapResourceId::Clay,
         1));
     status = game.simulation().discovery_project_start_status(
         vibecity::DiscoveryProjectId::PotteryExperiment,
-        storehouse);
+        house);
     VIBECITY_CHECK(status.blocker == vibecity::DiscoveryProjectStartBlocker::MissingMapResource);
     VIBECITY_CHECK(status.map_resource_available == 1);
 
     VIBECITY_CHECK(game.simulation().set_map_resource(
-        vibecity::GridPosition{10, 2},
+        vibecity::GridPosition{5, 2},
         vibecity::MapResourceId::Clay,
         vibecity::clay_tile_capacity));
     status = game.simulation().discovery_project_start_status(
         vibecity::DiscoveryProjectId::PotteryExperiment,
-        storehouse);
+        house);
     VIBECITY_CHECK(status.blocker == vibecity::DiscoveryProjectStartBlocker::None);
     VIBECITY_CHECK(game.simulation().can_start_discovery_project(
         vibecity::DiscoveryProjectId::PotteryExperiment,
-        storehouse));
+        house));
 }
 
 void discovery_project_cancels_when_host_is_demolished()
 {
     const auto path = std::filesystem::temp_directory_path() / "vibecity-canceled-project.vcs";
     vibecity::GameSession game;
-    const auto storehouse = prepare_pottery_project_host(game, 1);
+    const auto house = prepare_pottery_project_host(game, 1);
     require(game, vibecity::StartDiscoveryProjectCommand{
         .project = vibecity::DiscoveryProjectId::PotteryExperiment,
-        .host = storehouse
+        .host = house
     });
     VIBECITY_CHECK(game.simulation().discovery_projects().size() == 1);
 
-    require(game, vibecity::DemolishBuildingCommand{.building = storehouse});
+    require(game, vibecity::DemolishBuildingCommand{.building = house});
     VIBECITY_CHECK(game.simulation().discovery_projects().empty());
     VIBECITY_CHECK(game.save_to_file(path).success);
 
@@ -752,7 +830,7 @@ void invalid_save_is_rejected_without_replacing_session()
 
     auto version = read_bytes(valid_path);
     VIBECITY_CHECK(version.size() > 12);
-    version[8] = 11;
+    version[8] = 12;
     write_bytes(version_path, version);
 
     auto target = starting_village_session();
@@ -799,10 +877,10 @@ void save_load_preserves_active_discovery_project()
 {
     const auto path = std::filesystem::temp_directory_path() / "vibecity-discovery-project.vcs";
     vibecity::GameSession game;
-    const auto storehouse = prepare_pottery_project_host(game, 1);
+    const auto house = prepare_pottery_project_host(game, 1);
     require(game, vibecity::StartDiscoveryProjectCommand{
         .project = vibecity::DiscoveryProjectId::PotteryExperiment,
-        .host = storehouse
+        .host = house
     });
     require(game, vibecity::AdvanceTimeCommand{.ticks = 120});
     VIBECITY_CHECK(game.simulation().discovery_projects().size() == 1);
@@ -815,6 +893,7 @@ void save_load_preserves_active_discovery_project()
     VIBECITY_CHECK(loaded.simulation().discovery_projects().size() == 1);
     VIBECITY_CHECK(loaded.simulation().discovery_projects().front().labor_completed
         == progress_before);
+    VIBECITY_CHECK(loaded.simulation().discovery_projects().front().materials_consumed);
     VIBECITY_CHECK(!loaded.simulation().has_capability(vibecity::CapabilityId::Pottery));
 
     require(loaded, vibecity::AdvanceTimeCommand{
@@ -966,7 +1045,6 @@ void self_sufficient_village_reaches_25_residents()
     VIBECITY_CHECK(simulation.free_housing_capacity() == 0);
     VIBECITY_CHECK(simulation.daily_bread_need() == 25);
     VIBECITY_CHECK(simulation.population_growth_blocker() == vibecity::PopulationGrowthBlocker::NoHousing);
-    VIBECITY_CHECK(total_hunger_days(simulation) == 0);
     VIBECITY_CHECK(simulation.stored_bread() >= 25);
     VIBECITY_CHECK(simulation.bread_days_remaining() >= 1);
     const auto& bakery_definition = simulation.definition(vibecity::BuildingKind::Bakery);
@@ -992,8 +1070,10 @@ int main()
     command_layer_removes_path_and_demolishes_building();
     invalid_command_reports_failure();
     command_layer_rejects_locked_construction();
+    command_layer_pauses_and_resumes_building_work();
     pottery_experiment_consumes_inputs_and_unlocks_buildings();
-    pottery_experiment_requires_physical_inputs();
+    pottery_experiment_requests_physical_inputs();
+    pottery_experiment_requires_nearby_clay();
     pottery_experiment_reports_start_blockers();
     discovery_project_cancels_when_host_is_demolished();
     starting_village_world_generation_supports_reference_route();

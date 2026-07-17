@@ -107,9 +107,9 @@ understand when production stops or must move elsewhere.
 ## Implemented: Pottery Discovery Project Slice
 
 - The first discovery project is `pottery_experiment`.
-- It must be hosted by a path-accessible storehouse.
-- It consumes firewood from that host building and nearby finite clay from the
-  map before work starts.
+- It must be hosted by a path-accessible house.
+- It requests firewood delivery to that house, then consumes the firewood and
+  nearby finite clay from the map before work starts.
 - It uses leftover idle worker labor after transport and construction.
 - Completion grants the `pottery` capability and unlocks potters and
   granaries.
@@ -117,8 +117,8 @@ understand when production stops or must move elsewhere.
   headless output and the settlement inspector.
 - The SDL client has a temporary interaction: select a valid project host and
   press `P` to start the pottery experiment.
-- Selected storehouses show pottery experiment requirements, readiness,
-  active labor, and blockers for missing firewood, road access, or nearby clay.
+- Selected houses show pottery experiment requirements, readiness, active
+  material delivery, labor, and blockers for missing road access or nearby clay.
 
 ## Implemented: Logistics Inspection
 

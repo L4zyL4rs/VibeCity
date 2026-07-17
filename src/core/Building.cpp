@@ -104,6 +104,8 @@ std::string_view blocking_reason_text(BlockingReason reason)
         return "waiting for builder labor";
     case BlockingReason::NoNearbyMapResource:
         return "no nearby map resource";
+    case BlockingReason::WorkDisabled:
+        return "work disabled";
     }
     return "unknown";
 }

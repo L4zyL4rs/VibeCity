@@ -264,23 +264,41 @@ std::string discovery_project_status_line(
 {
     switch (status.blocker) {
     case DiscoveryProjectStartBlocker::None:
-        return "STATUS: READY AT THIS STOREHOUSE";
+        return "STATUS: READY AT THIS HOST";
     case DiscoveryProjectStartBlocker::CapabilityAlreadyDiscovered:
         return "STATUS: POTTERY DISCOVERED";
     case DiscoveryProjectStartBlocker::AlreadyActive:
         return "STATUS: PROJECT ALREADY ACTIVE";
     case DiscoveryProjectStartBlocker::InvalidHost:
-        return "STATUS: SELECT A PLACED STOREHOUSE";
+        return "STATUS: SELECT A PLACED HOST";
     case DiscoveryProjectStartBlocker::WrongHost:
-        return "STATUS: NEEDS STOREHOUSE HOST";
+        return "STATUS: NEEDS DIFFERENT HOST";
     case DiscoveryProjectStartBlocker::MissingPathAccess:
         return "STATUS: HOST NEEDS ROAD ACCESS";
     case DiscoveryProjectStartBlocker::MissingInputs:
-        return "STATUS: HOST MISSING MATERIALS";
+        return "STATUS: STARTS, NEEDS DELIVERY";
     case DiscoveryProjectStartBlocker::MissingMapResource:
         return "STATUS: NOT ENOUGH CLAY NEARBY";
     }
     return "STATUS: UNKNOWN BLOCKER";
+}
+
+ResourceArray missing_project_inputs(
+    const BuildingInstance& host,
+    const DiscoveryProjectDefinition& project)
+{
+    auto missing = empty_resources();
+    for (std::size_t index = 0; index < resource_count; ++index) {
+        const auto required = project.inputs[index];
+        if (required <= 0) {
+            continue;
+        }
+        const auto available = host.inventory.available(static_cast<ResourceId>(index));
+        if (available < required) {
+            missing[index] = required - available;
+        }
+    }
+    return missing;
 }
 
 int draw_selected_discovery_project(SDL_Renderer* renderer,
@@ -328,6 +346,45 @@ int draw_selected_discovery_project(SDL_Renderer* renderer,
             muted,
             1);
         y += 16;
+
+        if (!active->materials_consumed) {
+            const auto* host = find_active_building(simulation, active->host);
+            if (host != nullptr) {
+                const auto missing = missing_project_inputs(*host, project);
+                if (resource_total(missing) > 0) {
+                    draw_text(renderer,
+                        x,
+                        y,
+                        "WAITING FOR: " + resource_amounts_text(missing),
+                        muted,
+                        1);
+                    y += 16;
+                } else {
+                    draw_text(renderer, x, y, "WAITING TO BEGIN", muted, 1);
+                    y += 16;
+                }
+
+                if (host->position.has_value()) {
+                    const auto& host_definition = simulation.definition(host->kind);
+                    const auto available = simulation.map().map_resource_quantity_within_radius(
+                        *host->position,
+                        host_definition.footprint,
+                        project.map_resource,
+                        project.map_radius);
+                    draw_text(renderer,
+                        x,
+                        y,
+                        std::string{map_resource_display_name(project.map_resource)}
+                            + " IN RANGE: " + std::to_string(available)
+                            + "/" + std::to_string(project.map_resource_quantity),
+                        muted,
+                        1);
+                    y += 16;
+                }
+            }
+            return y + 8;
+        }
+
         draw_text(renderer,
             x,
             y,
@@ -663,6 +720,14 @@ int draw_inspector_content(SDL_Renderer* renderer,
     block << "BLOCK: " << blocking_reason_text(building.blocking_reason);
     draw_text(renderer, x, y, block.str(), muted, 2);
     y += 24;
+
+    draw_text(renderer,
+        x,
+        y,
+        std::string{"WORK: "} + (building.work_enabled ? "ON" : "OFF"),
+        muted,
+        2);
+    y += 20;
 
     auto workers = std::ostringstream{};
     workers << "WORKERS: " << building.assigned_workers;

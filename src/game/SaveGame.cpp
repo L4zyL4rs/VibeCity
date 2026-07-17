@@ -19,7 +19,7 @@ namespace {
 constexpr std::array<std::uint8_t, 8> save_magic{
     'V', 'I', 'B', 'E', 'C', 'I', 'T', 'Y'
 };
-constexpr std::uint32_t save_version = 10;
+constexpr std::uint32_t save_version = 11;
 constexpr std::size_t save_header_size = save_magic.size() + sizeof(std::uint32_t)
     + sizeof(std::uint64_t) + sizeof(std::uint64_t);
 constexpr std::uint64_t max_save_bytes = 64 * 1024 * 1024;
@@ -302,6 +302,7 @@ void write_building(
 {
     writer.u32(building.id);
     writer.boolean(building.active);
+    writer.boolean(building.work_enabled);
     writer.string(catalog.stable_id(building.kind));
     writer.boolean(building.position.has_value());
     if (building.position.has_value()) {
@@ -328,6 +329,7 @@ BuildingInstance read_building(ByteReader& reader, const BuildingCatalog& catalo
     auto building = BuildingInstance{};
     building.id = reader.u32();
     building.active = reader.boolean();
+    building.work_enabled = reader.boolean();
     const auto kind = catalog.find_kind(reader.string());
     if (!kind.has_value()) {
         throw std::runtime_error("unknown building stable ID in save");
@@ -356,7 +358,7 @@ BuildingInstance read_building(ByteReader& reader, const BuildingCatalog& catalo
     building.construction_labor_completed = reader.i64();
     building.blocking_reason = read_enum<BlockingReason>(
         reader,
-        enum_value(BlockingReason::NoNearbyMapResource) + 1,
+        enum_value(BlockingReason::WorkDisabled) + 1,
         "invalid blocking reason in save");
     return building;
 }
@@ -378,6 +380,7 @@ void write_discovery_project(ByteWriter& writer, const DiscoveryProject& project
 {
     writer.string(discovery_project_name(project.project));
     writer.u32(project.host);
+    writer.boolean(project.materials_consumed);
     writer.i64(project.labor_completed);
     writer.i32(project.assigned_workers);
 }
@@ -414,6 +417,7 @@ DiscoveryProject read_discovery_project(ByteReader& reader)
     return DiscoveryProject{
         .project = *project,
         .host = reader.u32(),
+        .materials_consumed = reader.boolean(),
         .labor_completed = reader.i64(),
         .assigned_workers = reader.i32()
     };

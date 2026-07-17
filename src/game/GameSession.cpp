@@ -108,6 +108,10 @@ CommandResult GameSession::execute(const GameCommand& command)
                 simulation_.start_discovery_project(start_project.project, start_project.host);
                 return ok("discovery project started", start_project.host);
             },
+            [this](const SetBuildingWorkEnabledCommand& set_work) {
+                simulation_.set_building_work_enabled(set_work.building, set_work.enabled);
+                return ok(set_work.enabled ? "work resumed" : "work paused", set_work.building);
+            },
             [this](const AdvanceTimeCommand& advance_time) {
                 if (advance_time.ticks < 0) {
                     return failed("cannot advance negative ticks");

@@ -40,7 +40,8 @@ enum class BlockingReason : std::uint8_t {
     NoReachableSource,
     MissingConstructionMaterial,
     WaitingForBuilderLabor,
-    NoNearbyMapResource
+    NoNearbyMapResource,
+    WorkDisabled
 };
 
 enum class ResourceSourcePolicy : std::uint8_t {
@@ -133,6 +134,7 @@ using BuildingId = std::uint32_t;
 struct BuildingInstance {
     BuildingId id = 0;
     bool active = true;
+    bool work_enabled = true;
     BuildingKind kind = BuildingKind::House;
     std::optional<GridPosition> position;
     Inventory inventory;

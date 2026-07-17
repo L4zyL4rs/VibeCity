@@ -1386,6 +1386,38 @@ void output_storage_full_blocks_production()
     VIBECITY_CHECK(farm_instance.blocking_reason == vibecity::BlockingReason::OutputStorageFull);
 }
 
+void storehouse_buffers_do_not_ping_pong_equal_stock()
+{
+    vibecity::Simulation simulation;
+
+    for (int x = 1; x <= 9; ++x) {
+        VIBECITY_CHECK(simulation.add_path(vibecity::GridPosition{x, 0}));
+    }
+
+    const auto house = simulation.add_building_at(
+        vibecity::BuildingKind::House,
+        vibecity::GridPosition{1, 1});
+    const auto first = simulation.add_building_at(
+        vibecity::BuildingKind::Storehouse,
+        vibecity::GridPosition{4, 1});
+    const auto second = simulation.add_building_at(
+        vibecity::BuildingKind::Storehouse,
+        vibecity::GridPosition{8, 1});
+
+    simulation.set_residents(house, 3);
+    VIBECITY_CHECK(simulation.building(first).inventory.add(vibecity::ResourceId::Timber, 20));
+    VIBECITY_CHECK(simulation.building(second).inventory.add(vibecity::ResourceId::Timber, 20));
+
+    simulation.tick();
+    VIBECITY_CHECK(simulation.transport_jobs().empty());
+
+    VIBECITY_CHECK(simulation.building(first).inventory.add(vibecity::ResourceId::Timber, 10));
+    simulation.run_for(vibecity::logistics_dispatch_interval);
+    VIBECITY_CHECK(simulation.transport_jobs().size() == 1);
+    VIBECITY_CHECK(simulation.transport_jobs().front().source == first);
+    VIBECITY_CHECK(simulation.transport_jobs().front().destination == second);
+}
+
 }
 
 int main()
@@ -1436,6 +1468,7 @@ int main()
     construction_summary_reports_queue_focus();
     construction_site_reports_missing_materials();
     output_storage_full_blocks_production();
+    storehouse_buffers_do_not_ping_pong_equal_stock();
 
     std::cout << "simulation tests passed\n";
     return 0;

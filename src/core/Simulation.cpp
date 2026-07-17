@@ -10,9 +10,11 @@ namespace {
 
 constexpr int house_food_priority = 100;
 constexpr int construction_material_priority = 90;
+constexpr int discovery_material_priority = 85;
 constexpr int recipe_input_priority = 80;
 constexpr int storehouse_pull_priority = 10;
 constexpr Quantity house_bread_target = 10;
+constexpr int storage_pull_divisor = 4;
 constexpr int distance_field_candidate_threshold = 4;
 constexpr std::size_t worker_connectivity_pair_threshold = 64;
 constexpr Quantity pottery_experiment_firewood = 6;
@@ -46,6 +48,7 @@ BuildingInstance make_inactive_building(BuildingId id)
     auto building = BuildingInstance{};
     building.id = id;
     building.active = false;
+    building.work_enabled = false;
     building.source_mask = 0;
     return building;
 }
@@ -65,7 +68,7 @@ const DiscoveryProjectDefinition& discovery_project_definition(DiscoveryProjectI
         .project = DiscoveryProjectId::PotteryExperiment,
         .name = "Pottery Experiment",
         .grants_capability = CapabilityId::Pottery,
-        .required_host = BuildingKind::Storehouse,
+        .required_host = BuildingKind::House,
         .inputs = pottery_experiment_inputs(),
         .map_resource = MapResourceId::Clay,
         .map_resource_quantity = pottery_experiment_clay,
@@ -95,7 +98,7 @@ std::string_view discovery_project_start_blocker_text(DiscoveryProjectStartBlock
     case DiscoveryProjectStartBlocker::InvalidHost:
         return "discovery project host is invalid";
     case DiscoveryProjectStartBlocker::WrongHost:
-        return "discovery project requires a storehouse host";
+        return "discovery project requires a different host";
     case DiscoveryProjectStartBlocker::MissingPathAccess:
         return "discovery project host needs path access";
     case DiscoveryProjectStartBlocker::MissingInputs:
@@ -297,6 +300,27 @@ bool Simulation::demolish_building(BuildingId id)
     return true;
 }
 
+void Simulation::set_building_work_enabled(BuildingId id, bool enabled)
+{
+    auto& instance = building(id);
+    if (instance.work_enabled == enabled) {
+        return;
+    }
+
+    instance.work_enabled = enabled;
+    if (!enabled) {
+        instance.assigned_workers = 0;
+        instance.assigned_builders = 0;
+        if (definition(instance.kind).recipe.has_value()
+            || instance.construction_target.has_value()) {
+            instance.blocking_reason = BlockingReason::WorkDisabled;
+        }
+    } else if (instance.blocking_reason == BlockingReason::WorkDisabled) {
+        instance.blocking_reason = BlockingReason::None;
+    }
+    worker_assignment_dirty_ = true;
+}
+
 void Simulation::grant_capability(CapabilityId capability)
 {
     if (capability == CapabilityId::Count) {
@@ -307,34 +331,17 @@ void Simulation::grant_capability(CapabilityId capability)
 
 void Simulation::start_discovery_project(DiscoveryProjectId project, BuildingId host)
 {
-    const auto& project_definition = discovery_project_definition(project);
     const auto start_status = discovery_project_start_status(project, host);
-    if (start_status.blocker != DiscoveryProjectStartBlocker::None) {
+    if (start_status.blocker != DiscoveryProjectStartBlocker::None
+        && start_status.blocker != DiscoveryProjectStartBlocker::MissingInputs) {
         throw std::invalid_argument(std::string{
             discovery_project_start_blocker_text(start_status.blocker)});
-    }
-
-    auto& host_building = building(host);
-    const auto& host_definition = definition(host_building.kind);
-    for (std::size_t index = 0; index < resource_count; ++index) {
-        const auto quantity = project_definition.inputs[index];
-        if (quantity > 0) {
-            host_building.inventory.remove(static_cast<ResourceId>(index), quantity);
-            stats_.consumed[index] += quantity;
-        }
-    }
-    if (!map_.harvest_map_resource_within_radius(
-            *host_building.position,
-            host_definition.footprint,
-            project_definition.map_resource,
-            project_definition.map_radius,
-            project_definition.map_resource_quantity)) {
-        throw std::runtime_error("discovery project map resource consumption failed");
     }
 
     discovery_projects_.push_back(DiscoveryProject{
         .project = project,
         .host = host,
+        .materials_consumed = false,
         .labor_completed = 0,
         .assigned_workers = 0
     });
@@ -413,8 +420,9 @@ bool Simulation::can_start_discovery_project(
     DiscoveryProjectId project,
     BuildingId host) const
 {
-    return discovery_project_start_status(project, host).blocker
-        == DiscoveryProjectStartBlocker::None;
+    const auto blocker = discovery_project_start_status(project, host).blocker;
+    return blocker == DiscoveryProjectStartBlocker::None
+        || blocker == DiscoveryProjectStartBlocker::MissingInputs;
 }
 
 bool Simulation::has_capability(CapabilityId capability) const
@@ -505,7 +513,7 @@ void Simulation::assign_workers()
                 .path_components = {}
             });
         }
-        if (building.worker_slots > 0) {
+        if (building.worker_slots > 0 && instance.work_enabled) {
             ++workplace_count;
         }
     }
@@ -529,7 +537,7 @@ void Simulation::assign_workers()
             continue;
         }
         const auto& building = definition(instance.kind);
-        if (building.worker_slots <= 0) {
+        if (building.worker_slots <= 0 || !instance.work_enabled) {
             continue;
         }
 
@@ -757,6 +765,7 @@ ConstructionSummary Simulation::construction_summary() const
         case BlockingReason::OutputStorageFull:
         case BlockingReason::MissingBread:
         case BlockingReason::NoNearbyMapResource:
+        case BlockingReason::WorkDisabled:
             break;
         }
     }
@@ -945,6 +954,10 @@ void Simulation::run_production()
         if (!building.recipe.has_value()) {
             continue;
         }
+        if (!instance.work_enabled) {
+            instance.blocking_reason = BlockingReason::WorkDisabled;
+            continue;
+        }
 
         const auto& recipe = *building.recipe;
         if (building.worker_slots > 0 && instance.assigned_workers < building.worker_slots) {
@@ -1100,6 +1113,10 @@ void Simulation::run_construction()
         if (!definition(site.kind).internal_construction_site) {
             continue;
         }
+        if (!site.work_enabled) {
+            site.blocking_reason = BlockingReason::WorkDisabled;
+            continue;
+        }
 
         if (!construction_materials_delivered(site)) {
             if (site.blocking_reason != BlockingReason::NoReachableSource
@@ -1141,18 +1158,66 @@ void Simulation::run_discovery_projects()
 
     for (auto& project : discovery_projects_) {
         project.assigned_workers = 0;
-        if (available_workers <= 0) {
+        auto* host = find_building(project.host);
+        if (host == nullptr) {
             continue;
         }
-
-        const auto* host = find_building(project.host);
-        if (host == nullptr) {
+        if (!host->work_enabled) {
+            host->blocking_reason = BlockingReason::WorkDisabled;
             continue;
         }
 
         const auto& project_definition = discovery_project_definition(project.project);
+        const auto& host_definition = definition(host->kind);
+        if (!project.materials_consumed) {
+            auto has_inputs = true;
+            for (std::size_t index = 0; index < resource_count; ++index) {
+                const auto quantity = project_definition.inputs[index];
+                if (quantity <= 0) {
+                    continue;
+                }
+                if (host->inventory.available(static_cast<ResourceId>(index)) < quantity) {
+                    has_inputs = false;
+                    break;
+                }
+            }
+            if (!has_inputs) {
+                continue;
+            }
+
+            if (!host->position.has_value()
+                || map_.map_resource_quantity_within_radius(
+                    *host->position,
+                    host_definition.footprint,
+                    project_definition.map_resource,
+                    project_definition.map_radius)
+                    < project_definition.map_resource_quantity) {
+                continue;
+            }
+
+            for (std::size_t index = 0; index < resource_count; ++index) {
+                const auto quantity = project_definition.inputs[index];
+                if (quantity > 0) {
+                    host->inventory.remove(static_cast<ResourceId>(index), quantity);
+                    stats_.consumed[index] += quantity;
+                }
+            }
+            if (!map_.harvest_map_resource_within_radius(
+                    *host->position,
+                    host_definition.footprint,
+                    project_definition.map_resource,
+                    project_definition.map_radius,
+                    project_definition.map_resource_quantity)) {
+                throw std::runtime_error("discovery project map resource consumption failed");
+            }
+            project.materials_consumed = true;
+        }
+
         const auto remaining_labor = project_definition.labor_minutes - project.labor_completed;
         if (remaining_labor <= 0) {
+            continue;
+        }
+        if (available_workers <= 0) {
             continue;
         }
 
@@ -1246,6 +1311,9 @@ std::vector<ResourceRequest> Simulation::collect_resource_requests() const
         const auto& building = definition(instance.kind);
 
         if (building.internal_construction_site && instance.construction_target.has_value()) {
+            if (!instance.work_enabled) {
+                continue;
+            }
             for (std::size_t index = 0; index < resource_count; ++index) {
                 const auto required =
                     instance.inventory.capacity(static_cast<ResourceId>(index));
@@ -1280,6 +1348,9 @@ std::vector<ResourceRequest> Simulation::collect_resource_requests() const
         }
 
         if (building.recipe.has_value()) {
+            if (!instance.work_enabled) {
+                continue;
+            }
             const auto& recipe = *building.recipe;
             for (std::size_t index = 0; index < resource_count; ++index) {
                 const auto resource = static_cast<ResourceId>(index);
@@ -1300,10 +1371,12 @@ std::vector<ResourceRequest> Simulation::collect_resource_requests() const
             }
         }
 
-        if (building.requests_storage_inputs) {
+        if (building.requests_storage_inputs && instance.work_enabled) {
             for (std::size_t index = 0; index < resource_count; ++index) {
                 const auto resource = static_cast<ResourceId>(index);
-                const auto target = instance.inventory.capacity(resource);
+                const auto capacity = instance.inventory.capacity(resource);
+                const auto target = (capacity + storage_pull_divisor - 1)
+                    / storage_pull_divisor;
                 const auto projected = projected_quantity(instance, resource);
                 if (target > 0 && projected < target) {
                     requests.push_back(ResourceRequest{
@@ -1313,6 +1386,33 @@ std::vector<ResourceRequest> Simulation::collect_resource_requests() const
                         .priority = storehouse_pull_priority
                     });
                 }
+            }
+        }
+    }
+
+    for (const auto& project : discovery_projects_) {
+        if (project.materials_consumed) {
+            continue;
+        }
+        const auto* host = find_building(project.host);
+        if (host == nullptr || !host->work_enabled) {
+            continue;
+        }
+        const auto& project_definition = discovery_project_definition(project.project);
+        for (std::size_t index = 0; index < resource_count; ++index) {
+            const auto required = project_definition.inputs[index];
+            if (required <= 0) {
+                continue;
+            }
+            const auto resource = static_cast<ResourceId>(index);
+            const auto projected = projected_quantity(*host, resource);
+            if (projected < required) {
+                requests.push_back(ResourceRequest{
+                    .destination = host->id,
+                    .resource = resource,
+                    .quantity = required - projected,
+                    .priority = discovery_material_priority
+                });
             }
         }
     }
@@ -1328,8 +1428,7 @@ int Simulation::viable_source_count(const ResourceRequest& request) const
         [this, &request](const BuildingInstance& candidate) {
             return candidate.active
                 && candidate.id != request.destination
-                && can_source_resource(candidate, request.resource)
-                && candidate.inventory.available(request.resource) > 0;
+                && can_source_for_request(candidate, request);
         }));
 }
 
@@ -1348,11 +1447,7 @@ std::optional<Simulation::SourceSelection> Simulation::find_source_for_request(
     for (auto& candidate : buildings_) {
         if (!candidate.active
             || candidate.id == request.destination
-            || !can_source_resource(candidate, request.resource)) {
-            continue;
-        }
-
-        if (candidate.inventory.available(request.resource) <= 0) {
+            || !can_source_for_request(candidate, request)) {
             continue;
         }
 
@@ -1390,6 +1485,35 @@ std::optional<Simulation::SourceSelection> Simulation::find_source_for_request(
 bool Simulation::can_source_resource(const BuildingInstance& source, ResourceId resource) const
 {
     return (source.source_mask & resource_source_bit(resource)) != 0;
+}
+
+bool Simulation::can_source_for_request(
+    const BuildingInstance& source,
+    const ResourceRequest& request) const
+{
+    if (!can_source_resource(source, request.resource)
+        || source.inventory.available(request.resource) <= 0) {
+        return false;
+    }
+
+    if (request.priority != storehouse_pull_priority) {
+        return true;
+    }
+
+    const auto* destination = find_building(request.destination);
+    if (destination == nullptr) {
+        return false;
+    }
+
+    const auto& source_definition = definition(source.kind);
+    const auto& destination_definition = definition(destination->kind);
+    if (!source_definition.requests_storage_inputs
+        || !destination_definition.requests_storage_inputs) {
+        return true;
+    }
+
+    return source.inventory.available(request.resource)
+        > projected_quantity(*destination, request.resource) + prototype_hauler_capacity;
 }
 
 Quantity Simulation::projected_quantity(const BuildingInstance& building, ResourceId resource) const

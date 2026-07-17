@@ -40,7 +40,8 @@ for 30 days.
 - `L` or `Tab`: cycle default, resource, and terrain map lenses
 - Mouse wheel over the construction menu or inspector: scroll that panel
 - `Esc`: cancel placement or demolition, then clear the current selection
-- `P`: start the pottery experiment from the selected storehouse, if ready
+- `P`: start the pottery experiment from the selected house, if ready
+- `O`: pause or resume work at the selected building
 - `F5`: save to `vibecity-save.vcs`
 - `F9`: load from `vibecity-save.vcs`
 
@@ -102,12 +103,13 @@ the second bakery is underway.
 
 Optional discovery check after the village is stable:
 
-1. Select a storehouse near clay.
-2. Use the selected-building discovery section to identify missing firewood,
-   clay in range, and road-access blockers.
+1. Select an occupied house near clay.
+2. Use the selected-building discovery section to identify missing firewood
+   delivery, clay in range, and road-access blockers.
 3. Once it reports the pottery experiment as ready, press `P`.
-4. Confirm the project consumes firewood and clay, shows active labor, and
-   unlocks potters and granaries when finished.
+4. Confirm the project requests firewood delivery to the house, consumes
+   firewood and clay once ready, shows active labor, and unlocks potters and
+   granaries when finished.
 
 The exact coordinates are not meant to be final gameplay advice. They are a
 control route matching the automated milestone test. The starter map is now
@@ -137,8 +139,8 @@ When I ask for detailed input, please report these points:
   that it also needs firewood to make bricks once unlocked?
 - Pottery/granaries: can you identify that potters need clay and firewood, and
   that potters/granaries are locked before pottery is discovered?
-- Pottery experiment: after selecting a path-accessible storehouse with
-  firewood near clay and pressing `P`, is it clear that firewood/clay were
+- Pottery experiment: after selecting a path-accessible house near clay and
+  pressing `P`, is it clear that firewood is delivered there, firewood/clay are
   consumed, workers are advancing discovery labor, and pottery unlocks?
 - Terrain/resources: can you distinguish normal grass, fertile terrain, rocky
   terrain, shallow water, forests, stone deposits, and clay deposits without
@@ -161,6 +163,8 @@ When I ask for detailed input, please report these points:
 - Construction: could you tell which site was next and whether builders were working?
 - Pacing: which speed did you use, and where did waiting feel too slow or too fast?
 - Controls: any accidental mode switches, placement mistakes, camera issues, or unclear buttons.
+- Work pause: can you recover from too many workplaces by pausing selected
+  buildings with `O`, and does the inspector make paused work obvious?
 - Demolition: could you correct placement/path mistakes, and was no-refund/no-regrowth behavior unsurprising?
 - Visuals: any text overlap, unreadable rows, missing contrast, or map markers that were too subtle.
 - Endpoint: did the objective summary and milestone-complete banner make the goal clear?

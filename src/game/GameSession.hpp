@@ -48,6 +48,11 @@ struct StartDiscoveryProjectCommand {
     BuildingId host = 0;
 };
 
+struct SetBuildingWorkEnabledCommand {
+    BuildingId building = 0;
+    bool enabled = true;
+};
+
 struct AdvanceTimeCommand {
     Tick ticks = 0;
 };
@@ -61,6 +66,7 @@ using GameCommand = std::variant<
     SetResidentsCommand,
     AddInventoryCommand,
     StartDiscoveryProjectCommand,
+    SetBuildingWorkEnabledCommand,
     AdvanceTimeCommand>;
 
 struct CommandResult {
