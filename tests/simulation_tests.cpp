@@ -825,6 +825,58 @@ void transport_job_keeps_dispatched_delivery_duration()
     VIBECITY_CHECK(simulation.transport_jobs().front().leg_ticks_total == *expected_distance);
 }
 
+void weather_pattern_is_deterministic()
+{
+    VIBECITY_CHECK(vibecity::weather_for_day(0) == vibecity::WeatherId::Clear);
+    VIBECITY_CHECK(vibecity::weather_for_day(1) == vibecity::WeatherId::Clear);
+    VIBECITY_CHECK(vibecity::weather_for_day(2) == vibecity::WeatherId::Rain);
+    VIBECITY_CHECK(vibecity::weather_for_day(3) == vibecity::WeatherId::Clear);
+    VIBECITY_CHECK(vibecity::weather_for_day(7) == vibecity::WeatherId::Rain);
+    VIBECITY_CHECK(vibecity::weather_name(vibecity::WeatherId::Rain) == "rain");
+
+    auto simulation = vibecity::Simulation{};
+    VIBECITY_CHECK(simulation.current_weather() == vibecity::WeatherId::Clear);
+    simulation.run_for(2 * vibecity::ticks_per_day);
+    VIBECITY_CHECK(simulation.current_day() == 2);
+    VIBECITY_CHECK(simulation.current_weather() == vibecity::WeatherId::Rain);
+}
+
+void rainy_weather_slows_delivery_legs()
+{
+    vibecity::Simulation simulation;
+    simulation.run_for(2 * vibecity::ticks_per_day);
+    VIBECITY_CHECK(simulation.current_weather() == vibecity::WeatherId::Rain);
+
+    const auto storehouse = simulation.add_building_at(
+        vibecity::BuildingKind::Storehouse,
+        vibecity::GridPosition{1, 1});
+    const auto house = simulation.add_building_at(
+        vibecity::BuildingKind::House,
+        vibecity::GridPosition{8, 1});
+    for (int x = 1; x <= 8; ++x) {
+        VIBECITY_CHECK(simulation.add_path(vibecity::GridPosition{x, 0}));
+    }
+
+    simulation.set_residents(house, 5);
+    VIBECITY_CHECK(simulation.building(storehouse).inventory.add(
+        vibecity::ResourceId::Bread,
+        10));
+
+    const auto clear_distance = simulation.map().path_distance_between_buildings(
+        *simulation.building(storehouse).position,
+        vibecity::building_definition(vibecity::BuildingKind::Storehouse).footprint,
+        *simulation.building(house).position,
+        vibecity::building_definition(vibecity::BuildingKind::House).footprint);
+    VIBECITY_CHECK(clear_distance.has_value());
+
+    simulation.tick();
+    VIBECITY_CHECK(simulation.transport_jobs().size() == 1);
+    VIBECITY_CHECK(simulation.transport_jobs().front().delivery_ticks
+        == *clear_distance * vibecity::rain_transport_multiplier);
+    VIBECITY_CHECK(simulation.transport_jobs().front().leg_ticks_total
+        == vibecity::prototype_transport_leg_minutes);
+}
+
 void disconnected_buildings_cannot_exchange_goods()
 {
     vibecity::Simulation simulation;
@@ -1449,6 +1501,8 @@ int main()
     logistics_delivers_bread_from_storehouse_to_house();
     logistics_summary_tracks_reservations_and_in_transit_goods();
     transport_job_keeps_dispatched_delivery_duration();
+    weather_pattern_is_deterministic();
+    rainy_weather_slows_delivery_legs();
     disconnected_buildings_cannot_exchange_goods();
     connected_paths_allow_goods_exchange();
     logistics_prefers_nearest_reachable_source();

@@ -127,6 +127,9 @@ When I ask for detailed input, please report these points:
 - Transport visibility: could you follow a cargo marker along the road from its
   source building to its destination, including short trips, and does selecting
   one endpoint make the relevant routes stand out?
+- Weather: when the HUD/inspector reports rain, do slower deliveries make
+  logistics pressure more understandable, or does it feel like unexplained
+  waiting?
 - Growth ceiling: when one bakery settles at 16 residents, does the displayed
   bread reserve make the missing surplus clear?
 - Forests: when selecting a woodcutter, is its collection radius and remaining

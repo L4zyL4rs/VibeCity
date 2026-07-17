@@ -133,6 +133,16 @@ understand when production stops or must move elsewhere.
 - Selecting a building brightens its active transport routes on the map while
   dimming unrelated transport visuals.
 
+## Implemented: Weather Pressure Slice
+
+- The simulation has deterministic daily weather derived from the current day.
+- Rain currently doubles delivery travel time over the dirt-road logistics
+  network. Pickup legs still use the fixed prototype approach time.
+- Weather is visible in the HUD, settlement inspector clock line, and headless
+  output.
+- This creates the first soft pressure for future paved roads, drainage,
+  culverts, or other brick-based infrastructure.
+
 ## Implemented: Map Visibility Slice
 
 - The client has default, resource, and terrain map lenses, cycled with `L` or

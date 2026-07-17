@@ -30,6 +30,9 @@ The save contains all authoritative gameplay state required for deterministic co
 - village objective history
 - the simulation-relevant building-definition catalog fingerprint
 
+Daily weather is deterministic from the saved simulation time, so it is not a
+separate payload field.
+
 Saving writes a temporary file and then replaces the previous save. Loading parses and validates a complete replacement session before changing the live game. A failed load leaves the current session untouched.
 
 ## Binary Layout

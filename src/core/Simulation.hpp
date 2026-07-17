@@ -14,9 +14,16 @@ inline constexpr Tick ticks_per_day = 24 * ticks_per_hour;
 inline constexpr Tick dawn_tick = 6 * ticks_per_hour;
 inline constexpr Tick logistics_dispatch_interval = 10;
 inline constexpr Tick prototype_transport_leg_minutes = 5;
+inline constexpr Tick rain_transport_multiplier = 2;
 inline constexpr Quantity prototype_hauler_capacity = 5;
 inline constexpr int prototype_builders_per_site = 3;
 inline constexpr int prototype_immigrants_per_day = 1;
+
+enum class WeatherId : std::uint8_t {
+    Clear,
+    Rain,
+    Count
+};
 
 struct ResourceStats {
     ResourceArray produced{};
@@ -199,6 +206,7 @@ public:
     [[nodiscard]] Tick current_tick() const;
     [[nodiscard]] int current_day() const;
     [[nodiscard]] Tick minute_of_day() const;
+    [[nodiscard]] WeatherId current_weather() const;
     [[nodiscard]] int idle_workers() const;
     [[nodiscard]] int available_haulers() const;
     [[nodiscard]] int total_residents() const;
@@ -237,6 +245,7 @@ private:
     [[nodiscard]] Footprint footprint_for(const BuildingInstance& building) const;
     [[nodiscard]] std::optional<Tick> transport_minutes_if_connected(const BuildingInstance& source,
         const BuildingInstance& destination) const;
+    [[nodiscard]] Tick weather_adjusted_transport_minutes(Tick clear_minutes) const;
     void run_production();
     void dispatch_logistics();
     void advance_transport_jobs();
@@ -286,6 +295,8 @@ private:
 };
 
 [[nodiscard]] std::string_view transport_job_state_name(TransportJobState state);
+[[nodiscard]] std::string_view weather_name(WeatherId weather);
+[[nodiscard]] WeatherId weather_for_day(int day);
 [[nodiscard]] std::string_view population_growth_blocker_text(PopulationGrowthBlocker blocker);
 [[nodiscard]] const DiscoveryProjectDefinition& discovery_project_definition(DiscoveryProjectId project);
 [[nodiscard]] std::string_view discovery_project_start_blocker_text(

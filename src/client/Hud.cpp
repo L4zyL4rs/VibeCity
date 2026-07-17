@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -27,6 +28,12 @@ std::string clock_text(const Simulation& simulation)
         output << "0";
     }
     output << minute;
+    output << " ";
+    auto weather = std::string{weather_name(simulation.current_weather())};
+    std::transform(weather.begin(), weather.end(), weather.begin(), [](unsigned char character) {
+        return static_cast<char>(std::toupper(character));
+    });
+    output << weather;
     return output.str();
 }
 

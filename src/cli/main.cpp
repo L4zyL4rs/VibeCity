@@ -192,7 +192,10 @@ int main(int argc, char** argv)
         std::cout << "mode=" << (milestone ? "reference milestone" : "starting village 2d") << "\n";
         std::cout << "scenario houses=" << scenario.houses.size()
                   << ", storehouse=#" << scenario.storehouse << "\n";
-        std::cout << "day=" << simulation.current_day() << ", tick=" << simulation.current_tick() << "\n\n";
+        std::cout << "day=" << simulation.current_day()
+                  << ", tick=" << simulation.current_tick()
+                  << ", weather=" << weather_name(simulation.current_weather())
+                  << "\n\n";
 
         for (const auto& building : simulation.buildings()) {
             std::cout << "#" << building.id << " " << simulation.definition(building.kind).name

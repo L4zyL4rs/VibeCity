@@ -86,6 +86,27 @@ const DiscoveryProjectDefinition& discovery_project_definition(DiscoveryProjectI
     throw std::invalid_argument("invalid discovery project");
 }
 
+std::string_view weather_name(WeatherId weather)
+{
+    switch (weather) {
+    case WeatherId::Clear:
+        return "clear";
+    case WeatherId::Rain:
+        return "rain";
+    case WeatherId::Count:
+        return "unknown";
+    }
+    return "unknown";
+}
+
+WeatherId weather_for_day(int day)
+{
+    if (day <= 0) {
+        return WeatherId::Clear;
+    }
+    return day % 5 == 2 ? WeatherId::Rain : WeatherId::Clear;
+}
+
 std::string_view discovery_project_start_blocker_text(DiscoveryProjectStartBlocker blocker)
 {
     switch (blocker) {
@@ -624,6 +645,11 @@ Tick Simulation::minute_of_day() const
     return current_tick_ % ticks_per_day;
 }
 
+WeatherId Simulation::current_weather() const
+{
+    return weather_for_day(current_day());
+}
+
 int Simulation::idle_workers() const
 {
     return idle_workers_;
@@ -928,7 +954,7 @@ std::optional<Tick> Simulation::transport_minutes_if_connected(const BuildingIns
     const BuildingInstance& destination) const
 {
     if (!source.position.has_value() || !destination.position.has_value()) {
-        return prototype_transport_leg_minutes;
+        return weather_adjusted_transport_minutes(prototype_transport_leg_minutes);
     }
 
     const auto distance = map_.path_distance_between_buildings(
@@ -941,7 +967,15 @@ std::optional<Tick> Simulation::transport_minutes_if_connected(const BuildingIns
         return std::nullopt;
     }
 
-    return std::max<Tick>(1, *distance);
+    return weather_adjusted_transport_minutes(std::max<Tick>(1, *distance));
+}
+
+Tick Simulation::weather_adjusted_transport_minutes(Tick clear_minutes) const
+{
+    if (current_weather() == WeatherId::Rain) {
+        return clear_minutes * rain_transport_multiplier;
+    }
+    return clear_minutes;
 }
 
 void Simulation::run_production()
@@ -1457,7 +1491,8 @@ std::optional<Simulation::SourceSelection> Simulation::find_source_for_request(
                 *candidate.position,
                 footprint_for(candidate));
             distance = path_distance.has_value()
-                ? std::optional<Tick>{std::max<Tick>(1, *path_distance)}
+                ? std::optional<Tick>{weather_adjusted_transport_minutes(
+                    std::max<Tick>(1, *path_distance))}
                 : std::nullopt;
         } else {
             distance = transport_minutes_if_connected(candidate, *destination);
