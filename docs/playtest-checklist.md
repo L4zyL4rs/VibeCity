@@ -104,7 +104,7 @@ the second bakery is underway.
 Optional discovery check after the village is stable:
 
 1. Select an occupied house near clay.
-2. Use the selected-building discovery section to identify missing firewood
+2. Use the selected-building discovery popup to identify missing firewood
    delivery, clay in range, and road-access blockers.
 3. Once it reports the pottery experiment as ready, press `P`.
 4. Confirm the project requests firewood delivery to the house, consumes

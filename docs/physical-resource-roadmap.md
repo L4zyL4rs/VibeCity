@@ -119,6 +119,9 @@ understand when production stops or must move elsewhere.
   press `P` to start the pottery experiment.
 - Selected houses show pottery experiment requirements, readiness, active
   material delivery, labor, and blockers for missing road access or nearby clay.
+- The SDL client also shows a larger pottery experiment detail popup when a
+  relevant house is selected, so requirements are readable before a proper
+  project UI exists.
 
 ## Implemented: Logistics Inspection
 

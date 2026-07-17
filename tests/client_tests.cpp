@@ -444,6 +444,39 @@ void selected_logistics_lines_show_routes_and_reservations()
         }));
 }
 
+void discovery_project_detail_lines_show_readable_requirements()
+{
+    auto simulation = vibecity::Simulation{};
+    VIBECITY_CHECK(simulation.add_path(vibecity::GridPosition{1, 0}));
+    const auto house = simulation.add_building_at(
+        vibecity::BuildingKind::House,
+        vibecity::GridPosition{1, 1});
+    simulation.set_residents(house, 2);
+
+    const auto lines = vibecity::client::discovery_project_detail_lines(simulation, house);
+    VIBECITY_CHECK(std::find(lines.begin(), lines.end(), "Pottery Experiment") != lines.end());
+    VIBECITY_CHECK(std::find(lines.begin(), lines.end(), "HOST: House") != lines.end());
+    VIBECITY_CHECK(std::find(lines.begin(), lines.end(), "INPUT: 6 FIREWOOD") != lines.end());
+    VIBECITY_CHECK(std::find(lines.begin(), lines.end(), "MAP: 2 CLAY WITHIN 6 TILES") != lines.end());
+    VIBECITY_CHECK(std::find(lines.begin(), lines.end(), "LABOR: 24 HOURS, 2 WORKERS") != lines.end());
+    VIBECITY_CHECK(std::find(lines.begin(), lines.end(), "MISSING: 6 FIREWOOD") != lines.end());
+    VIBECITY_CHECK(std::find(lines.begin(), lines.end(), "CLAY IN RANGE: 0/2") != lines.end());
+
+    const auto storehouse = simulation.add_building_at(
+        vibecity::BuildingKind::Storehouse,
+        vibecity::GridPosition{4, 1});
+    VIBECITY_CHECK(vibecity::client::discovery_project_detail_lines(
+            simulation,
+            storehouse)
+        .empty());
+
+    simulation.grant_capability(vibecity::CapabilityId::Pottery);
+    VIBECITY_CHECK(vibecity::client::discovery_project_detail_lines(
+            simulation,
+            house)
+        .empty());
+}
+
 void escape_cancels_before_clearing_selection()
 {
     auto state = vibecity::client::ClientInteractionState{};
@@ -528,6 +561,7 @@ int main()
     map_hover_text_reports_tile_contents();
     placement_blocker_text_reports_common_blocks();
     selected_logistics_lines_show_routes_and_reservations();
+    discovery_project_detail_lines_show_readable_requirements();
     escape_cancels_before_clearing_selection();
     transport_overlay_retains_completed_jobs_for_readability();
 

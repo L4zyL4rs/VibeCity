@@ -22,11 +22,17 @@ struct InspectorScrollMetrics {
 [[nodiscard]] std::vector<std::string> selected_logistics_lines(
     const Simulation& simulation,
     BuildingId selected);
+[[nodiscard]] std::vector<std::string> discovery_project_detail_lines(
+    const Simulation& simulation,
+    std::optional<BuildingId> selected);
 
 [[nodiscard]] InspectorScrollMetrics draw_inspector(SDL_Renderer* renderer,
     const Simulation& simulation,
     const VillageObjectiveTracker& objectives,
     std::optional<BuildingId> selected,
     int requested_scroll);
+void draw_discovery_project_popup(SDL_Renderer* renderer,
+    const Simulation& simulation,
+    std::optional<BuildingId> selected);
 
 }

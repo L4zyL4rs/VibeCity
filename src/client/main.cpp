@@ -28,6 +28,7 @@ using vibecity::client::draw_building_placement_preview;
 using vibecity::client::draw_hud;
 using vibecity::client::draw_build_menu;
 using vibecity::client::draw_demolition_preview;
+using vibecity::client::draw_discovery_project_popup;
 using vibecity::client::draw_inspector;
 using vibecity::client::draw_objective_completion_banner;
 using vibecity::client::draw_placement_preview;
@@ -185,6 +186,7 @@ ClientPanelMetrics draw_map(SDL_Renderer* renderer,
         objectives,
         vibecity::client::build_menu_width,
         vibecity::client::inspector_width);
+    draw_discovery_project_popup(renderer, simulation, selected);
     SDL_RenderPresent(renderer);
     return ClientPanelMetrics{
         .inspector = inspector_metrics,

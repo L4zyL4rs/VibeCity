@@ -1,5 +1,6 @@
 #include "client/Inspector.hpp"
 
+#include "client/BuildMenu.hpp"
 #include "client/Hud.hpp"
 #include "client/Text.hpp"
 
@@ -301,6 +302,27 @@ ResourceArray missing_project_inputs(
     return missing;
 }
 
+std::string map_resource_availability_line(
+    const Simulation& simulation,
+    const BuildingInstance& host,
+    const DiscoveryProjectDefinition& project)
+{
+    if (!host.position.has_value()) {
+        return std::string{map_resource_display_name(project.map_resource)}
+            + " IN RANGE: 0/" + std::to_string(project.map_resource_quantity);
+    }
+
+    const auto& host_definition = simulation.definition(host.kind);
+    const auto available = simulation.map().map_resource_quantity_within_radius(
+        *host.position,
+        host_definition.footprint,
+        project.map_resource,
+        project.map_radius);
+    return std::string{map_resource_display_name(project.map_resource)}
+        + " IN RANGE: " + std::to_string(available)
+        + "/" + std::to_string(project.map_resource_quantity);
+}
+
 int draw_selected_discovery_project(SDL_Renderer* renderer,
     const Simulation& simulation,
     const BuildingInstance& building,
@@ -364,23 +386,13 @@ int draw_selected_discovery_project(SDL_Renderer* renderer,
                     y += 16;
                 }
 
-                if (host->position.has_value()) {
-                    const auto& host_definition = simulation.definition(host->kind);
-                    const auto available = simulation.map().map_resource_quantity_within_radius(
-                        *host->position,
-                        host_definition.footprint,
-                        project.map_resource,
-                        project.map_radius);
-                    draw_text(renderer,
-                        x,
-                        y,
-                        std::string{map_resource_display_name(project.map_resource)}
-                            + " IN RANGE: " + std::to_string(available)
-                            + "/" + std::to_string(project.map_resource_quantity),
-                        muted,
-                        1);
-                    y += 16;
-                }
+                draw_text(renderer,
+                    x,
+                    y,
+                    map_resource_availability_line(simulation, *host, project),
+                    muted,
+                    1);
+                y += 16;
             }
             return y + 8;
         }
@@ -992,6 +1004,138 @@ std::vector<std::string> selected_logistics_lines(
     }
 
     return lines;
+}
+
+std::vector<std::string> discovery_project_detail_lines(
+    const Simulation& simulation,
+    std::optional<BuildingId> selected)
+{
+    auto lines = std::vector<std::string>{};
+    if (!selected.has_value()) {
+        return lines;
+    }
+
+    const auto* selected_building = find_active_building(simulation, *selected);
+    if (selected_building == nullptr) {
+        return lines;
+    }
+
+    const auto project_id = DiscoveryProjectId::PotteryExperiment;
+    const auto& project = discovery_project_definition(project_id);
+    const auto* active = active_project(simulation, project_id);
+    if (active == nullptr && simulation.has_capability(project.grants_capability)) {
+        return lines;
+    }
+    if (active != nullptr && active->host != selected_building->id) {
+        return lines;
+    }
+    if (active == nullptr && selected_building->kind != project.required_host) {
+        return lines;
+    }
+
+    lines.push_back(std::string{project.name});
+    lines.push_back("HOST: " + std::string{simulation.definition(project.required_host).name});
+    lines.push_back("ROAD: HOST NEEDS ACCESS");
+    lines.push_back("INPUT: " + resource_amounts_text(project.inputs));
+    lines.push_back(
+        "MAP: " + std::to_string(project.map_resource_quantity)
+        + " " + std::string{map_resource_display_name(project.map_resource)}
+        + " WITHIN " + std::to_string(project.map_radius) + " TILES");
+    lines.push_back(
+        "LABOR: " + duration_text(project.labor_minutes)
+        + ", " + std::to_string(project.worker_slots) + " WORKERS");
+    lines.push_back("UNLOCKS: POTTERY BUILDINGS");
+
+    if (active != nullptr) {
+        lines.push_back("STATUS: ACTIVE HERE");
+
+        const auto* host = find_active_building(simulation, active->host);
+        if (host == nullptr) {
+            return lines;
+        }
+
+        if (!active->materials_consumed) {
+            const auto missing = missing_project_inputs(*host, project);
+            if (resource_total(missing) > 0) {
+                lines.push_back("WAITING: " + resource_amounts_text(missing));
+            } else {
+                lines.push_back("WAITING: MATERIALS READY");
+            }
+            lines.push_back(map_resource_availability_line(simulation, *host, project));
+            return lines;
+        }
+
+        lines.push_back(
+            "LABOR LEFT: "
+            + duration_text(std::max<Tick>(0, project.labor_minutes - active->labor_completed)));
+        lines.push_back("WORKERS NOW: " + std::to_string(active->assigned_workers));
+        return lines;
+    }
+
+    const auto start_status = simulation.discovery_project_start_status(project_id, selected_building->id);
+    lines.push_back(discovery_project_status_line(start_status));
+    if (start_status.blocker == DiscoveryProjectStartBlocker::MissingInputs) {
+        lines.push_back("MISSING: " + resource_amounts_text(start_status.missing_inputs));
+    }
+    if (start_status.blocker != DiscoveryProjectStartBlocker::WrongHost
+        && start_status.blocker != DiscoveryProjectStartBlocker::InvalidHost
+        && start_status.blocker != DiscoveryProjectStartBlocker::MissingPathAccess) {
+        lines.push_back(map_resource_availability_line(simulation, *selected_building, project));
+    }
+
+    return lines;
+}
+
+void draw_discovery_project_popup(SDL_Renderer* renderer,
+    const Simulation& simulation,
+    std::optional<BuildingId> selected)
+{
+    const auto lines = discovery_project_detail_lines(simulation, selected);
+    if (lines.empty()) {
+        return;
+    }
+
+    auto width = 0;
+    auto height = 0;
+    SDL_GetRendererOutputSize(renderer, &width, &height);
+
+    const auto map_left = build_menu_width + 18;
+    const auto map_right = width - inspector_width - 18;
+    const auto available_width = map_right - map_left;
+    if (available_width < 360 || height < hud_height + 240) {
+        return;
+    }
+
+    const auto popup_width = std::min(480, available_width - 24);
+    const auto line_height = 22;
+    const auto popup_height = 28 + static_cast<int>(lines.size()) * line_height + 18;
+    const auto popup = SDL_Rect{
+        .x = map_left + (available_width - popup_width) / 2,
+        .y = hud_height + 20,
+        .w = popup_width,
+        .h = popup_height
+    };
+
+    set_color(renderer, Color{18, 22, 22, 238});
+    SDL_RenderFillRect(renderer, &popup);
+    set_color(renderer, Color{92, 104, 100, 255});
+    SDL_RenderDrawRect(renderer, &popup);
+
+    const auto text = Color{220, 224, 210, 255};
+    const auto muted = Color{156, 166, 160, 255};
+    auto y = popup.y + 14;
+    const auto max_chars = static_cast<std::size_t>(
+        std::max(1, (popup.w - 28) / 12));
+    for (std::size_t index = 0; index < lines.size(); ++index) {
+        draw_text(
+            renderer,
+            popup.x + 14,
+            y,
+            truncate_text(lines[index], max_chars),
+            index == 0 ? text : muted,
+            2);
+        y += line_height;
+    }
 }
 
 std::string selected_summary(const Simulation& simulation, std::optional<BuildingId> selected)
