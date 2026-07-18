@@ -178,10 +178,12 @@ std::string_view path_paving_blocker_text(PathPavingBlocker blocker)
         return "select a dirt path";
     case PathPavingBlocker::AlreadyPaved:
         return "path is already paved";
+    case PathPavingBlocker::AlreadyUnderRoadwork:
+        return "path is already under roadwork";
     case PathPavingBlocker::MissingCapability:
-        return "paving needs brickmaking";
+        return "roadwork needs brickmaking";
     case PathPavingBlocker::MissingBricks:
-        return "paving needs connected bricks";
+        return "roadwork needs connected bricks";
     }
     return "unknown path paving blocker";
 }
@@ -322,6 +324,16 @@ const std::vector<DiscoveryProject>& Simulation::discovery_projects() const
     return discovery_projects_;
 }
 
+const std::vector<RoadworkSite>& Simulation::roadwork_sites() const
+{
+    return roadwork_sites_;
+}
+
+const RoadworkSite* Simulation::roadwork_site_at(GridPosition position) const
+{
+    return find_roadwork_site(position);
+}
+
 const TileMap& Simulation::map() const
 {
     return map_;
@@ -358,11 +370,14 @@ bool Simulation::pave_path(GridPosition position)
         ResourceId::Bricks,
         paved_path_brick_cost);
     if (source == nullptr
-        || !source->inventory.remove(ResourceId::Bricks, paved_path_brick_cost)
-        || !map_.pave_path(position)) {
-        throw std::runtime_error("path paving failed");
+        || !source->inventory.remove(ResourceId::Bricks, paved_path_brick_cost)) {
+        throw std::runtime_error("roadwork could not reserve paving material");
     }
 
+    roadwork_sites_.push_back(RoadworkSite{
+        .position = position,
+        .labor_required = paved_path_labor_minutes
+    });
     stats_.consumed[resource_index(ResourceId::Bricks)] += paved_path_brick_cost;
     worker_assignment_dirty_ = true;
     return true;
@@ -377,6 +392,10 @@ PathPavingStatus Simulation::path_paving_status(GridPosition position) const
     }
     if (map_.has_paved_path(position)) {
         status.blocker = PathPavingBlocker::AlreadyPaved;
+        return status;
+    }
+    if (find_roadwork_site(position) != nullptr) {
+        status.blocker = PathPavingBlocker::AlreadyUnderRoadwork;
         return status;
     }
     if (!has_capability(CapabilityId::Brickmaking)) {
@@ -403,6 +422,9 @@ bool Simulation::remove_path(GridPosition position)
 {
     const auto removed = map_.remove_path(position);
     if (removed) {
+        std::erase_if(roadwork_sites_, [position](const RoadworkSite& site) {
+            return site.position == position;
+        });
         worker_assignment_dirty_ = true;
     }
     return removed;
@@ -766,6 +788,7 @@ void Simulation::tick()
     advance_transport_jobs();
     run_production();
     run_construction();
+    run_roadwork();
     run_discovery_projects();
 
     ++current_tick_;
@@ -998,6 +1021,27 @@ DiscoveryProjectSummary Simulation::discovery_project_summary() const
             summary.next_labor_remaining = std::max<Tick>(
                 0,
                 project_definition.labor_minutes - project.labor_completed);
+        }
+    }
+    return summary;
+}
+
+RoadworkSummary Simulation::roadwork_summary() const
+{
+    auto summary = RoadworkSummary{};
+    summary.sites = static_cast<int>(roadwork_sites_.size());
+    for (const auto& site : roadwork_sites_) {
+        summary.active_builders += site.assigned_builders;
+        if (!summary.next_site.has_value()) {
+            summary.next_site = site.position;
+            summary.next_labor_remaining = std::max<Tick>(
+                0,
+                site.labor_required - site.labor_completed);
+            summary.next_blocker = site.blocking_reason;
+        }
+
+        if (site.blocking_reason == BlockingReason::WaitingForBuilderLabor) {
+            ++summary.waiting_builders;
         }
     }
     return summary;
@@ -1353,11 +1397,70 @@ void Simulation::run_construction()
     }
 }
 
+void Simulation::run_roadwork()
+{
+    auto available_builders = std::max(0, idle_workers_ - static_cast<int>(transport_jobs_.size()));
+    for (const auto& building : buildings_) {
+        available_builders -= building.assigned_builders;
+    }
+    available_builders = std::max(0, available_builders);
+
+    for (auto& site : roadwork_sites_) {
+        site.assigned_builders = 0;
+        if (!map_.has_path(site.position) || map_.has_paved_path(site.position)) {
+            site.blocking_reason = BlockingReason::None;
+            continue;
+        }
+
+        if (site.labor_completed >= site.labor_required) {
+            continue;
+        }
+
+        if (available_builders <= 0) {
+            site.blocking_reason = BlockingReason::WaitingForBuilderLabor;
+            continue;
+        }
+
+        const auto builders = std::min({
+            prototype_builders_per_site,
+            available_builders,
+            static_cast<int>(std::min<Tick>(
+                site.labor_required - site.labor_completed,
+                prototype_builders_per_site))
+        });
+        if (builders <= 0) {
+            continue;
+        }
+
+        site.assigned_builders = builders;
+        site.labor_completed += builders;
+        available_builders -= builders;
+        site.blocking_reason = BlockingReason::None;
+    }
+
+    for (const auto& site : roadwork_sites_) {
+        if (site.labor_completed >= site.labor_required
+            && map_.has_path(site.position)
+            && !map_.has_paved_path(site.position)
+            && !map_.pave_path(site.position)) {
+            throw std::runtime_error("roadwork completion failed");
+        }
+    }
+    std::erase_if(roadwork_sites_, [this](const RoadworkSite& site) {
+        return !map_.has_path(site.position)
+            || map_.has_paved_path(site.position)
+            || site.labor_completed >= site.labor_required;
+    });
+}
+
 void Simulation::run_discovery_projects()
 {
     auto available_workers = std::max(0, idle_workers_ - static_cast<int>(transport_jobs_.size()));
     for (const auto& building : buildings_) {
         available_workers -= building.assigned_builders;
+    }
+    for (const auto& site : roadwork_sites_) {
+        available_workers -= site.assigned_builders;
     }
     available_workers = std::max(0, available_workers);
 
@@ -1778,6 +1881,28 @@ BuildingInstance* Simulation::find_source_for_path_resource(
     }
 
     return best;
+}
+
+RoadworkSite* Simulation::find_roadwork_site(GridPosition position)
+{
+    const auto found = std::find_if(
+        roadwork_sites_.begin(),
+        roadwork_sites_.end(),
+        [position](const RoadworkSite& site) {
+            return site.position == position;
+        });
+    return found == roadwork_sites_.end() ? nullptr : &*found;
+}
+
+const RoadworkSite* Simulation::find_roadwork_site(GridPosition position) const
+{
+    const auto found = std::find_if(
+        roadwork_sites_.begin(),
+        roadwork_sites_.end(),
+        [position](const RoadworkSite& site) {
+            return site.position == position;
+        });
+    return found == roadwork_sites_.end() ? nullptr : &*found;
 }
 
 Quantity Simulation::projected_quantity(const BuildingInstance& building, ResourceId resource) const

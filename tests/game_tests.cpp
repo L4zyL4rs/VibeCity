@@ -235,18 +235,27 @@ void command_layer_paves_paths_with_connected_bricks()
 
     auto result = game.execute(vibecity::PlacePathCommand{.position = path});
     VIBECITY_CHECK(result.success);
+    require(game, vibecity::PlacePathCommand{.position = vibecity::GridPosition{2, 0}});
     result = game.execute(vibecity::PavePathCommand{.position = path});
     VIBECITY_CHECK(!result.success);
-    VIBECITY_CHECK(result.message == "paving needs brickmaking");
+    VIBECITY_CHECK(result.message == "roadwork needs brickmaking");
 
     game.simulation().grant_capability(vibecity::CapabilityId::Brickmaking);
     result = game.execute(vibecity::PavePathCommand{.position = path});
     VIBECITY_CHECK(!result.success);
-    VIBECITY_CHECK(result.message == "paving needs connected bricks");
+    VIBECITY_CHECK(result.message == "roadwork needs connected bricks");
 
     const auto storehouse = require_building(game, vibecity::PlaceBuildingCommand{
         .kind = vibecity::BuildingKind::Storehouse,
         .position = vibecity::GridPosition{1, 1}
+    });
+    const auto house = require_building(game, vibecity::PlaceBuildingCommand{
+        .kind = vibecity::BuildingKind::House,
+        .position = vibecity::GridPosition{3, 1}
+    });
+    require(game, vibecity::SetResidentsCommand{
+        .building = house,
+        .residents = 5
     });
     require(game, vibecity::AddInventoryCommand{
         .building = storehouse,
@@ -256,10 +265,21 @@ void command_layer_paves_paths_with_connected_bricks()
 
     result = game.execute(vibecity::PavePathCommand{.position = path});
     VIBECITY_CHECK(result.success);
-    VIBECITY_CHECK(game.simulation().map().has_paved_path(path));
+    VIBECITY_CHECK(result.message == "roadwork started");
+    VIBECITY_CHECK(!game.simulation().map().has_paved_path(path));
+    VIBECITY_CHECK(game.simulation().roadwork_sites().size() == 1);
+    VIBECITY_CHECK(game.simulation().roadwork_site_at(path) != nullptr);
     VIBECITY_CHECK(game.simulation().building(storehouse).inventory.quantity(
             vibecity::ResourceId::Bricks)
         == 1);
+
+    result = game.execute(vibecity::PavePathCommand{.position = path});
+    VIBECITY_CHECK(!result.success);
+    VIBECITY_CHECK(result.message == "path is already under roadwork");
+
+    require(game, vibecity::AdvanceTimeCommand{.ticks = vibecity::paved_path_labor_minutes});
+    VIBECITY_CHECK(game.simulation().roadwork_sites().empty());
+    VIBECITY_CHECK(game.simulation().map().has_paved_path(path));
 
     result = game.execute(vibecity::PavePathCommand{.position = path});
     VIBECITY_CHECK(!result.success);
@@ -968,7 +988,7 @@ void invalid_save_is_rejected_without_replacing_session()
 
     auto version = read_bytes(valid_path);
     VIBECITY_CHECK(version.size() > 12);
-    version[8] = 13;
+    version[8] = 14;
     write_bytes(version_path, version);
 
     auto target = starting_village_session();
@@ -1018,10 +1038,19 @@ void save_load_preserves_paved_paths()
     constexpr auto road = vibecity::GridPosition{1, 0};
 
     require(game, vibecity::PlacePathCommand{.position = road});
+    require(game, vibecity::PlacePathCommand{.position = vibecity::GridPosition{2, 0}});
     game.simulation().grant_capability(vibecity::CapabilityId::Brickmaking);
     const auto storehouse = require_building(game, vibecity::PlaceBuildingCommand{
         .kind = vibecity::BuildingKind::Storehouse,
         .position = vibecity::GridPosition{1, 1}
+    });
+    const auto house = require_building(game, vibecity::PlaceBuildingCommand{
+        .kind = vibecity::BuildingKind::House,
+        .position = vibecity::GridPosition{3, 1}
+    });
+    require(game, vibecity::SetResidentsCommand{
+        .building = house,
+        .residents = 5
     });
     require(game, vibecity::AddInventoryCommand{
         .building = storehouse,
@@ -1029,12 +1058,58 @@ void save_load_preserves_paved_paths()
         .quantity = 1
     });
     require(game, vibecity::PavePathCommand{.position = road});
+    require(game, vibecity::AdvanceTimeCommand{.ticks = vibecity::paved_path_labor_minutes});
+    VIBECITY_CHECK(game.simulation().roadwork_sites().empty());
+    VIBECITY_CHECK(game.simulation().map().has_paved_path(road));
 
     VIBECITY_CHECK(game.save_to_file(path).success);
 
     vibecity::GameSession loaded;
     VIBECITY_CHECK(loaded.load_from_file(path).success);
     VIBECITY_CHECK(loaded.simulation().map().has_path(road));
+    VIBECITY_CHECK(loaded.simulation().map().has_paved_path(road));
+
+    std::filesystem::remove(path);
+}
+
+void save_load_preserves_active_roadwork()
+{
+    const auto path = std::filesystem::temp_directory_path() / "vibecity-roadwork.vcs";
+    vibecity::GameSession game;
+    constexpr auto road = vibecity::GridPosition{1, 0};
+
+    require(game, vibecity::PlacePathCommand{.position = road});
+    require(game, vibecity::PlacePathCommand{.position = vibecity::GridPosition{2, 0}});
+    game.simulation().grant_capability(vibecity::CapabilityId::Brickmaking);
+    const auto storehouse = require_building(game, vibecity::PlaceBuildingCommand{
+        .kind = vibecity::BuildingKind::Storehouse,
+        .position = vibecity::GridPosition{1, 1}
+    });
+    const auto house = require_building(game, vibecity::PlaceBuildingCommand{
+        .kind = vibecity::BuildingKind::House,
+        .position = vibecity::GridPosition{3, 1}
+    });
+    require(game, vibecity::SetResidentsCommand{
+        .building = house,
+        .residents = 5
+    });
+    require(game, vibecity::AddInventoryCommand{
+        .building = storehouse,
+        .resource = vibecity::ResourceId::Bricks,
+        .quantity = 1
+    });
+    require(game, vibecity::PavePathCommand{.position = road});
+    VIBECITY_CHECK(game.simulation().roadwork_site_at(road) != nullptr);
+    VIBECITY_CHECK(game.save_to_file(path).success);
+
+    vibecity::GameSession loaded;
+    VIBECITY_CHECK(loaded.load_from_file(path).success);
+    VIBECITY_CHECK(loaded.simulation().map().has_path(road));
+    VIBECITY_CHECK(!loaded.simulation().map().has_paved_path(road));
+    VIBECITY_CHECK(loaded.simulation().roadwork_site_at(road) != nullptr);
+
+    require(loaded, vibecity::AdvanceTimeCommand{.ticks = vibecity::paved_path_labor_minutes});
+    VIBECITY_CHECK(loaded.simulation().roadwork_sites().empty());
     VIBECITY_CHECK(loaded.simulation().map().has_paved_path(road));
 
     std::filesystem::remove(path);
@@ -1257,6 +1332,7 @@ int main()
     invalid_save_is_rejected_without_replacing_session();
     save_load_preserves_capabilities();
     save_load_preserves_paved_paths();
+    save_load_preserves_active_roadwork();
     save_load_preserves_active_discovery_project();
     external_building_definition_runs_and_persists();
     single_production_chain_cannot_reach_25_residents();

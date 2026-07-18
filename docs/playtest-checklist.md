@@ -41,7 +41,7 @@ for 30 days.
 - Mouse wheel over the construction menu or inspector: scroll that panel
 - `Esc`: cancel placement or demolition, then clear the current selection
 - `P`: start the selected building's available discovery project, if ready
-- `R`: road upgrade mode; pave dirt paths with connected bricks
+- `R`: road upgrade mode; queue roadwork on dirt paths with connected bricks
 - `O`: pause or resume work at the selected building
 - `F5`: save to `vibecity-save.vcs`
 - `F9`: load from `vibecity-save.vcs`
@@ -146,7 +146,8 @@ When I ask for detailed input, please report these points:
   usable clay, understand why it is locked before brickmaking, and understand
   that it also needs firewood to make bricks once unlocked?
 - Paved roads: after making bricks, can you enter road upgrade mode with `R`,
-  see why a path cannot be paved, and tell that paved roads avoid rain slowdown?
+  see why roadwork cannot start, notice roadwork progress on dirt paths, and
+  tell that completed paved roads avoid rain slowdown?
 - Pottery/granaries: can you identify that potters need clay and firewood, and
   that potters/granaries are locked before pottery is discovered?
 - Pottery experiment: after selecting a path-accessible house near clay and
@@ -193,5 +194,7 @@ Helpful evidence:
 - There is still no undo.
 - The UI does not yet have mouse tooltips.
 - The game has no costs for placing construction sites beyond delivered materials.
+- Roadwork consumes bricks when queued; bricks do not yet visibly travel to the
+  road tile.
 - Workers do not visibly commute yet; reachability and assignment are simulated.
 - The 100-building benchmark is still a prototype stress case, despite the first pathfinding optimization.

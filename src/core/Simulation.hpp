@@ -17,6 +17,7 @@ inline constexpr Tick prototype_transport_leg_minutes = 5;
 inline constexpr Tick rain_transport_multiplier = 2;
 inline constexpr Quantity prototype_hauler_capacity = 5;
 inline constexpr Quantity paved_path_brick_cost = 1;
+inline constexpr Tick paved_path_labor_minutes = 4 * ticks_per_hour;
 inline constexpr int prototype_builders_per_site = 3;
 inline constexpr int prototype_immigrants_per_day = 1;
 
@@ -106,6 +107,7 @@ enum class PathPavingBlocker : std::uint8_t {
     None,
     MissingPath,
     AlreadyPaved,
+    AlreadyUnderRoadwork,
     MissingCapability,
     MissingBricks
 };
@@ -113,6 +115,24 @@ enum class PathPavingBlocker : std::uint8_t {
 struct PathPavingStatus {
     PathPavingBlocker blocker = PathPavingBlocker::None;
     Quantity connected_bricks = 0;
+    Tick labor_required = paved_path_labor_minutes;
+};
+
+struct RoadworkSite {
+    GridPosition position{};
+    Tick labor_required = paved_path_labor_minutes;
+    Tick labor_completed = 0;
+    int assigned_builders = 0;
+    BlockingReason blocking_reason = BlockingReason::None;
+};
+
+struct RoadworkSummary {
+    int sites = 0;
+    int waiting_builders = 0;
+    int active_builders = 0;
+    std::optional<GridPosition> next_site;
+    Tick next_labor_remaining = 0;
+    BlockingReason next_blocker = BlockingReason::None;
 };
 
 using TransportJobId = std::uint32_t;
@@ -160,6 +180,7 @@ struct SimulationState {
     std::vector<BuildingInstance> buildings;
     std::vector<TransportJob> transport_jobs;
     std::vector<DiscoveryProject> discovery_projects;
+    std::vector<RoadworkSite> roadwork_sites;
     BuildingId next_building_id = 1;
     TransportJobId next_transport_job_id = 1;
     int next_auto_building_x = 1;
@@ -187,6 +208,8 @@ public:
     [[nodiscard]] const std::vector<BuildingInstance>& buildings() const;
     [[nodiscard]] const std::vector<TransportJob>& transport_jobs() const;
     [[nodiscard]] const std::vector<DiscoveryProject>& discovery_projects() const;
+    [[nodiscard]] const std::vector<RoadworkSite>& roadwork_sites() const;
+    [[nodiscard]] const RoadworkSite* roadwork_site_at(GridPosition position) const;
     [[nodiscard]] const TileMap& map() const;
     [[nodiscard]] const BuildingCatalog& building_catalog() const;
     [[nodiscard]] std::shared_ptr<const BuildingCatalog> building_catalog_ptr() const;
@@ -242,6 +265,7 @@ public:
     [[nodiscard]] ConstructionSummary construction_summary() const;
     [[nodiscard]] LogisticsSummary logistics_summary() const;
     [[nodiscard]] DiscoveryProjectSummary discovery_project_summary() const;
+    [[nodiscard]] RoadworkSummary roadwork_summary() const;
     [[nodiscard]] ResourceArray total_inventory() const;
     [[nodiscard]] const ResourceStats& stats() const;
     [[nodiscard]] SimulationState state() const;
@@ -274,6 +298,7 @@ private:
     void dispatch_logistics();
     void advance_transport_jobs();
     void run_construction();
+    void run_roadwork();
     void run_discovery_projects();
     void consume_daily_bread();
     void grow_population();
@@ -293,6 +318,8 @@ private:
         GridPosition position,
         ResourceId resource,
         Quantity quantity);
+    [[nodiscard]] RoadworkSite* find_roadwork_site(GridPosition position);
+    [[nodiscard]] const RoadworkSite* find_roadwork_site(GridPosition position) const;
     [[nodiscard]] Quantity projected_quantity(const BuildingInstance& building, ResourceId resource) const;
     [[nodiscard]] bool construction_materials_delivered(const BuildingInstance& site) const;
     [[nodiscard]] bool create_transport_job(
@@ -311,6 +338,7 @@ private:
     std::vector<BuildingInstance> buildings_;
     std::vector<TransportJob> transport_jobs_;
     std::vector<DiscoveryProject> discovery_projects_;
+    std::vector<RoadworkSite> roadwork_sites_;
     TileMap map_{128, 128};
     PathDistanceField logistics_distance_field_;
     std::shared_ptr<const BuildingCatalog> catalog_;

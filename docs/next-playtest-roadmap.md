@@ -21,8 +21,10 @@ The player should be able to:
 - Construction clarity: selected construction sites must show the target,
   required materials, delivered materials, incoming deliveries, missing
   materials, builders, and labor left.
-- Roadwork: paved roads should ideally be built through a construction-style
-  worksite instead of instantly consuming bricks on click.
+- Roadwork: paved roads are queued as persistent roadwork jobs, consume one
+  connected brick when started, and complete through builder labor. The
+  remaining simplification is that bricks do not yet travel to the road tile as
+  explicit logistics jobs.
 - Discovery UI: replace the selected-host `P` shortcut with a small project UI
   before adding many more projects.
 - Playtest checklist: update the reference route so it includes pottery,

@@ -152,15 +152,15 @@ understand when production stops or must move elsewhere.
 
 - Dirt path tiles can be upgraded to paved paths after brickmaking is
   discovered.
-- Paving costs one brick from connected source inventory and persists through
-  save/load.
+- Starting roadwork costs one brick from connected source inventory, creates a
+  persistent roadwork job on the tile, and completes after builder labor.
 - Paved route segments keep their clear-weather travel time during rain, while
   dirt segments still take the rain penalty.
 - The SDL client has a temporary road upgrade mode on `R`; click or drag over
-  dirt paths to pave them.
-- This is still a lightweight prototype interaction. Later roadwork should use
-  explicit logistics jobs so bricks visibly travel to the road tile before work
-  completes.
+  dirt paths to queue roadwork.
+- This is still a lightweight prototype interaction. Bricks are consumed when
+  roadwork starts; later roadwork should use explicit logistics jobs so bricks
+  visibly travel to the road tile before work completes.
 
 ## Implemented: Map Visibility Slice
 
@@ -311,8 +311,8 @@ Suggested early-to-medieval ladder:
    starting available discovery projects.
 2. Connect the granary to a meaningful food-storage benefit once spoilage,
    storage quality, or stock targets exist.
-3. Replace instant paving with roadwork jobs that visibly haul bricks to the
-   target path tile before the upgrade completes.
+3. Add explicit map-destination logistics so roadwork bricks visibly travel to
+   the target path tile before the upgrade completes.
 4. Prototype a tool-condition model where tooling changes productivity before
    adding more economic chains.
 5. Prototype rough-stone to dressed-stone refinement for medieval

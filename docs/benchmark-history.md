@@ -420,3 +420,23 @@ Notes:
 - The reference milestone still completes with all eight objectives.
 - The 100-building case is close to the previous baseline; no obvious
   discovery-project overhead shows up when no project is active.
+
+### 2026-07-18 Roadwork Site Slice
+
+Paved-road upgrades now create persistent roadwork sites, consume one connected
+brick when queued, and require builder labor before the path becomes paved. The
+benchmark scenarios do not queue roadwork, so this sample mainly checks idle
+per-tick overhead from the additional roadwork pass.
+
+Representative default-build sample:
+
+| Case | Ticks | Milliseconds | Ticks/s | Buildings | Active Jobs | Transported | Resource Tiles | Resource Quantity | Constructed |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| starting village 30d | 43,200 | 23.61 | 1,829,519 | 4 | 0 | 60 | 479 | 3,268 | 0 |
+| construction village 30d | 43,200 | 167.91 | 257,284 | 9 | 0 | 1,392 | 466 | 3,185 | 5 |
+| 100 buildings 10d | 14,400 | 1,201.71 | 11,983 | 100 | 0 | 6,587 | 5,725 | 39,111 | 0 |
+
+Notes:
+
+- The benchmark cases still complete and show no active roadwork overhead.
+- The reference milestone still completes with all eight objectives.

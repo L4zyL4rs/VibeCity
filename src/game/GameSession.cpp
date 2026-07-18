@@ -83,7 +83,7 @@ CommandResult GameSession::execute(const GameCommand& command)
                 if (!simulation_.pave_path(pave_path.position)) {
                     return failed("path could not be paved");
                 }
-                return ok("path paved");
+                return ok("roadwork started");
             },
             [this](const PlaceBuildingCommand& place_building) {
                 const auto id = simulation_.add_building_at(place_building.kind, place_building.position);

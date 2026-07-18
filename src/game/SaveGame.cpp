@@ -19,7 +19,7 @@ namespace {
 constexpr std::array<std::uint8_t, 8> save_magic{
     'V', 'I', 'B', 'E', 'C', 'I', 'T', 'Y'
 };
-constexpr std::uint32_t save_version = 12;
+constexpr std::uint32_t save_version = 13;
 constexpr std::size_t save_header_size = save_magic.size() + sizeof(std::uint32_t)
     + sizeof(std::uint64_t) + sizeof(std::uint64_t);
 constexpr std::uint64_t max_save_bytes = 64 * 1024 * 1024;
@@ -385,6 +385,16 @@ void write_discovery_project(ByteWriter& writer, const DiscoveryProject& project
     writer.i32(project.assigned_workers);
 }
 
+void write_roadwork_site(ByteWriter& writer, const RoadworkSite& site)
+{
+    writer.i32(site.position.x);
+    writer.i32(site.position.y);
+    writer.i64(site.labor_required);
+    writer.i64(site.labor_completed);
+    writer.i32(site.assigned_builders);
+    writer.u8(enum_value(site.blocking_reason));
+}
+
 TransportJob read_transport_job(ByteReader& reader)
 {
     const auto id = reader.u32();
@@ -423,6 +433,23 @@ DiscoveryProject read_discovery_project(ByteReader& reader)
     };
 }
 
+RoadworkSite read_roadwork_site(ByteReader& reader)
+{
+    return RoadworkSite{
+        .position = GridPosition{
+            .x = reader.i32(),
+            .y = reader.i32()
+        },
+        .labor_required = reader.i64(),
+        .labor_completed = reader.i64(),
+        .assigned_builders = reader.i32(),
+        .blocking_reason = read_enum<BlockingReason>(
+            reader,
+            enum_value(BlockingReason::WorkDisabled) + 1,
+            "invalid roadwork blocking reason in save")
+    };
+}
+
 void write_simulation(ByteWriter& writer, const Simulation& simulation)
 {
     const auto state = simulation.state();
@@ -446,6 +473,7 @@ void write_simulation(ByteWriter& writer, const Simulation& simulation)
         || state.terrain.size() > std::numeric_limits<std::uint32_t>::max()
         || state.map_resources.size() > std::numeric_limits<std::uint32_t>::max()
         || state.discovery_projects.size() > std::numeric_limits<std::uint32_t>::max()
+        || state.roadwork_sites.size() > std::numeric_limits<std::uint32_t>::max()
         || state.buildings.size() > max_saved_buildings
         || state.transport_jobs.size() > max_saved_jobs) {
         throw std::runtime_error("game state is too large to save");
@@ -461,6 +489,11 @@ void write_simulation(ByteWriter& writer, const Simulation& simulation)
     for (const auto path : state.paved_paths) {
         writer.i32(path.x);
         writer.i32(path.y);
+    }
+
+    writer.u32(static_cast<std::uint32_t>(state.roadwork_sites.size()));
+    for (const auto& site : state.roadwork_sites) {
+        write_roadwork_site(writer, site);
     }
 
     writer.u32(static_cast<std::uint32_t>(state.terrain.size()));
@@ -539,6 +572,15 @@ SimulationState read_simulation(ByteReader& reader, const BuildingCatalog& catal
             .x = reader.i32(),
             .y = reader.i32()
         });
+    }
+
+    const auto roadwork_count = reader.u32();
+    if (roadwork_count > path_count) {
+        throw std::runtime_error("invalid roadwork count in save");
+    }
+    state.roadwork_sites.reserve(roadwork_count);
+    for (auto index = std::uint32_t{0}; index < roadwork_count; ++index) {
+        state.roadwork_sites.push_back(read_roadwork_site(reader));
     }
 
     const auto terrain_count = reader.u32();

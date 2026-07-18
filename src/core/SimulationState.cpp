@@ -1,5 +1,6 @@
 #include "core/Simulation.hpp"
 
+#include <algorithm>
 #include <limits>
 #include <stdexcept>
 #include <type_traits>
@@ -46,6 +47,7 @@ SimulationState Simulation::state() const
         .buildings = buildings_,
         .transport_jobs = transport_jobs_,
         .discovery_projects = discovery_projects_,
+        .roadwork_sites = roadwork_sites_,
         .next_building_id = next_building_id_,
         .next_transport_job_id = next_transport_job_id_,
         .next_auto_building_x = next_auto_building_x_,
@@ -109,6 +111,29 @@ Simulation Simulation::from_state(
             || restored_map.has_paved_path(path)
             || !restored_map.pave_path(path)) {
             throw std::invalid_argument("invalid or duplicate saved paved path");
+        }
+    }
+    for (std::size_t index = 0; index < state.roadwork_sites.size(); ++index) {
+        const auto& site = state.roadwork_sites[index];
+        if (!restored_map.has_path(site.position)
+            || restored_map.has_paved_path(site.position)
+            || site.labor_required != paved_path_labor_minutes
+            || site.labor_completed < 0
+            || site.labor_completed >= site.labor_required
+            || site.assigned_builders < 0
+            || site.assigned_builders > prototype_builders_per_site
+            || !enum_at_most(site.blocking_reason, BlockingReason::WorkDisabled)
+            || (state.capabilities & capability_bit(CapabilityId::Brickmaking)) == 0) {
+            throw std::invalid_argument("invalid saved roadwork site");
+        }
+        if (std::find_if(
+                state.roadwork_sites.begin(),
+                state.roadwork_sites.begin() + static_cast<std::ptrdiff_t>(index),
+                [&site](const RoadworkSite& previous) {
+                    return previous.position == site.position;
+                })
+            != state.roadwork_sites.begin() + static_cast<std::ptrdiff_t>(index)) {
+            throw std::invalid_argument("duplicate saved roadwork site");
         }
     }
     for (const auto& deposit : state.map_resources) {
@@ -330,6 +355,7 @@ Simulation Simulation::from_state(
     simulation.buildings_ = std::move(state.buildings);
     simulation.transport_jobs_ = std::move(state.transport_jobs);
     simulation.discovery_projects_ = std::move(state.discovery_projects);
+    simulation.roadwork_sites_ = std::move(state.roadwork_sites);
     simulation.map_ = std::move(restored_map);
     simulation.logistics_distance_field_ = PathDistanceField{};
     simulation.next_building_id_ = state.next_building_id;

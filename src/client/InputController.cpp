@@ -207,10 +207,12 @@ std::string path_paving_hover_status(const Simulation& simulation, GridPosition 
 {
     const auto status = simulation.path_paving_status(tile);
     if (status.blocker == PathPavingBlocker::None) {
-        return "pave path: 1 brick";
+        return "roadwork: 1 brick, "
+            + std::to_string(status.labor_required / ticks_per_hour)
+            + " builder-hours";
     }
     if (status.blocker == PathPavingBlocker::MissingBricks) {
-        return "pave path: needs 1 brick ("
+        return "roadwork: needs 1 brick ("
             + std::to_string(status.connected_bricks) + " connected)";
     }
     return std::string{path_paving_blocker_text(status.blocker)};

@@ -728,6 +728,35 @@ int draw_economy_summary(SDL_Renderer* renderer,
         }
     }
 
+    const auto roadwork = simulation.roadwork_summary();
+    if (roadwork.sites > 0) {
+        y += 8;
+        draw_text(renderer, x, y, "ROADWORK", text, 2);
+        y += 24;
+        draw_text(renderer, x, y,
+            std::string{"SITES: "} + std::to_string(roadwork.sites)
+                + "  ACTIVE BUILDERS: " + std::to_string(roadwork.active_builders),
+            muted, 1);
+        y += 16;
+        draw_text(renderer, x, y,
+            std::string{"WAITING FOR BUILDERS: "} + std::to_string(roadwork.waiting_builders),
+            muted, 1);
+        y += 16;
+        if (roadwork.next_site.has_value()) {
+            draw_text(renderer, x, y,
+                std::string{"NEXT: "}
+                    + std::to_string(roadwork.next_site->x)
+                    + "," + std::to_string(roadwork.next_site->y),
+                muted, 2);
+            y += 20;
+            draw_text(renderer, x, y,
+                std::string{"LABOR REMAINING: "}
+                    + duration_text(roadwork.next_labor_remaining),
+                muted, 1);
+            y += 20;
+        }
+    }
+
     const auto projects = simulation.discovery_project_summary();
     if (projects.active_projects > 0) {
         y += 8;

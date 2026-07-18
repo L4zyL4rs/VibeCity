@@ -911,6 +911,7 @@ void paved_paths_avoid_rain_delivery_penalty()
     for (int x = 1; x <= 8; ++x) {
         VIBECITY_CHECK(simulation.add_path(vibecity::GridPosition{x, 0}));
     }
+    simulation.set_residents(house, 5);
 
     simulation.grant_capability(vibecity::CapabilityId::Brickmaking);
     VIBECITY_CHECK(simulation.building(storehouse).inventory.add(
@@ -919,8 +920,13 @@ void paved_paths_avoid_rain_delivery_penalty()
     for (int x = 1; x <= 8; ++x) {
         VIBECITY_CHECK(simulation.pave_path(vibecity::GridPosition{x, 0}));
     }
+    simulation.run_for(3 * vibecity::paved_path_labor_minutes);
+    VIBECITY_CHECK(simulation.current_weather() == vibecity::WeatherId::Rain);
+    VIBECITY_CHECK(simulation.roadwork_sites().empty());
+    for (int x = 1; x <= 8; ++x) {
+        VIBECITY_CHECK(simulation.map().has_paved_path(vibecity::GridPosition{x, 0}));
+    }
 
-    simulation.set_residents(house, 5);
     VIBECITY_CHECK(simulation.building(storehouse).inventory.add(
         vibecity::ResourceId::Bread,
         10));

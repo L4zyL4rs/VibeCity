@@ -209,6 +209,19 @@ Color paved_path_color(MapLens lens)
     return Color{92, 88, 78, 255};
 }
 
+Color roadwork_color(MapLens lens)
+{
+    switch (lens) {
+    case MapLens::Default:
+        return Color{205, 164, 73, 255};
+    case MapLens::Resources:
+        return Color{205, 164, 73, 185};
+    case MapLens::Terrain:
+        return Color{205, 164, 73, 200};
+    }
+    return Color{205, 164, 73, 255};
+}
+
 std::uint8_t resource_base_alpha(MapLens lens)
 {
     switch (lens) {
@@ -662,6 +675,11 @@ std::string tile_inspection_text(const Simulation& simulation, GridPosition tile
     if (simulation.map().has_path(tile)) {
         output << (simulation.map().has_paved_path(tile) ? " paved path" : " dirt path");
     }
+    if (const auto* roadwork = simulation.roadwork_site_at(tile)) {
+        output << " roadwork: "
+               << std::max<Tick>(0, roadwork->labor_required - roadwork->labor_completed)
+               << "m left";
+    }
     if (const auto building = building_at(simulation, tile)) {
         const auto& instance = simulation.building(*building);
         output << " #" << *building << " " << simulation.definition(instance.kind).name;
@@ -827,6 +845,27 @@ void draw_world(SDL_Renderer* renderer,
             auto rect = tile_rect(position, Footprint{1, 1}, camera);
             SDL_RenderFillRect(renderer, &rect);
         }
+    }
+
+    set_color(renderer, roadwork_color(lens));
+    for (const auto& site : simulation.roadwork_sites()) {
+        if (site.position.x < visible.first_x
+            || site.position.x >= visible.end_x
+            || site.position.y < visible.first_y
+            || site.position.y >= visible.end_y) {
+            continue;
+        }
+
+        auto rect = tile_rect(site.position, Footprint{1, 1}, camera);
+        const auto inset = std::max(1, camera.tile_size / 5);
+        rect.x += inset;
+        rect.y += inset;
+        rect.w = std::max(1, rect.w - inset * 2);
+        rect.h = std::max(1, rect.h - inset * 2);
+        SDL_RenderFillRect(renderer, &rect);
+        set_color(renderer, Color{30, 28, 20, 255});
+        SDL_RenderDrawRect(renderer, &rect);
+        set_color(renderer, roadwork_color(lens));
     }
 
     draw_gathering_overlay(renderer, simulation, camera, selected);
