@@ -196,6 +196,19 @@ Color path_color(MapLens lens)
     return Color{48, 52, 52, 255};
 }
 
+Color paved_path_color(MapLens lens)
+{
+    switch (lens) {
+    case MapLens::Default:
+        return Color{92, 88, 78, 255};
+    case MapLens::Resources:
+        return Color{80, 76, 68, 145};
+    case MapLens::Terrain:
+        return Color{62, 58, 52, 170};
+    }
+    return Color{92, 88, 78, 255};
+}
+
 std::uint8_t resource_base_alpha(MapLens lens)
 {
     switch (lens) {
@@ -647,7 +660,7 @@ std::string tile_inspection_text(const Simulation& simulation, GridPosition tile
                << ": " << simulation.map().map_resource_quantity(tile);
     }
     if (simulation.map().has_path(tile)) {
-        output << " path";
+        output << (simulation.map().has_paved_path(tile) ? " paved path" : " dirt path");
     }
     if (const auto building = building_at(simulation, tile)) {
         const auto& instance = simulation.building(*building);
@@ -802,7 +815,6 @@ void draw_world(SDL_Renderer* renderer,
 
     draw_map_resources(renderer, map, camera, visible, lens);
 
-    set_color(renderer, path_color(lens));
     for (int y = visible.first_y; y < visible.end_y; ++y) {
         for (int x = visible.first_x; x < visible.end_x; ++x) {
             const auto position = GridPosition{x, y};
@@ -810,6 +822,8 @@ void draw_world(SDL_Renderer* renderer,
                 continue;
             }
 
+            set_color(renderer,
+                map.has_paved_path(position) ? paved_path_color(lens) : path_color(lens));
             auto rect = tile_rect(position, Footprint{1, 1}, camera);
             SDL_RenderFillRect(renderer, &rect);
         }

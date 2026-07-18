@@ -141,12 +141,26 @@ understand when production stops or must move elsewhere.
 ## Implemented: Weather Pressure Slice
 
 - The simulation has deterministic daily weather derived from the current day.
-- Rain currently doubles delivery travel time over the dirt-road logistics
-  network. Pickup legs still use the fixed prototype approach time.
+- Rain currently doubles delivery travel time over dirt-road route segments.
+  Pickup legs still use the fixed prototype approach time.
 - Weather is visible in the HUD, settlement inspector clock line, and headless
   output.
-- This creates the first soft pressure for future paved roads, drainage,
-  culverts, or other brick-based infrastructure.
+- This creates the first soft pressure for paved roads, drainage, culverts, or
+  other brick-based infrastructure.
+
+## Implemented: Paved Road Upgrade Slice
+
+- Dirt path tiles can be upgraded to paved paths after brickmaking is
+  discovered.
+- Paving costs one brick from connected source inventory and persists through
+  save/load.
+- Paved route segments keep their clear-weather travel time during rain, while
+  dirt segments still take the rain penalty.
+- The SDL client has a temporary road upgrade mode on `R`; click or drag over
+  dirt paths to pave them.
+- This is still a lightweight prototype interaction. Later roadwork should use
+  explicit logistics jobs so bricks visibly travel to the road tile before work
+  completes.
 
 ## Implemented: Map Visibility Slice
 
@@ -297,8 +311,8 @@ Suggested early-to-medieval ladder:
    starting available discovery projects.
 2. Connect the granary to a meaningful food-storage benefit once spoilage,
    storage quality, or stock targets exist.
-3. Decide whether bricks gate a road upgrade, storage upgrade, water
-   infrastructure, or the next village objective.
+3. Replace instant paving with roadwork jobs that visibly haul bricks to the
+   target path tile before the upgrade completes.
 4. Prototype a tool-condition model where tooling changes productivity before
    adding more economic chains.
 5. Prototype rough-stone to dressed-stone refinement for medieval

@@ -28,7 +28,7 @@ for 30 days.
 - `1`: select
 - `2`: place path
 - `X`: demolish mode
-- Hold left mouse in path mode: drag-place paths
+- Hold left mouse in path or road upgrade mode: drag-place or drag-upgrade paths
 - Left click in demolish mode: remove a building, otherwise remove a path tile
 - `Delete` / `Backspace`: demolish the selected building
 - Click a construction-menu entry to select a building
@@ -41,6 +41,7 @@ for 30 days.
 - Mouse wheel over the construction menu or inspector: scroll that panel
 - `Esc`: cancel placement or demolition, then clear the current selection
 - `P`: start the selected building's available discovery project, if ready
+- `R`: road upgrade mode; pave dirt paths with connected bricks
 - `O`: pause or resume work at the selected building
 - `F5`: save to `vibecity-save.vcs`
 - `F9`: load from `vibecity-save.vcs`
@@ -144,6 +145,8 @@ When I ask for detailed input, please report these points:
 - Clay/brickyards: can you identify clay deposits, place a brickyard near
   usable clay, understand why it is locked before brickmaking, and understand
   that it also needs firewood to make bricks once unlocked?
+- Paved roads: after making bricks, can you enter road upgrade mode with `R`,
+  see why a path cannot be paved, and tell that paved roads avoid rain slowdown?
 - Pottery/granaries: can you identify that potters need clay and firewood, and
   that potters/granaries are locked before pottery is discovered?
 - Pottery experiment: after selecting a path-accessible house near clay and

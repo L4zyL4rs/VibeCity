@@ -40,6 +40,7 @@ SimulationState Simulation::state() const
         .map_width = map_.width(),
         .map_height = map_.height(),
         .paths = map_.path_positions(),
+        .paved_paths = map_.paved_path_positions(),
         .terrain = map_.terrain_tiles(),
         .map_resources = map_.map_resource_deposits(),
         .buildings = buildings_,
@@ -101,6 +102,13 @@ Simulation Simulation::from_state(
     for (const auto path : state.paths) {
         if (restored_map.has_path(path) || !restored_map.add_path(path)) {
             throw std::invalid_argument("invalid or duplicate saved path");
+        }
+    }
+    for (const auto path : state.paved_paths) {
+        if (!restored_map.has_path(path)
+            || restored_map.has_paved_path(path)
+            || !restored_map.pave_path(path)) {
+            throw std::invalid_argument("invalid or duplicate saved paved path");
         }
     }
     for (const auto& deposit : state.map_resources) {

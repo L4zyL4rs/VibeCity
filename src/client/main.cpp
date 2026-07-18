@@ -52,7 +52,7 @@ std::optional<vibecity::Footprint> preview_footprint_for_mode(
     ClientMode mode,
     std::optional<vibecity::BuildingKind> build_target)
 {
-    if (mode == ClientMode::PlacePath) {
+    if (mode == ClientMode::PlacePath || mode == ClientMode::UpgradePath) {
         return vibecity::Footprint{1, 1};
     }
 
@@ -75,6 +75,10 @@ bool can_place_preview(
 {
     if (mode == ClientMode::PlacePath) {
         return can_place_path_preview(simulation, tile);
+    }
+
+    if (mode == ClientMode::UpgradePath) {
+        return simulation.can_pave_path(tile);
     }
 
     if (mode == ClientMode::Demolish) {

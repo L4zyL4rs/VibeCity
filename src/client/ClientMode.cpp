@@ -9,6 +9,8 @@ const char* mode_name(ClientMode mode)
         return "select";
     case ClientMode::PlacePath:
         return "path";
+    case ClientMode::UpgradePath:
+        return "road upgrade";
     case ClientMode::Demolish:
         return "demolish";
     case ClientMode::Build:

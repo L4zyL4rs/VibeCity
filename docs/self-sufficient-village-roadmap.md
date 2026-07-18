@@ -41,6 +41,8 @@ Already implemented:
   rows for pottery and brickmaking content.
 - Pottery and brickmaking discovery projects that consume hosted materials,
   nearby clay, and idle worker labor before granting their capabilities.
+- Paved path upgrades that consume connected bricks and remove rain slowdown
+  from paved route segments.
 - Houses consuming bread daily.
 - Settlement population facts: residents, housing capacity, free housing, and daily bread need.
 - Food pressure facts: stored bread and days of bread remaining.

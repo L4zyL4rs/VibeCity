@@ -203,6 +203,19 @@ std::string demolition_hover_status(const Simulation& simulation, GridPosition t
     return "nothing to demolish";
 }
 
+std::string path_paving_hover_status(const Simulation& simulation, GridPosition tile)
+{
+    const auto status = simulation.path_paving_status(tile);
+    if (status.blocker == PathPavingBlocker::None) {
+        return "pave path: 1 brick";
+    }
+    if (status.blocker == PathPavingBlocker::MissingBricks) {
+        return "pave path: needs 1 brick ("
+            + std::to_string(status.connected_bricks) + " connected)";
+    }
+    return std::string{path_paving_blocker_text(status.blocker)};
+}
+
 void demolish_building(
     GameSession& game,
     ClientInteractionState& state,
@@ -214,6 +227,23 @@ void demolish_building(
         state.inspector_scroll = 0;
     }
     state.status = result.message;
+}
+
+void pave_path_tile(
+    GameSession& game,
+    ClientInteractionState& state,
+    GridPosition tile,
+    bool quiet_failure)
+{
+    const auto result = game.execute(PavePathCommand{.position = tile});
+    if (result.success) {
+        state.status = result.message;
+        return;
+    }
+
+    if (!quiet_failure) {
+        state.status = result.message;
+    }
 }
 
 void demolish_tile(GameSession& game, ClientInteractionState& state, GridPosition tile)
@@ -270,6 +300,13 @@ void handle_keydown(GameSession& game, ClientInteractionState& state, SDL_Keycod
         state.mode = ClientMode::PlacePath;
         state.build_target = std::nullopt;
         state.status = "path mode";
+        break;
+    case SDLK_r:
+        state.mode = ClientMode::UpgradePath;
+        state.build_target = std::nullopt;
+        state.path_dragging = false;
+        state.last_path_drag_tile = std::nullopt;
+        state.status = "road upgrade mode";
         break;
     case SDLK_x:
         state.mode = ClientMode::Demolish;
@@ -396,6 +433,8 @@ void handle_mouse_motion(GameSession& game, ClientInteractionState& state, const
             *state.hover_tile);
     } else if (state.mode == ClientMode::Demolish) {
         state.status = demolition_hover_status(game.simulation(), *state.hover_tile);
+    } else if (state.mode == ClientMode::UpgradePath && !state.path_dragging) {
+        state.status = path_paving_hover_status(game.simulation(), *state.hover_tile);
     } else if (state.mode == ClientMode::Select) {
         state.status = tile_inspection_text(game.simulation(), *state.hover_tile);
     } else if (state.mode == ClientMode::PlacePath && !state.path_dragging) {
@@ -407,9 +446,15 @@ void handle_mouse_motion(GameSession& game, ClientInteractionState& state, const
             ? std::string{"place path: "} + tile_inspection_text(game.simulation(), *state.hover_tile)
             : blocker;
     }
-    if (state.path_dragging && state.mode == ClientMode::PlacePath && (motion.state & SDL_BUTTON_LMASK) != 0) {
+    if (state.path_dragging
+        && (state.mode == ClientMode::PlacePath || state.mode == ClientMode::UpgradePath)
+        && (motion.state & SDL_BUTTON_LMASK) != 0) {
         if (!state.last_path_drag_tile.has_value() || !(*state.last_path_drag_tile == *state.hover_tile)) {
-            place_path_tile(game, *state.hover_tile, state.selected, state.status, true);
+            if (state.mode == ClientMode::PlacePath) {
+                place_path_tile(game, *state.hover_tile, state.selected, state.status, true);
+            } else {
+                pave_path_tile(game, state, *state.hover_tile, true);
+            }
             state.last_path_drag_tile = state.hover_tile;
         }
     }
@@ -429,6 +474,10 @@ void handle_left_mouse_down(GameSession& game, ClientInteractionState& state, in
         state.path_dragging = true;
         state.last_path_drag_tile = tile;
         place_path_tile(game, tile, state.selected, state.status, false);
+    } else if (state.mode == ClientMode::UpgradePath) {
+        state.path_dragging = true;
+        state.last_path_drag_tile = tile;
+        pave_path_tile(game, state, tile, false);
     } else if (state.mode == ClientMode::Demolish) {
         demolish_tile(game, state, tile);
     } else if (state.mode == ClientMode::Build && state.build_target.has_value()) {
@@ -497,9 +546,12 @@ void cancel_interaction(ClientInteractionState& state)
     state.last_path_drag_tile = std::nullopt;
     if (state.mode != ClientMode::Select || state.build_target.has_value()) {
         const auto was_demolishing = state.mode == ClientMode::Demolish;
+        const auto was_upgrading_path = state.mode == ClientMode::UpgradePath;
         state.mode = ClientMode::Select;
         state.build_target = std::nullopt;
-        state.status = was_demolishing ? "demolition cancelled" : "placement cancelled";
+        state.status = was_demolishing
+            ? "demolition cancelled"
+            : (was_upgrading_path ? "road upgrade cancelled" : "placement cancelled");
     } else if (state.selected.has_value()) {
         state.selected = std::nullopt;
         state.inspector_scroll = 0;

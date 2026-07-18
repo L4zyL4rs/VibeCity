@@ -57,8 +57,9 @@ Client controls:
 
 - `1`: select
 - `2`: place path
+- `R`: road upgrade mode; pave dirt paths with connected bricks
 - `X`: demolish mode
-- Hold left mouse in path mode: drag-place paths
+- Hold left mouse in path or road upgrade mode: drag-place or drag-upgrade paths
 - Left click in demolish mode: remove a building, otherwise remove a path tile
 - `Delete` / `Backspace`: demolish the selected building
 - Click a construction-menu entry to select a building

@@ -169,6 +169,23 @@ std::string_view discovery_project_start_blocker_text(DiscoveryProjectStartBlock
     return "unknown discovery project blocker";
 }
 
+std::string_view path_paving_blocker_text(PathPavingBlocker blocker)
+{
+    switch (blocker) {
+    case PathPavingBlocker::None:
+        return "ready";
+    case PathPavingBlocker::MissingPath:
+        return "select a dirt path";
+    case PathPavingBlocker::AlreadyPaved:
+        return "path is already paved";
+    case PathPavingBlocker::MissingCapability:
+        return "paving needs brickmaking";
+    case PathPavingBlocker::MissingBricks:
+        return "paving needs connected bricks";
+    }
+    return "unknown path paving blocker";
+}
+
 Simulation::Simulation(std::shared_ptr<const BuildingCatalog> catalog)
     : Simulation(WorldGenerationSettings{}, std::move(catalog))
 {
@@ -327,6 +344,59 @@ bool Simulation::add_path(GridPosition position)
         worker_assignment_dirty_ = true;
     }
     return added;
+}
+
+bool Simulation::pave_path(GridPosition position)
+{
+    const auto status = path_paving_status(position);
+    if (status.blocker != PathPavingBlocker::None) {
+        throw std::invalid_argument(std::string{path_paving_blocker_text(status.blocker)});
+    }
+
+    auto* source = find_source_for_path_resource(
+        position,
+        ResourceId::Bricks,
+        paved_path_brick_cost);
+    if (source == nullptr
+        || !source->inventory.remove(ResourceId::Bricks, paved_path_brick_cost)
+        || !map_.pave_path(position)) {
+        throw std::runtime_error("path paving failed");
+    }
+
+    stats_.consumed[resource_index(ResourceId::Bricks)] += paved_path_brick_cost;
+    worker_assignment_dirty_ = true;
+    return true;
+}
+
+PathPavingStatus Simulation::path_paving_status(GridPosition position) const
+{
+    auto status = PathPavingStatus{};
+    if (!map_.has_path(position)) {
+        status.blocker = PathPavingBlocker::MissingPath;
+        return status;
+    }
+    if (map_.has_paved_path(position)) {
+        status.blocker = PathPavingBlocker::AlreadyPaved;
+        return status;
+    }
+    if (!has_capability(CapabilityId::Brickmaking)) {
+        status.blocker = PathPavingBlocker::MissingCapability;
+        return status;
+    }
+
+    status.connected_bricks = connected_resource_available_for_path(
+        position,
+        ResourceId::Bricks);
+    if (status.connected_bricks < paved_path_brick_cost) {
+        status.blocker = PathPavingBlocker::MissingBricks;
+        return status;
+    }
+    return status;
+}
+
+bool Simulation::can_pave_path(GridPosition position) const
+{
+    return path_paving_status(position).blocker == PathPavingBlocker::None;
 }
 
 bool Simulation::remove_path(GridPosition position)
@@ -1040,17 +1110,36 @@ std::optional<Tick> Simulation::transport_minutes_if_connected(const BuildingIns
         return weather_adjusted_transport_minutes(prototype_transport_leg_minutes);
     }
 
-    const auto distance = map_.path_distance_between_buildings(
+    const auto route = map_.path_between_buildings(
         *source.position,
         footprint_for(source),
         *destination.position,
         footprint_for(destination));
 
-    if (!distance.has_value()) {
+    return transport_minutes_for_route(route);
+}
+
+std::optional<Tick> Simulation::transport_minutes_for_route(
+    const std::vector<GridPosition>& route) const
+{
+    if (route.empty()) {
         return std::nullopt;
     }
+    if (current_weather() != WeatherId::Rain) {
+        return std::max<Tick>(1, static_cast<Tick>(route.size() - 1));
+    }
 
-    return weather_adjusted_transport_minutes(std::max<Tick>(1, *distance));
+    if (route.size() == 1) {
+        return map_.has_paved_path(route.front()) ? Tick{1} : rain_transport_multiplier;
+    }
+
+    auto total = Tick{0};
+    for (std::size_t index = 1; index < route.size(); ++index) {
+        const auto paved_segment = map_.has_paved_path(route[index - 1])
+            && map_.has_paved_path(route[index]);
+        total += paved_segment ? Tick{1} : rain_transport_multiplier;
+    }
+    return std::max<Tick>(1, total);
 }
 
 Tick Simulation::weather_adjusted_transport_minutes(Tick clear_minutes) const
@@ -1160,8 +1249,7 @@ void Simulation::dispatch_logistics()
                 source,
                 *destination,
                 request.resource,
-                quantity,
-                selection->distance)) {
+                quantity)) {
             destination->blocking_reason = BlockingReason::WaitingForHauler;
         }
     }
@@ -1634,6 +1722,64 @@ bool Simulation::can_source_for_request(
         > projected_quantity(*destination, request.resource) + prototype_hauler_capacity;
 }
 
+Quantity Simulation::connected_resource_available_for_path(
+    GridPosition position,
+    ResourceId resource) const
+{
+    auto available = Quantity{0};
+    for (const auto& candidate : buildings_) {
+        if (!candidate.active
+            || !candidate.position.has_value()
+            || !can_source_resource(candidate, resource)) {
+            continue;
+        }
+
+        if (!map_.path_distance_between_building_and_path(
+                *candidate.position,
+                footprint_for(candidate),
+                position)
+                .has_value()) {
+            continue;
+        }
+        available += candidate.inventory.available(resource);
+    }
+    return available;
+}
+
+BuildingInstance* Simulation::find_source_for_path_resource(
+    GridPosition position,
+    ResourceId resource,
+    Quantity quantity)
+{
+    auto* best = static_cast<BuildingInstance*>(nullptr);
+    auto best_distance = Tick{0};
+
+    for (auto& candidate : buildings_) {
+        if (!candidate.active
+            || !candidate.position.has_value()
+            || !can_source_resource(candidate, resource)
+            || candidate.inventory.available(resource) < quantity) {
+            continue;
+        }
+
+        const auto distance = map_.path_distance_between_building_and_path(
+            *candidate.position,
+            footprint_for(candidate),
+            position);
+        if (!distance.has_value()) {
+            continue;
+        }
+
+        if (best == nullptr || *distance < best_distance
+            || (*distance == best_distance && candidate.id < best->id)) {
+            best = &candidate;
+            best_distance = *distance;
+        }
+    }
+
+    return best;
+}
+
 Quantity Simulation::projected_quantity(const BuildingInstance& building, ResourceId resource) const
 {
     return building.inventory.quantity(resource) + building.inventory.reserved_incoming(resource);
@@ -1660,9 +1806,13 @@ bool Simulation::create_transport_job(
     BuildingInstance& source,
     BuildingInstance& destination,
     ResourceId resource,
-    Quantity quantity,
-    Tick delivery_ticks)
+    Quantity quantity)
 {
+    const auto delivery_ticks = transport_minutes_if_connected(source, destination);
+    if (!delivery_ticks.has_value()) {
+        return false;
+    }
+
     if (!source.inventory.reserve_outgoing(resource, quantity)) {
         return false;
     }
@@ -1681,7 +1831,7 @@ bool Simulation::create_transport_job(
         .state = TransportJobState::GoingToPickup,
         .ticks_remaining = prototype_transport_leg_minutes,
         .leg_ticks_total = prototype_transport_leg_minutes,
-        .delivery_ticks = delivery_ticks
+        .delivery_ticks = *delivery_ticks
     });
     return true;
 }

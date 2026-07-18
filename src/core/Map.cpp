@@ -314,6 +314,11 @@ bool TileMap::has_path(GridPosition position) const
     return in_bounds(position) && tile(position).path;
 }
 
+bool TileMap::has_paved_path(GridPosition position) const
+{
+    return has_path(position) && tile(position).paved_path;
+}
+
 TerrainId TileMap::terrain_at(GridPosition position) const
 {
     if (!in_bounds(position)) {
@@ -347,6 +352,20 @@ std::vector<GridPosition> TileMap::path_positions() const
         for (int x = 0; x < width_; ++x) {
             const auto position = GridPosition{x, y};
             if (has_path(position)) {
+                result.push_back(position);
+            }
+        }
+    }
+    return result;
+}
+
+std::vector<GridPosition> TileMap::paved_path_positions() const
+{
+    auto result = std::vector<GridPosition>{};
+    for (int y = 0; y < height_; ++y) {
+        for (int x = 0; x < width_; ++x) {
+            const auto position = GridPosition{x, y};
+            if (has_paved_path(position)) {
                 result.push_back(position);
             }
         }
@@ -622,6 +641,57 @@ std::optional<int> TileMap::path_distance_between_buildings(GridPosition source_
         const auto current_index = index(current);
         const auto current_distance = distances[static_cast<std::size_t>(current_index)];
         if (goal_tiles[static_cast<std::size_t>(current_index)]) {
+            return current_distance;
+        }
+
+        for (const auto offset : neighbor_offsets) {
+            const auto neighbor = GridPosition{current.x + offset.x, current.y + offset.y};
+            if (!has_path(neighbor)) {
+                continue;
+            }
+
+            const auto neighbor_index = index(neighbor);
+            if (distances[static_cast<std::size_t>(neighbor_index)] != -1) {
+                continue;
+            }
+
+            distances[static_cast<std::size_t>(neighbor_index)] = current_distance + 1;
+            queue.push(neighbor);
+        }
+    }
+
+    return std::nullopt;
+}
+
+std::optional<int> TileMap::path_distance_between_building_and_path(
+    GridPosition source_position,
+    Footprint source_footprint,
+    GridPosition path) const
+{
+    const auto starts = path_access_tiles(source_position, source_footprint);
+    if (starts.empty() || !has_path(path)) {
+        return std::nullopt;
+    }
+
+    auto distances = std::vector<int>(tiles_.size(), -1);
+    auto queue = std::queue<GridPosition>{};
+    for (const auto start : starts) {
+        const auto start_index = index(start);
+        if (distances[static_cast<std::size_t>(start_index)] != -1) {
+            continue;
+        }
+
+        distances[static_cast<std::size_t>(start_index)] = 0;
+        queue.push(start);
+    }
+
+    while (!queue.empty()) {
+        const auto current = queue.front();
+        queue.pop();
+
+        const auto current_index = index(current);
+        const auto current_distance = distances[static_cast<std::size_t>(current_index)];
+        if (current == path) {
             return current_distance;
         }
 
@@ -960,6 +1030,16 @@ bool TileMap::add_path(GridPosition position)
     return true;
 }
 
+bool TileMap::pave_path(GridPosition position)
+{
+    if (!has_path(position) || has_paved_path(position)) {
+        return false;
+    }
+
+    tile(position).paved_path = true;
+    return true;
+}
+
 bool TileMap::remove_path(GridPosition position)
 {
     if (!in_bounds(position)) {
@@ -972,6 +1052,7 @@ bool TileMap::remove_path(GridPosition position)
     }
 
     path_tile.path = false;
+    path_tile.paved_path = false;
     return true;
 }
 

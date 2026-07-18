@@ -272,7 +272,9 @@ public:
     [[nodiscard]] TerrainId terrain_at(GridPosition position) const;
     [[nodiscard]] std::vector<TerrainTile> terrain_tiles() const;
     [[nodiscard]] bool has_path(GridPosition position) const;
+    [[nodiscard]] bool has_paved_path(GridPosition position) const;
     [[nodiscard]] std::vector<GridPosition> path_positions() const;
+    [[nodiscard]] std::vector<GridPosition> paved_path_positions() const;
     [[nodiscard]] std::optional<MapResourceId> map_resource_at(GridPosition position) const;
     [[nodiscard]] Quantity map_resource_quantity(GridPosition position) const;
     [[nodiscard]] std::vector<MapResourceDeposit> map_resource_deposits() const;
@@ -310,6 +312,10 @@ public:
         Footprint source_footprint,
         GridPosition destination_position,
         Footprint destination_footprint) const;
+    [[nodiscard]] std::optional<int> path_distance_between_building_and_path(
+        GridPosition source_position,
+        Footprint source_footprint,
+        GridPosition path) const;
     [[nodiscard]] std::vector<GridPosition> path_between_buildings(
         GridPosition source_position,
         Footprint source_footprint,
@@ -330,6 +336,7 @@ public:
         int radius,
         Quantity quantity);
     bool add_path(GridPosition position);
+    bool pave_path(GridPosition position);
     bool remove_path(GridPosition position);
     bool place_building(MapOccupantId id, GridPosition position, Footprint footprint);
     bool remove_building(MapOccupantId id, GridPosition position, Footprint footprint);
@@ -337,6 +344,7 @@ public:
 private:
     struct Tile {
         bool path = false;
+        bool paved_path = false;
         std::optional<MapOccupantId> occupant;
     };
 

@@ -16,6 +16,7 @@ inline constexpr Tick logistics_dispatch_interval = 10;
 inline constexpr Tick prototype_transport_leg_minutes = 5;
 inline constexpr Tick rain_transport_multiplier = 2;
 inline constexpr Quantity prototype_hauler_capacity = 5;
+inline constexpr Quantity paved_path_brick_cost = 1;
 inline constexpr int prototype_builders_per_site = 3;
 inline constexpr int prototype_immigrants_per_day = 1;
 
@@ -101,6 +102,19 @@ struct DiscoveryProjectStartStatus {
     Quantity map_resource_available = 0;
 };
 
+enum class PathPavingBlocker : std::uint8_t {
+    None,
+    MissingPath,
+    AlreadyPaved,
+    MissingCapability,
+    MissingBricks
+};
+
+struct PathPavingStatus {
+    PathPavingBlocker blocker = PathPavingBlocker::None;
+    Quantity connected_bricks = 0;
+};
+
 using TransportJobId = std::uint32_t;
 
 enum class TransportJobState : std::uint8_t {
@@ -140,6 +154,7 @@ struct SimulationState {
     int map_width = 128;
     int map_height = 128;
     std::vector<GridPosition> paths;
+    std::vector<GridPosition> paved_paths;
     std::vector<TerrainTile> terrain;
     std::vector<MapResourceDeposit> map_resources;
     std::vector<BuildingInstance> buildings;
@@ -181,6 +196,9 @@ public:
     }
 
     bool add_path(GridPosition position);
+    bool pave_path(GridPosition position);
+    [[nodiscard]] PathPavingStatus path_paving_status(GridPosition position) const;
+    [[nodiscard]] bool can_pave_path(GridPosition position) const;
     bool remove_path(GridPosition position);
     bool demolish_building(BuildingId id);
     void set_building_work_enabled(BuildingId id, bool enabled);
@@ -249,6 +267,8 @@ private:
     [[nodiscard]] Footprint footprint_for(const BuildingInstance& building) const;
     [[nodiscard]] std::optional<Tick> transport_minutes_if_connected(const BuildingInstance& source,
         const BuildingInstance& destination) const;
+    [[nodiscard]] std::optional<Tick> transport_minutes_for_route(
+        const std::vector<GridPosition>& route) const;
     [[nodiscard]] Tick weather_adjusted_transport_minutes(Tick clear_minutes) const;
     void run_production();
     void dispatch_logistics();
@@ -266,14 +286,20 @@ private:
     [[nodiscard]] bool can_source_for_request(
         const BuildingInstance& source,
         const ResourceRequest& request) const;
+    [[nodiscard]] Quantity connected_resource_available_for_path(
+        GridPosition position,
+        ResourceId resource) const;
+    [[nodiscard]] BuildingInstance* find_source_for_path_resource(
+        GridPosition position,
+        ResourceId resource,
+        Quantity quantity);
     [[nodiscard]] Quantity projected_quantity(const BuildingInstance& building, ResourceId resource) const;
     [[nodiscard]] bool construction_materials_delivered(const BuildingInstance& site) const;
     [[nodiscard]] bool create_transport_job(
         BuildingInstance& source,
         BuildingInstance& destination,
         ResourceId resource,
-        Quantity quantity,
-        Tick delivery_ticks);
+        Quantity quantity);
     void complete_construction(BuildingInstance& site);
     bool start_recipe(BuildingInstance& building, const Recipe& recipe);
     void finish_recipe(BuildingInstance& building, const Recipe& recipe);
@@ -305,5 +331,6 @@ private:
 [[nodiscard]] const DiscoveryProjectDefinition& discovery_project_definition(DiscoveryProjectId project);
 [[nodiscard]] std::string_view discovery_project_start_blocker_text(
     DiscoveryProjectStartBlocker blocker);
+[[nodiscard]] std::string_view path_paving_blocker_text(PathPavingBlocker blocker);
 
 }

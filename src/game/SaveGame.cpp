@@ -19,7 +19,7 @@ namespace {
 constexpr std::array<std::uint8_t, 8> save_magic{
     'V', 'I', 'B', 'E', 'C', 'I', 'T', 'Y'
 };
-constexpr std::uint32_t save_version = 11;
+constexpr std::uint32_t save_version = 12;
 constexpr std::size_t save_header_size = save_magic.size() + sizeof(std::uint32_t)
     + sizeof(std::uint64_t) + sizeof(std::uint64_t);
 constexpr std::uint64_t max_save_bytes = 64 * 1024 * 1024;
@@ -442,6 +442,7 @@ void write_simulation(ByteWriter& writer, const Simulation& simulation)
     writer.i32(state.stats.constructed_buildings);
 
     if (state.paths.size() > std::numeric_limits<std::uint32_t>::max()
+        || state.paved_paths.size() > std::numeric_limits<std::uint32_t>::max()
         || state.terrain.size() > std::numeric_limits<std::uint32_t>::max()
         || state.map_resources.size() > std::numeric_limits<std::uint32_t>::max()
         || state.discovery_projects.size() > std::numeric_limits<std::uint32_t>::max()
@@ -452,6 +453,12 @@ void write_simulation(ByteWriter& writer, const Simulation& simulation)
 
     writer.u32(static_cast<std::uint32_t>(state.paths.size()));
     for (const auto path : state.paths) {
+        writer.i32(path.x);
+        writer.i32(path.y);
+    }
+
+    writer.u32(static_cast<std::uint32_t>(state.paved_paths.size()));
+    for (const auto path : state.paved_paths) {
         writer.i32(path.x);
         writer.i32(path.y);
     }
@@ -517,6 +524,18 @@ SimulationState read_simulation(ByteReader& reader, const BuildingCatalog& catal
     state.paths.reserve(path_count);
     for (auto index = std::uint32_t{0}; index < path_count; ++index) {
         state.paths.push_back(GridPosition{
+            .x = reader.i32(),
+            .y = reader.i32()
+        });
+    }
+
+    const auto paved_path_count = reader.u32();
+    if (paved_path_count > path_count) {
+        throw std::runtime_error("invalid paved path count in save");
+    }
+    state.paved_paths.reserve(paved_path_count);
+    for (auto index = std::uint32_t{0}; index < paved_path_count; ++index) {
+        state.paved_paths.push_back(GridPosition{
             .x = reader.i32(),
             .y = reader.i32()
         });

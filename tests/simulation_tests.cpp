@@ -354,6 +354,25 @@ void path_and_building_removal_free_tiles_without_regrowing_resources()
         vibecity::Footprint{2, 2}));
 }
 
+void paving_marks_existing_paths_and_clears_on_removal()
+{
+    auto map = vibecity::TileMap{12, 12};
+    const auto path = vibecity::GridPosition{2, 2};
+
+    VIBECITY_CHECK(!map.pave_path(path));
+    VIBECITY_CHECK(map.add_path(path));
+    VIBECITY_CHECK(map.pave_path(path));
+    VIBECITY_CHECK(map.has_path(path));
+    VIBECITY_CHECK(map.has_paved_path(path));
+    VIBECITY_CHECK(map.paved_path_positions().size() == 1);
+    VIBECITY_CHECK(!map.pave_path(path));
+
+    VIBECITY_CHECK(map.remove_path(path));
+    VIBECITY_CHECK(!map.has_path(path));
+    VIBECITY_CHECK(!map.has_paved_path(path));
+    VIBECITY_CHECK(map.paved_path_positions().empty());
+}
+
 void harvesting_prefers_nearest_then_topmost_resource()
 {
     auto map = vibecity::TileMap{12, 12};
@@ -875,6 +894,47 @@ void rainy_weather_slows_delivery_legs()
         == *clear_distance * vibecity::rain_transport_multiplier);
     VIBECITY_CHECK(simulation.transport_jobs().front().leg_ticks_total
         == vibecity::prototype_transport_leg_minutes);
+}
+
+void paved_paths_avoid_rain_delivery_penalty()
+{
+    vibecity::Simulation simulation;
+    simulation.run_for(2 * vibecity::ticks_per_day);
+    VIBECITY_CHECK(simulation.current_weather() == vibecity::WeatherId::Rain);
+
+    const auto storehouse = simulation.add_building_at(
+        vibecity::BuildingKind::Storehouse,
+        vibecity::GridPosition{1, 1});
+    const auto house = simulation.add_building_at(
+        vibecity::BuildingKind::House,
+        vibecity::GridPosition{8, 1});
+    for (int x = 1; x <= 8; ++x) {
+        VIBECITY_CHECK(simulation.add_path(vibecity::GridPosition{x, 0}));
+    }
+
+    simulation.grant_capability(vibecity::CapabilityId::Brickmaking);
+    VIBECITY_CHECK(simulation.building(storehouse).inventory.add(
+        vibecity::ResourceId::Bricks,
+        8));
+    for (int x = 1; x <= 8; ++x) {
+        VIBECITY_CHECK(simulation.pave_path(vibecity::GridPosition{x, 0}));
+    }
+
+    simulation.set_residents(house, 5);
+    VIBECITY_CHECK(simulation.building(storehouse).inventory.add(
+        vibecity::ResourceId::Bread,
+        10));
+
+    const auto clear_distance = simulation.map().path_distance_between_buildings(
+        *simulation.building(storehouse).position,
+        vibecity::building_definition(vibecity::BuildingKind::Storehouse).footprint,
+        *simulation.building(house).position,
+        vibecity::building_definition(vibecity::BuildingKind::House).footprint);
+    VIBECITY_CHECK(clear_distance.has_value());
+
+    simulation.tick();
+    VIBECITY_CHECK(simulation.transport_jobs().size() == 1);
+    VIBECITY_CHECK(simulation.transport_jobs().front().delivery_ticks == *clear_distance);
 }
 
 void disconnected_buildings_cannot_exchange_goods()
@@ -1483,6 +1543,7 @@ int main()
     construction_materials_include_terrain_surcharges();
     paths_and_buildings_clear_map_resources();
     path_and_building_removal_free_tiles_without_regrowing_resources();
+    paving_marks_existing_paths_and_clears_on_removal();
     harvesting_prefers_nearest_then_topmost_resource();
     path_distance_field_matches_pairwise_pathfinding();
     path_distance_field_can_be_reused_without_stale_distances();
@@ -1503,6 +1564,7 @@ int main()
     transport_job_keeps_dispatched_delivery_duration();
     weather_pattern_is_deterministic();
     rainy_weather_slows_delivery_legs();
+    paved_paths_avoid_rain_delivery_penalty();
     disconnected_buildings_cannot_exchange_goods();
     connected_paths_allow_goods_exchange();
     logistics_prefers_nearest_reachable_source();

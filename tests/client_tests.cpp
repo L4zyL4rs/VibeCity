@@ -289,17 +289,29 @@ void map_hover_text_reports_tile_contents()
     VIBECITY_CHECK(simulation.add_path(path_tile));
     VIBECITY_CHECK(
         vibecity::client::tile_inspection_text(simulation, path_tile)
-        == "tile 2,2 fertile path");
+        == "tile 2,2 fertile dirt path");
+
+    simulation.grant_capability(vibecity::CapabilityId::Brickmaking);
+    const auto storehouse = simulation.add_building_at(
+        vibecity::BuildingKind::Storehouse,
+        vibecity::GridPosition{1, 3});
+    VIBECITY_CHECK(simulation.building(storehouse).inventory.add(
+        vibecity::ResourceId::Bricks,
+        1));
+    VIBECITY_CHECK(simulation.pave_path(path_tile));
+    VIBECITY_CHECK(
+        vibecity::client::tile_inspection_text(simulation, path_tile)
+        == "tile 2,2 fertile paved path");
 
     const auto house = simulation.add_building_at(
         vibecity::BuildingKind::House,
         vibecity::GridPosition{3, 3});
-    VIBECITY_CHECK(house == 1);
+    VIBECITY_CHECK(house == 2);
     VIBECITY_CHECK(
         vibecity::client::tile_inspection_text(
             simulation,
             vibecity::GridPosition{3, 3})
-        == "tile 3,3 fertile #1 House");
+        == "tile 3,3 fertile #2 House");
 
     const auto deposits = simulation.map().map_resource_deposits();
     const auto stone = std::find_if(

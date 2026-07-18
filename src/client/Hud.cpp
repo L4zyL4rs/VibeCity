@@ -56,15 +56,22 @@ void draw_hud(SDL_Renderer* renderer,
     set_color(renderer, Color{60, 64, 64, 255});
     SDL_RenderFillRect(renderer, &separator);
 
-    constexpr std::array modes{ClientMode::Select, ClientMode::PlacePath, ClientMode::Demolish};
+    constexpr std::array modes{
+        ClientMode::Select,
+        ClientMode::PlacePath,
+        ClientMode::UpgradePath,
+        ClientMode::Demolish
+    };
     constexpr std::array colors{
         Color{170, 176, 176, 255},
         Color{82, 86, 86, 255},
+        Color{116, 106, 84, 255},
         Color{178, 82, 70, 255}
     };
     constexpr std::array labels{
         std::string_view{"1"},
         std::string_view{"2"},
+        std::string_view{"R"},
         std::string_view{"X"}
     };
     for (std::size_t index = 0; index < modes.size(); ++index) {

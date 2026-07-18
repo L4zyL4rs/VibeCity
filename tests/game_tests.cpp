@@ -228,6 +228,44 @@ void command_layer_removes_path_and_demolishes_building()
     VIBECITY_CHECK(threw);
 }
 
+void command_layer_paves_paths_with_connected_bricks()
+{
+    vibecity::GameSession game;
+    const auto path = vibecity::GridPosition{1, 0};
+
+    auto result = game.execute(vibecity::PlacePathCommand{.position = path});
+    VIBECITY_CHECK(result.success);
+    result = game.execute(vibecity::PavePathCommand{.position = path});
+    VIBECITY_CHECK(!result.success);
+    VIBECITY_CHECK(result.message == "paving needs brickmaking");
+
+    game.simulation().grant_capability(vibecity::CapabilityId::Brickmaking);
+    result = game.execute(vibecity::PavePathCommand{.position = path});
+    VIBECITY_CHECK(!result.success);
+    VIBECITY_CHECK(result.message == "paving needs connected bricks");
+
+    const auto storehouse = require_building(game, vibecity::PlaceBuildingCommand{
+        .kind = vibecity::BuildingKind::Storehouse,
+        .position = vibecity::GridPosition{1, 1}
+    });
+    require(game, vibecity::AddInventoryCommand{
+        .building = storehouse,
+        .resource = vibecity::ResourceId::Bricks,
+        .quantity = 2
+    });
+
+    result = game.execute(vibecity::PavePathCommand{.position = path});
+    VIBECITY_CHECK(result.success);
+    VIBECITY_CHECK(game.simulation().map().has_paved_path(path));
+    VIBECITY_CHECK(game.simulation().building(storehouse).inventory.quantity(
+            vibecity::ResourceId::Bricks)
+        == 1);
+
+    result = game.execute(vibecity::PavePathCommand{.position = path});
+    VIBECITY_CHECK(!result.success);
+    VIBECITY_CHECK(result.message == "path is already paved");
+}
+
 void invalid_command_reports_failure()
 {
     vibecity::GameSession game;
@@ -930,7 +968,7 @@ void invalid_save_is_rejected_without_replacing_session()
 
     auto version = read_bytes(valid_path);
     VIBECITY_CHECK(version.size() > 12);
-    version[8] = 12;
+    version[8] = 13;
     write_bytes(version_path, version);
 
     auto target = starting_village_session();
@@ -969,6 +1007,35 @@ void save_load_preserves_capabilities()
     VIBECITY_CHECK(loaded.load_from_file(path).success);
     VIBECITY_CHECK(loaded.simulation().has_capability(vibecity::CapabilityId::Pottery));
     VIBECITY_CHECK(!loaded.simulation().has_capability(vibecity::CapabilityId::Brickmaking));
+
+    std::filesystem::remove(path);
+}
+
+void save_load_preserves_paved_paths()
+{
+    const auto path = std::filesystem::temp_directory_path() / "vibecity-paved-path.vcs";
+    vibecity::GameSession game;
+    constexpr auto road = vibecity::GridPosition{1, 0};
+
+    require(game, vibecity::PlacePathCommand{.position = road});
+    game.simulation().grant_capability(vibecity::CapabilityId::Brickmaking);
+    const auto storehouse = require_building(game, vibecity::PlaceBuildingCommand{
+        .kind = vibecity::BuildingKind::Storehouse,
+        .position = vibecity::GridPosition{1, 1}
+    });
+    require(game, vibecity::AddInventoryCommand{
+        .building = storehouse,
+        .resource = vibecity::ResourceId::Bricks,
+        .quantity = 1
+    });
+    require(game, vibecity::PavePathCommand{.position = road});
+
+    VIBECITY_CHECK(game.save_to_file(path).success);
+
+    vibecity::GameSession loaded;
+    VIBECITY_CHECK(loaded.load_from_file(path).success);
+    VIBECITY_CHECK(loaded.simulation().map().has_path(road));
+    VIBECITY_CHECK(loaded.simulation().map().has_paved_path(road));
 
     std::filesystem::remove(path);
 }
@@ -1168,6 +1235,7 @@ int main()
 {
     command_layer_places_path_and_building();
     command_layer_removes_path_and_demolishes_building();
+    command_layer_paves_paths_with_connected_bricks();
     invalid_command_reports_failure();
     command_layer_rejects_locked_construction();
     command_layer_pauses_and_resumes_building_work();
@@ -1188,6 +1256,7 @@ int main()
     save_load_preserves_terrain_adjusted_construction_site();
     invalid_save_is_rejected_without_replacing_session();
     save_load_preserves_capabilities();
+    save_load_preserves_paved_paths();
     save_load_preserves_active_discovery_project();
     external_building_definition_runs_and_persists();
     single_production_chain_cannot_reach_25_residents();

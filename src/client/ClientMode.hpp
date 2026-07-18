@@ -5,6 +5,7 @@ namespace vibecity::client {
 enum class ClientMode {
     Select,
     PlacePath,
+    UpgradePath,
     Demolish,
     Build
 };
