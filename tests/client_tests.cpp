@@ -538,6 +538,81 @@ void discovery_project_detail_lines_show_readable_requirements()
         != brickmaking_lines.end());
 }
 
+void discovery_project_action_is_visible_and_clickable()
+{
+    auto simulation = vibecity::Simulation{};
+    VIBECITY_CHECK(simulation.add_path(vibecity::GridPosition{1, 0}));
+    VIBECITY_CHECK(simulation.set_map_resource(
+        vibecity::GridPosition{2, 1},
+        vibecity::MapResourceId::Clay,
+        2));
+    const auto house = simulation.add_building_at(
+        vibecity::BuildingKind::House,
+        vibecity::GridPosition{1, 1});
+
+    const auto action = vibecity::client::discovery_project_action(simulation, house);
+    VIBECITY_CHECK(action.has_value());
+    VIBECITY_CHECK(action->host == house);
+    VIBECITY_CHECK(action->project == vibecity::DiscoveryProjectId::PotteryExperiment);
+    VIBECITY_CHECK(action->can_start);
+    VIBECITY_CHECK(!action->active);
+    VIBECITY_CHECK(action->label == "START Pottery Experiment");
+    VIBECITY_CHECK(action->status == "STARTS, NEEDS DELIVERY");
+
+    const auto rect = vibecity::client::inspector_discovery_project_action_rect(1280, 800);
+    VIBECITY_CHECK(rect.has_value());
+    const auto hit = vibecity::client::discovery_project_action_at(
+        simulation,
+        house,
+        1280,
+        800,
+        rect->x + 4,
+        rect->y + 4);
+    VIBECITY_CHECK(hit.has_value());
+    VIBECITY_CHECK(hit->project == vibecity::DiscoveryProjectId::PotteryExperiment);
+    VIBECITY_CHECK(!vibecity::client::discovery_project_action_at(
+            simulation,
+            house,
+            1280,
+            800,
+            rect->x - 1,
+            rect->y + 4)
+            .has_value());
+
+    simulation.start_discovery_project(vibecity::DiscoveryProjectId::PotteryExperiment, house);
+    const auto active = vibecity::client::discovery_project_action(simulation, house);
+    VIBECITY_CHECK(active.has_value());
+    VIBECITY_CHECK(!active->can_start);
+    VIBECITY_CHECK(active->active);
+    VIBECITY_CHECK(active->label == "ACTIVE Pottery Experiment");
+    VIBECITY_CHECK(active->status == "WAITING FOR INPUTS");
+}
+
+void discovery_project_shortcut_uses_visible_action()
+{
+    auto game = vibecity::GameSession{};
+    VIBECITY_CHECK(game.simulation().add_path(vibecity::GridPosition{1, 0}));
+    VIBECITY_CHECK(game.simulation().set_map_resource(
+        vibecity::GridPosition{2, 1},
+        vibecity::MapResourceId::Clay,
+        2));
+    const auto house = game.simulation().add_building_at(
+        vibecity::BuildingKind::House,
+        vibecity::GridPosition{1, 1});
+
+    auto state = vibecity::client::ClientInteractionState{};
+    state.selected = house;
+    auto event = SDL_Event{};
+    event.type = SDL_KEYDOWN;
+    event.key.keysym.sym = SDLK_p;
+    vibecity::client::handle_event(game, state, event);
+
+    VIBECITY_CHECK(game.simulation().discovery_projects().size() == 1);
+    VIBECITY_CHECK(game.simulation().discovery_projects().front().project
+        == vibecity::DiscoveryProjectId::PotteryExperiment);
+    VIBECITY_CHECK(state.status == "discovery project started");
+}
+
 void construction_site_detail_lines_show_materials_and_labor()
 {
     auto simulation = vibecity::Simulation{};
@@ -652,6 +727,8 @@ int main()
     placement_blocker_text_reports_common_blocks();
     selected_logistics_lines_show_routes_and_reservations();
     discovery_project_detail_lines_show_readable_requirements();
+    discovery_project_action_is_visible_and_clickable();
+    discovery_project_shortcut_uses_visible_action();
     construction_site_detail_lines_show_materials_and_labor();
     escape_cancels_before_clearing_selection();
     transport_overlay_retains_completed_jobs_for_readability();

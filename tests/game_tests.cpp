@@ -533,6 +533,90 @@ void brickmaking_experiment_consumes_inputs_and_unlocks_brickyard()
     VIBECITY_CHECK(game.simulation().discovery_projects().empty());
 }
 
+void pottery_to_roadwork_playtest_route_runs()
+{
+    vibecity::GameSession game;
+    const auto house = prepare_pottery_project_host(game, 5);
+
+    require(game, vibecity::StartDiscoveryProjectCommand{
+        .project = vibecity::DiscoveryProjectId::PotteryExperiment,
+        .host = house
+    });
+    require(game, vibecity::AdvanceTimeCommand{.ticks = 720});
+    VIBECITY_CHECK(game.simulation().has_capability(vibecity::CapabilityId::Pottery));
+
+    for (int x = 5; x <= 12; ++x) {
+        require(game, vibecity::PlacePathCommand{.position = vibecity::GridPosition{x, 0}});
+    }
+
+    const auto potter_kind = game.simulation().building_catalog().find_kind("potter");
+    VIBECITY_CHECK(potter_kind.has_value());
+    const auto potter = require_building(game, vibecity::PlaceBuildingCommand{
+        .kind = *potter_kind,
+        .position = vibecity::GridPosition{7, 1}
+    });
+    VIBECITY_CHECK(game.simulation().set_map_resource(
+        vibecity::GridPosition{7, 3},
+        vibecity::MapResourceId::Clay,
+        vibecity::clay_tile_capacity));
+    require(game, vibecity::AddInventoryCommand{
+        .building = potter,
+        .resource = vibecity::ResourceId::Firewood,
+        .quantity = 10
+    });
+    require(game, vibecity::AdvanceTimeCommand{.ticks = 720});
+    VIBECITY_CHECK(game.simulation().building(potter).inventory.quantity(
+            vibecity::ResourceId::Pottery)
+        >= 4);
+
+    require(game, vibecity::AddInventoryCommand{
+        .building = potter,
+        .resource = vibecity::ResourceId::Pottery,
+        .quantity = 20
+    });
+    require(game, vibecity::StartDiscoveryProjectCommand{
+        .project = vibecity::DiscoveryProjectId::BrickmakingExperiment,
+        .host = potter
+    });
+    require(game, vibecity::AdvanceTimeCommand{.ticks = vibecity::ticks_per_day});
+    VIBECITY_CHECK(game.simulation().has_capability(vibecity::CapabilityId::Brickmaking));
+
+    const auto brickyard_kind = game.simulation().building_catalog().find_kind("brickyard");
+    VIBECITY_CHECK(brickyard_kind.has_value());
+    const auto brickyard = require_building(game, vibecity::PlaceBuildingCommand{
+        .kind = *brickyard_kind,
+        .position = vibecity::GridPosition{10, 1}
+    });
+    VIBECITY_CHECK(game.simulation().set_map_resource(
+        vibecity::GridPosition{10, 3},
+        vibecity::MapResourceId::Clay,
+        vibecity::clay_tile_capacity));
+    require(game, vibecity::AddInventoryCommand{
+        .building = brickyard,
+        .resource = vibecity::ResourceId::Firewood,
+        .quantity = 2
+    });
+    require(game, vibecity::AdvanceTimeCommand{.ticks = 720});
+    VIBECITY_CHECK(game.simulation().building(brickyard).inventory.quantity(
+            vibecity::ResourceId::Bricks)
+        >= 6);
+
+    require(game, vibecity::SetBuildingWorkEnabledCommand{
+        .building = potter,
+        .enabled = false
+    });
+    require(game, vibecity::SetBuildingWorkEnabledCommand{
+        .building = brickyard,
+        .enabled = false
+    });
+    const auto road = vibecity::GridPosition{9, 0};
+    require(game, vibecity::PavePathCommand{.position = road});
+    VIBECITY_CHECK(game.simulation().roadwork_site_at(road) != nullptr);
+    require(game, vibecity::AdvanceTimeCommand{.ticks = vibecity::paved_path_labor_minutes});
+    VIBECITY_CHECK(game.simulation().roadwork_sites().empty());
+    VIBECITY_CHECK(game.simulation().map().has_paved_path(road));
+}
+
 void brickmaking_experiment_requires_pottery_capability()
 {
     vibecity::GameSession game;
@@ -1316,6 +1400,7 @@ int main()
     command_layer_pauses_and_resumes_building_work();
     pottery_experiment_consumes_inputs_and_unlocks_buildings();
     brickmaking_experiment_consumes_inputs_and_unlocks_brickyard();
+    pottery_to_roadwork_playtest_route_runs();
     brickmaking_experiment_requires_pottery_capability();
     pottery_experiment_requests_physical_inputs();
     pottery_experiment_requires_nearby_clay();

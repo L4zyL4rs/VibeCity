@@ -40,7 +40,8 @@ for 30 days.
 - `L` or `Tab`: cycle default, resource, and terrain map lenses
 - Mouse wheel over the construction menu or inspector: scroll that panel
 - `Esc`: cancel placement or demolition, then clear the current selection
-- `P`: start the selected building's available discovery project, if ready
+- Click the selected building's inspector discovery action to start a project
+- `P`: shortcut for that same selected-building discovery action
 - `R`: road upgrade mode; queue roadwork on dirt paths with connected bricks
 - `O`: pause or resume work at the selected building
 - `F5`: save to `vibecity-save.vcs`
@@ -105,16 +106,22 @@ the second bakery is underway.
 Optional discovery check after the village is stable:
 
 1. Select an occupied house near clay.
-2. Use the selected-building discovery popup to identify missing firewood
-   delivery, clay in range, and road-access blockers.
-3. Once it reports the pottery experiment as ready, press `P`.
+2. Use the selected-building discovery popup and inspector action to identify
+   missing firewood delivery, clay in range, and road-access blockers.
+3. Click the inspector discovery action to start the pottery experiment once it
+   can start.
 4. Confirm the project requests firewood delivery to the house, consumes
    firewood and clay once ready, shows active labor, and unlocks potters and
    granaries when finished.
 5. Build a potter near clay, give it road access and the required inputs, then
-   press `P` from the selected potter to start brickmaking.
+   use the selected potter's inspector action to start brickmaking.
 6. Confirm brickmaking consumes firewood, pottery, and clay, then unlocks the
    brickyard.
+7. Build a brickyard near clay, supply firewood, produce bricks, enter road
+   upgrade mode with `R`, and queue at least a few roadwork tiles.
+8. Confirm roadwork consumes connected bricks when queued, shows active builder
+   labor, completes into paved paths, and those paved routes avoid rain
+   slowdown.
 
 The exact coordinates are not meant to be final gameplay advice. They are a
 control route matching the automated milestone test. The starter map is now

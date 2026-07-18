@@ -75,4 +75,5 @@ Client controls:
 - `Esc`: cancel placement or demolition, then clear the current selection
 - `F5`: save to `vibecity-save.vcs`
 - `F9`: load from `vibecity-save.vcs`
-- `P`: start the selected building's available discovery project
+- Click the selected building's inspector discovery action to start a project
+- `P`: shortcut for that same selected-building discovery action

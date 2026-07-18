@@ -120,13 +120,14 @@ understand when production stops or must move elsewhere.
   brickyards.
 - Active discovery projects persist through save/load and are shown in
   headless output and the settlement inspector.
-- The SDL client has a temporary interaction: select a valid project host and
-  press `P` to start that building's available discovery project.
+- The SDL client shows a selected-building inspector action for discovery
+  projects; clicking it starts a valid or input-waiting project. `P` remains as
+  a shortcut for the same action.
 - Selected project hosts show requirements, readiness, active material
   delivery, labor, and blockers for missing road access or nearby clay.
 - The SDL client also shows a larger discovery-project detail popup when a
-  relevant host is selected, so requirements are readable before a proper
-  project UI exists.
+  relevant host is selected, so requirements are readable before many more
+  projects exist.
 
 ## Implemented: Logistics Inspection
 
@@ -307,8 +308,8 @@ Suggested early-to-medieval ladder:
 
 ## Next Programming Slices
 
-1. Replace the temporary selected-host shortcut with a proper project UI for
-   starting available discovery projects.
+1. Add a dedicated discovery/project panel once there are enough projects that
+   selected-building actions become crowded.
 2. Connect the granary to a meaningful food-storage benefit once spoilage,
    storage quality, or stock targets exist.
 3. Add explicit map-destination logistics so roadwork bricks visibly travel to

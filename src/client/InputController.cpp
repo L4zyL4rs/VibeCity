@@ -231,6 +231,36 @@ void demolish_building(
     state.status = result.message;
 }
 
+void start_discovery_project(
+    GameSession& game,
+    ClientInteractionState& state,
+    const DiscoveryProjectAction& action)
+{
+    if (!action.can_start) {
+        state.status = action.status;
+        return;
+    }
+
+    const auto result = game.execute(StartDiscoveryProjectCommand{
+        .project = action.project,
+        .host = action.host
+    });
+    state.status = result.message;
+}
+
+void start_selected_discovery_project(GameSession& game, ClientInteractionState& state)
+{
+    const auto action = discovery_project_action(game.simulation(), state.selected);
+    if (!action.has_value()) {
+        state.status = state.selected.has_value()
+            ? "no project available"
+            : "no project host selected";
+        return;
+    }
+
+    start_discovery_project(game, state, *action);
+}
+
 void pave_path_tile(
     GameSession& game,
     ClientInteractionState& state,
@@ -343,27 +373,7 @@ void handle_keydown(GameSession& game, ClientInteractionState& state, SDL_Keycod
         break;
     }
     case SDLK_p:
-        if (!state.selected.has_value()) {
-            state.status = "no project host selected";
-        } else {
-            const auto project = game.simulation().discovery_project_for_host(*state.selected);
-            if (!project.has_value()) {
-                state.status = "no project available";
-                break;
-            }
-            if (!game.simulation().can_start_discovery_project(*project, *state.selected)) {
-                state.status = discovery_project_status_text(
-                    game.simulation(),
-                    *project,
-                    *state.selected);
-                break;
-            }
-            const auto result = game.execute(StartDiscoveryProjectCommand{
-                .project = *project,
-                .host = *state.selected
-            });
-            state.status = result.message;
-        }
+        start_selected_discovery_project(game, state);
         break;
     case SDLK_o:
         if (!state.selected.has_value()) {
@@ -517,6 +527,34 @@ void handle_build_menu_mouse_down(
     }
 }
 
+void handle_inspector_mouse_down(
+    GameSession& game,
+    ClientInteractionState& state,
+    Uint32 window_id,
+    int screen_x,
+    int screen_y)
+{
+    auto* window = SDL_GetWindowFromID(window_id);
+    if (window == nullptr) {
+        return;
+    }
+
+    auto width = 0;
+    auto height = 0;
+    SDL_GetWindowSize(window, &width, &height);
+
+    const auto action = discovery_project_action_at(
+        game.simulation(),
+        state.selected,
+        width,
+        height,
+        screen_x,
+        screen_y);
+    if (action.has_value()) {
+        start_discovery_project(game, state, *action);
+    }
+}
+
 void handle_mouse_wheel(ClientInteractionState& state, const SDL_MouseWheelEvent& wheel)
 {
     auto mouse_x = 0;
@@ -590,6 +628,17 @@ void handle_event(GameSession& game, ClientInteractionState& state, const SDL_Ev
             game,
             state,
             event.button.windowID,
+            event.button.y);
+    }
+
+    if (event.type == SDL_MOUSEBUTTONDOWN
+        && event.button.button == SDL_BUTTON_LEFT
+        && point_is_over_inspector(event.button.windowID, event.button.x, event.button.y)) {
+        handle_inspector_mouse_down(
+            game,
+            state,
+            event.button.windowID,
+            event.button.x,
             event.button.y);
     }
 

@@ -418,6 +418,15 @@ ResourceArray missing_project_inputs(
     return missing;
 }
 
+std::string strip_status_prefix(std::string status)
+{
+    constexpr auto prefix = std::string_view{"STATUS: "};
+    if (status.rfind(prefix, 0) == 0) {
+        status.erase(0, prefix.size());
+    }
+    return status;
+}
+
 std::string map_resource_availability_line(
     const Simulation& simulation,
     const BuildingInstance& host,
@@ -1081,6 +1090,44 @@ void draw_scrollbar(SDL_Renderer* renderer,
     SDL_RenderFillRect(renderer, &thumb_rect);
 }
 
+void draw_discovery_project_action_button(SDL_Renderer* renderer,
+    const Simulation& simulation,
+    std::optional<BuildingId> selected,
+    int window_width,
+    int window_height,
+    Color text,
+    Color muted)
+{
+    const auto action = discovery_project_action(simulation, selected);
+    const auto rect = inspector_discovery_project_action_rect(window_width, window_height);
+    if (!action.has_value() || !rect.has_value()) {
+        return;
+    }
+
+    const auto footer = SDL_Rect{
+        .x = rect->x - 8,
+        .y = rect->y - 8,
+        .w = rect->w + 16,
+        .h = window_height - rect->y + 8
+    };
+    set_color(renderer, Color{20, 23, 23, 252});
+    SDL_RenderFillRect(renderer, &footer);
+
+    if (action->can_start) {
+        set_color(renderer, Color{66, 112, 84, 255});
+    } else if (action->active) {
+        set_color(renderer, Color{96, 90, 66, 255});
+    } else {
+        set_color(renderer, Color{74, 70, 68, 255});
+    }
+    SDL_RenderFillRect(renderer, &*rect);
+    set_color(renderer, action->can_start ? Color{142, 190, 132, 255} : Color{92, 96, 94, 255});
+    SDL_RenderDrawRect(renderer, &*rect);
+
+    draw_text(renderer, rect->x + 10, rect->y + 7, truncate_text(action->label, 26), text, 2);
+    draw_text(renderer, rect->x + 10, rect->y + 25, truncate_text(action->status, 40), muted, 1);
+}
+
 }
 
 std::vector<std::string> selected_logistics_lines(
@@ -1261,6 +1308,103 @@ std::vector<std::string> discovery_project_detail_lines(
     return lines;
 }
 
+std::optional<DiscoveryProjectAction> discovery_project_action(
+    const Simulation& simulation,
+    std::optional<BuildingId> selected)
+{
+    if (!selected.has_value()) {
+        return std::nullopt;
+    }
+
+    const auto* selected_building = find_active_building(simulation, *selected);
+    if (selected_building == nullptr) {
+        return std::nullopt;
+    }
+
+    const auto project_id = simulation.discovery_project_for_host(selected_building->id);
+    if (!project_id.has_value()) {
+        return std::nullopt;
+    }
+
+    const auto& project = discovery_project_definition(*project_id);
+    const auto* active = active_project(simulation, *project_id);
+    if (active != nullptr && active->host != selected_building->id) {
+        return std::nullopt;
+    }
+
+    auto action = DiscoveryProjectAction{
+        .host = selected_building->id,
+        .project = *project_id,
+        .can_start = false,
+        .active = false,
+        .label = {},
+        .status = {}
+    };
+
+    if (active != nullptr) {
+        action.active = true;
+        action.label = "ACTIVE " + std::string{project.name};
+        if (!active->materials_consumed) {
+            action.status = "WAITING FOR INPUTS";
+        } else {
+            action.status = "LABOR LEFT "
+                + duration_text(std::max<Tick>(
+                    0,
+                    project.labor_minutes - active->labor_completed));
+        }
+        return action;
+    }
+
+    const auto start_status = simulation.discovery_project_start_status(
+        *project_id,
+        selected_building->id);
+    action.can_start = simulation.can_start_discovery_project(
+        *project_id,
+        selected_building->id);
+    action.label = (action.can_start ? "START " : "BLOCKED ") + std::string{project.name};
+    action.status = strip_status_prefix(discovery_project_status_line(project, start_status));
+    return action;
+}
+
+std::optional<SDL_Rect> inspector_discovery_project_action_rect(
+    int window_width,
+    int window_height)
+{
+    if (window_width < inspector_width || window_height < hud_height + 150) {
+        return std::nullopt;
+    }
+
+    return SDL_Rect{
+        .x = window_width - inspector_width + 18,
+        .y = window_height - 58,
+        .w = inspector_width - 36,
+        .h = 40
+    };
+}
+
+std::optional<DiscoveryProjectAction> discovery_project_action_at(
+    const Simulation& simulation,
+    std::optional<BuildingId> selected,
+    int window_width,
+    int window_height,
+    int screen_x,
+    int screen_y)
+{
+    const auto action = discovery_project_action(simulation, selected);
+    const auto rect = inspector_discovery_project_action_rect(window_width, window_height);
+    if (!action.has_value() || !rect.has_value()) {
+        return std::nullopt;
+    }
+
+    if (screen_x < rect->x
+        || screen_y < rect->y
+        || screen_x >= rect->x + rect->w
+        || screen_y >= rect->y + rect->h) {
+        return std::nullopt;
+    }
+    return action;
+}
+
 void draw_discovery_project_popup(SDL_Renderer* renderer,
     const Simulation& simulation,
     std::optional<BuildingId> selected)
@@ -1418,6 +1562,14 @@ InspectorScrollMetrics draw_inspector(SDL_Renderer* renderer,
         max_scroll,
         Color{44, 48, 48, 255},
         Color{116, 126, 124, 255});
+    draw_discovery_project_action_button(
+        renderer,
+        simulation,
+        selected,
+        width,
+        height,
+        text,
+        muted);
 
     return InspectorScrollMetrics{
         .offset = scroll_offset,

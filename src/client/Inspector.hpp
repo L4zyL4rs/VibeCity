@@ -18,6 +18,15 @@ struct InspectorScrollMetrics {
     int max_offset = 0;
 };
 
+struct DiscoveryProjectAction {
+    BuildingId host = 0;
+    DiscoveryProjectId project = DiscoveryProjectId::PotteryExperiment;
+    bool can_start = false;
+    bool active = false;
+    std::string label;
+    std::string status;
+};
+
 [[nodiscard]] std::string selected_summary(const Simulation& simulation, std::optional<BuildingId> selected);
 [[nodiscard]] std::vector<std::string> selected_logistics_lines(
     const Simulation& simulation,
@@ -28,6 +37,19 @@ struct InspectorScrollMetrics {
 [[nodiscard]] std::vector<std::string> discovery_project_detail_lines(
     const Simulation& simulation,
     std::optional<BuildingId> selected);
+[[nodiscard]] std::optional<DiscoveryProjectAction> discovery_project_action(
+    const Simulation& simulation,
+    std::optional<BuildingId> selected);
+[[nodiscard]] std::optional<SDL_Rect> inspector_discovery_project_action_rect(
+    int window_width,
+    int window_height);
+[[nodiscard]] std::optional<DiscoveryProjectAction> discovery_project_action_at(
+    const Simulation& simulation,
+    std::optional<BuildingId> selected,
+    int window_width,
+    int window_height,
+    int screen_x,
+    int screen_y);
 
 [[nodiscard]] InspectorScrollMetrics draw_inspector(SDL_Renderer* renderer,
     const Simulation& simulation,

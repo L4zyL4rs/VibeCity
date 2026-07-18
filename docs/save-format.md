@@ -25,6 +25,7 @@ The save contains all authoritative gameplay state required for deterministic co
   construction progress
 - active transport jobs and selected route durations
 - active discovery projects, material-consumed state, and labor progress
+- active roadwork sites and paving labor progress
 - accumulated production, consumption, transport, and construction statistics
 - unlocked settlement capabilities
 - village objective history
@@ -37,7 +38,7 @@ Saving writes a temporary file and then replaces the previous save. Loading pars
 
 ## Binary Layout
 
-Version 12 is an explicitly little-endian binary format:
+Version 13 is an explicitly little-endian binary format:
 
 1. Eight-byte `VIBECITY` magic.
 2. Unsigned 32-bit format version.
@@ -51,6 +52,8 @@ Buildings and transport-job resources use stable string IDs in the payload.
 Unlocked capabilities also use stable string IDs in the payload.
 Discovery projects use stable string IDs and keep their host building ID,
 material-consumed state, and labor progress.
+Roadwork sites store their path tile, required labor, completed labor, assigned
+builders, and current blocking reason.
 Fixed-size resource arrays remain in the documented core resource order: grain,
 bread, timber, firewood, stone, tools, bricks, pottery. The payload also stores a
 deterministic fingerprint of every simulation-relevant building field.
@@ -67,6 +70,7 @@ The loader rejects:
 - invalid, duplicate, or overlapping terrain and map-resource deposits
 - invalid or duplicate capability IDs
 - invalid or duplicate active discovery projects
+- invalid or duplicate active roadwork sites
 - inventory quantities or reservations outside capacity
 - transport jobs whose reservations do not match inventories
 - building state that does not match the current building definitions
@@ -74,7 +78,7 @@ The loader rejects:
 
 ## Version Policy
 
-There is no migration layer yet. Versions 1 through 11 are rejected. Any incompatible
+There is no migration layer yet. Versions 1 through 12 are rejected. Any incompatible
 payload change must increment the save version and either add an explicit
 migration or reject older saves with a clear error. Simulation-relevant building
 definition changes are detected by the catalog fingerprint without silently

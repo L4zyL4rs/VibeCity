@@ -25,10 +25,10 @@ The player should be able to:
   connected brick when started, and complete through builder labor. The
   remaining simplification is that bricks do not yet travel to the road tile as
   explicit logistics jobs.
-- Discovery UI: replace the selected-host `P` shortcut with a small project UI
-  before adding many more projects.
-- Playtest checklist: update the reference route so it includes pottery,
-  brickmaking, brickyard construction, brick production, and road paving.
+- Discovery UI: selected project hosts show a readable popup plus a clickable
+  inspector action; `P` remains a shortcut for the same action.
+- Playtest checklist: the reference route includes pottery, brickmaking,
+  brickyard construction, brick production, and roadwork.
 
 ## Backlog Until After Playtest
 
