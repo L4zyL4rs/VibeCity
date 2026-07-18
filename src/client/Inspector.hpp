@@ -22,6 +22,9 @@ struct InspectorScrollMetrics {
 [[nodiscard]] std::vector<std::string> selected_logistics_lines(
     const Simulation& simulation,
     BuildingId selected);
+[[nodiscard]] std::vector<std::string> construction_site_detail_lines(
+    const Simulation& simulation,
+    BuildingId selected);
 [[nodiscard]] std::vector<std::string> discovery_project_detail_lines(
     const Simulation& simulation,
     std::optional<BuildingId> selected);

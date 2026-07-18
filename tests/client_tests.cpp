@@ -530,6 +530,35 @@ void discovery_project_detail_lines_show_readable_requirements()
         != brickmaking_lines.end());
 }
 
+void construction_site_detail_lines_show_materials_and_labor()
+{
+    auto simulation = vibecity::Simulation{};
+    const auto site = simulation.place_construction_at(
+        vibecity::BuildingKind::Farm,
+        vibecity::GridPosition{1, 1});
+
+    auto lines = vibecity::client::construction_site_detail_lines(simulation, site);
+    VIBECITY_CHECK(std::find(lines.begin(), lines.end(), "TARGET: Farm") != lines.end());
+    VIBECITY_CHECK(std::find(lines.begin(), lines.end(), "STATUS: WAITING FOR MATERIALS") != lines.end());
+    VIBECITY_CHECK(std::find(lines.begin(), lines.end(), "REQUIRED: 8 TIMBER") != lines.end());
+    VIBECITY_CHECK(std::find(lines.begin(), lines.end(), "DELIVERED: NONE") != lines.end());
+    VIBECITY_CHECK(std::find(lines.begin(), lines.end(), "MISSING: 8 TIMBER") != lines.end());
+    VIBECITY_CHECK(std::find(lines.begin(), lines.end(), "BUILDERS: 0/3") != lines.end());
+    VIBECITY_CHECK(std::find(lines.begin(), lines.end(), "LABOR LEFT: 60 HOURS") != lines.end());
+
+    VIBECITY_CHECK(simulation.building(site).inventory.add(
+        vibecity::ResourceId::Timber,
+        3));
+    VIBECITY_CHECK(simulation.building(site).inventory.reserve_incoming(
+        vibecity::ResourceId::Timber,
+        2));
+
+    lines = vibecity::client::construction_site_detail_lines(simulation, site);
+    VIBECITY_CHECK(std::find(lines.begin(), lines.end(), "DELIVERED: 3 TIMBER") != lines.end());
+    VIBECITY_CHECK(std::find(lines.begin(), lines.end(), "INCOMING: 2 TIMBER") != lines.end());
+    VIBECITY_CHECK(std::find(lines.begin(), lines.end(), "MISSING: 3 TIMBER") != lines.end());
+}
+
 void escape_cancels_before_clearing_selection()
 {
     auto state = vibecity::client::ClientInteractionState{};
@@ -615,6 +644,7 @@ int main()
     placement_blocker_text_reports_common_blocks();
     selected_logistics_lines_show_routes_and_reservations();
     discovery_project_detail_lines_show_readable_requirements();
+    construction_site_detail_lines_show_materials_and_labor();
     escape_cancels_before_clearing_selection();
     transport_overlay_retains_completed_jobs_for_readability();
 

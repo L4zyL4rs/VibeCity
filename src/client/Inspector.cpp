@@ -134,6 +134,52 @@ std::string resource_amounts_text(const ResourceArray& amounts)
     return wrote_amount ? output.str() : "NONE";
 }
 
+std::string resource_capacities_text(const BuildingInstance& building)
+{
+    auto amounts = empty_resources();
+    for (std::size_t index = 0; index < resource_count; ++index) {
+        const auto resource = static_cast<ResourceId>(index);
+        amounts[index] = building.inventory.capacity(resource);
+    }
+    return resource_amounts_text(amounts);
+}
+
+ResourceArray construction_delivered_amounts(const BuildingInstance& building)
+{
+    auto amounts = empty_resources();
+    for (std::size_t index = 0; index < resource_count; ++index) {
+        const auto resource = static_cast<ResourceId>(index);
+        amounts[index] = building.inventory.quantity(resource);
+    }
+    return amounts;
+}
+
+ResourceArray construction_incoming_amounts(const BuildingInstance& building)
+{
+    auto amounts = empty_resources();
+    for (std::size_t index = 0; index < resource_count; ++index) {
+        const auto resource = static_cast<ResourceId>(index);
+        amounts[index] = building.inventory.reserved_incoming(resource);
+    }
+    return amounts;
+}
+
+ResourceArray construction_missing_amounts(const BuildingInstance& building)
+{
+    auto amounts = empty_resources();
+    for (std::size_t index = 0; index < resource_count; ++index) {
+        const auto resource = static_cast<ResourceId>(index);
+        const auto required = building.inventory.capacity(resource);
+        if (required <= 0) {
+            continue;
+        }
+        const auto supplied = building.inventory.quantity(resource)
+            + building.inventory.reserved_incoming(resource);
+        amounts[index] = std::max<Quantity>(0, required - supplied);
+    }
+    return amounts;
+}
+
 std::string truncate_text(std::string text, std::size_t maximum)
 {
     if (text.size() <= maximum) {
@@ -202,6 +248,44 @@ std::string transport_state_label(TransportJobState state)
         return "FAILED";
     }
     return "UNKNOWN";
+}
+
+std::string construction_status_label(const BuildingInstance& site)
+{
+    if (!site.work_enabled) {
+        return "WORK PAUSED";
+    }
+    if (site.assigned_builders > 0) {
+        return "BUILDING";
+    }
+
+    switch (site.blocking_reason) {
+    case BlockingReason::MissingConstructionMaterial:
+        return "WAITING FOR MATERIALS";
+    case BlockingReason::NoReachableSource:
+        return "NO REACHABLE MATERIAL SOURCE";
+    case BlockingReason::WaitingForHauler:
+        return "WAITING FOR HAULER";
+    case BlockingReason::WaitingForBuilderLabor:
+        return "WAITING FOR BUILDERS";
+    case BlockingReason::WorkDisabled:
+        return "WORK PAUSED";
+    case BlockingReason::None:
+    case BlockingReason::NotEnoughWorkers:
+    case BlockingReason::MissingInput:
+    case BlockingReason::OutputStorageFull:
+    case BlockingReason::MissingBread:
+    case BlockingReason::NoNearbyMapResource:
+        break;
+    }
+
+    if (resource_total(construction_missing_amounts(site)) > 0) {
+        return "WAITING FOR MATERIALS";
+    }
+    if (site.construction_labor_completed < site.construction_labor_required) {
+        return "WAITING FOR BUILDERS";
+    }
+    return "READY";
 }
 
 ResourceArray reserved_amounts(const BuildingInstance& building, bool incoming)
@@ -797,20 +881,16 @@ int draw_inspector_content(SDL_Renderer* renderer,
     if (instance_definition.internal_construction_site
         && building.construction_target.has_value()) {
         operating_definition = &simulation.definition(*building.construction_target);
-        auto target = std::ostringstream{};
-        target << "TARGET: " << operating_definition->name;
-        draw_text(renderer, x, y, target.str(), muted, 2);
-        y += 20;
-
-        auto labor = std::ostringstream{};
-        labor << "LABOR: " << building.construction_labor_completed << "/" << building.construction_labor_required;
-        draw_text(renderer, x, y, labor.str(), muted, 2);
-        y += 20;
-
-        auto builders = std::ostringstream{};
-        builders << "BUILDERS: " << building.assigned_builders;
-        draw_text(renderer, x, y, builders.str(), muted, 2);
-        y += 28;
+        const auto construction_lines = construction_site_detail_lines(simulation, building.id);
+        if (!construction_lines.empty()) {
+            draw_text(renderer, x, y, "CONSTRUCTION", text, 2);
+            y += 24;
+            for (const auto& line : construction_lines) {
+                draw_text(renderer, x, y, line, muted, 1);
+                y += 16;
+            }
+            y += 8;
+        }
     }
 
     if (operating_definition->recipe.has_value()) {
@@ -1035,6 +1115,40 @@ std::vector<std::string> selected_logistics_lines(
         lines.push_back(truncate_text(line.str(), 48));
     }
 
+    return lines;
+}
+
+std::vector<std::string> construction_site_detail_lines(
+    const Simulation& simulation,
+    BuildingId selected)
+{
+    auto lines = std::vector<std::string>{};
+    const auto* site = find_active_building(simulation, selected);
+    if (site == nullptr || !site->construction_target.has_value()
+        || !simulation.definition(site->kind).internal_construction_site) {
+        return lines;
+    }
+
+    const auto& target = simulation.definition(*site->construction_target);
+    const auto delivered = construction_delivered_amounts(*site);
+    const auto incoming = construction_incoming_amounts(*site);
+    const auto missing = construction_missing_amounts(*site);
+    const auto labor_left = std::max<Tick>(
+        0,
+        site->construction_labor_required - site->construction_labor_completed);
+
+    lines.push_back("TARGET: " + target.name);
+    lines.push_back("STATUS: " + construction_status_label(*site));
+    lines.push_back("REQUIRED: " + resource_capacities_text(*site));
+    lines.push_back("DELIVERED: " + resource_amounts_text(delivered));
+    if (resource_total(incoming) > 0) {
+        lines.push_back("INCOMING: " + resource_amounts_text(incoming));
+    }
+    lines.push_back("MISSING: " + resource_amounts_text(missing));
+    lines.push_back(
+        "BUILDERS: " + std::to_string(site->assigned_builders)
+        + "/" + std::to_string(prototype_builders_per_site));
+    lines.push_back("LABOR LEFT: " + duration_text(labor_left));
     return lines;
 }
 

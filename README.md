@@ -20,6 +20,9 @@ the current map-resource milestone.
 See [docs/playtest-checklist.md](docs/playtest-checklist.md) for the current
 village playtest script and feedback checklist.
 
+See [docs/next-playtest-roadmap.md](docs/next-playtest-roadmap.md) for the
+roadmap toward the next pottery/brickmaking playtest.
+
 See [docs/playtest-2026-06-25.md](docs/playtest-2026-06-25.md) for the first
 manual playtest findings and implemented response.
 

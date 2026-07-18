@@ -170,7 +170,8 @@ When I ask for detailed input, please report these points:
   resource marker clear?
 - Depletion: after several production cycles, can you identify which nearby
   forest, stone, or clay tiles were consumed?
-- Construction: could you tell which site was next and whether builders were working?
+- Construction: could you tell what a selected site will become, which
+  materials are delivered/incoming/missing, and whether builders are working?
 - Pacing: which speed did you use, and where did waiting feel too slow or too fast?
 - Controls: any accidental mode switches, placement mistakes, camera issues, or unclear buttons.
 - Work pause: can you recover from too many workplaces by pausing selected

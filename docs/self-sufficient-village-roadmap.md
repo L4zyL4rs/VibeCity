@@ -61,7 +61,9 @@ Already implemented:
   houses, a quarry, and a second storehouse, then reaches 25 residents and
   stays fed for several days.
 - SDL client with placement, inspector, economy summary, logistics reservation summary, objective summary, transport overlay, and drag path placement.
-- SDL client shows construction queue focus and per-site construction progress.
+- SDL client shows construction queue focus and per-site construction target,
+  material delivery, missing materials, incoming materials, builder count, and
+  labor progress.
 - Catalog-driven construction menu shows each building's material and labor
   requirements and supports custom definitions.
 - Cursor-centered map zoom, larger default tiles, and an interior starting
